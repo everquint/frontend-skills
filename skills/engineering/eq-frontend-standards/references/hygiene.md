@@ -188,59 +188,63 @@ trailing whitespace because two trailing spaces is a hard line break.
 | `.github/pull_request_template.md` | forces a "how this was verified" line, so an unverified claim is visible |
 | `renovate.json` | dependency updates from a shared org preset |
 | `.env.example` | every variable the app reads, with dummy values |
+| `.claude/` | the shared agent config — settings, hooks, reviewer agents, commands, vendored skills |
+
+**`.claude/` is repo policy, and it is committed.** The tree ships in `starter/.claude/` and
+`init-greenfield.mjs` lands it — settings, two hooks, the `code-reviewer` and `conventions-reviewer`
+agents that make the two-review gate runnable, and `commands/pre-pr.md`. Read those files for what
+each does. Two things a hand-copy forgets: `.claude/hooks/*` is chmod `0o755`, because a hook that
+is not executable does not run and reports nothing; and `--vendor-skills` copies the skills into
+`.claude/skills/` as **real files**, so the version in `.eq-frontend-skills.json` describes something
+a clone actually has.
 
 **Renovate over Dependabot when an org has many repos.** Dependabot config is per-repo, so a policy
 change means editing every repository. Renovate reads one shared preset — `renovate.json` is
-`{ "extends": ["local>your-org/renovate-config"] }` — so grouping, schedule, and automerge rules change
-in a single PR.
+`{ "extends": ["local>your-org/renovate-config"] }` — so grouping, schedule and automerge rules change in one PR.
 
 **Secrets are never committed** — no `.env`, no real values in `*.example`, no tokens in CI YAML (use
 repository or org secrets). Validate environment variables with a `zod` schema at startup and throw on
-failure. A missing variable then fails at boot naming the variable, instead of surfacing as `undefined`
-in a URL, a request to `https://undefined/api`, and a 404 nobody can trace.
+failure, so a missing variable fails at boot naming the variable instead of surfacing as `undefined` in
+a URL, a request to `https://undefined/api`, and a 404 nobody can trace.
 
 ## 10. What must never be gitignored
 
 **The directory holding shared agent skills, rules, and hook config** — `.claude/`, `.cursor/`, or the
-equivalent. Ignoring it is the most common way a standard silently becomes one developer's local
-setup: it works for the author, every teammate gets an empty clone with no hooks and no skills, and the
-repo looks compliant while nothing is enforced. Commit skills, rules, agent definitions, hook scripts,
-and the shared settings file; ignore only genuinely personal files:
+equivalent. Ignoring it is the most common way a standard silently becomes one developer's local setup:
+it works for the author, every teammate gets an empty clone with no hooks and no skills, and the repo
+looks compliant while nothing is enforced. Commit **all of it**, skills included; ignore only personal files:
 
 ```gitignore
 .claude/settings.local.json
 .claude/*.local.*
+.agents
+skills-lock.json
 ```
+
+`.claude/skills` is **not** on that list, and its absence is the decision: skills are vendored as real
+copied files by `init-greenfield.mjs --vendor-skills`, so the standard a clone gets is the one
+`.eq-frontend-skills.json` records. **Never commit the symlink form.** `npx skills add` creates
+`.claude/skills` as a symlink into `~/.agents/skills` — correct for a *personal* install. Git stores a
+symlink as its target path, so committing it gives every teammate a link to a directory on one machine:
+resolves for the author, dangling for everyone else. Vendor, or ignore; never commit the link. `.agents`
+and `skills-lock.json` are that personal install's own artifacts and stay ignored.
 
 Same for `.husky/` — commit it, or `prepare` installs nothing on a fresh clone and the hooks exist only
 where they were written.
 
 ## Installing these skills changes what your linter sees
 
-`npx skills add` writes the skill folders into the repo — `.agents/skills/` and `.claude/skills/`
-— and those folders contain the skills' own Node scripts. A flat-config `ignores` list that does not
-exclude them will lint those scripts as if they were your source.
-
-Measured on a real repo: installing produced **90 spurious `no-undef` errors** against the skills'
-`.mjs` files, taking a repo from 2 lint errors to 92 and making it look as though enabling new rules
-had broken the build. Add both paths to the ignores list before running any measurement:
+Skill folders — `.agents/skills/` from a personal install, `.claude/skills/` once vendored — hold the
+skills' own Node scripts. A flat-config `ignores` list that does not exclude them lints those scripts
+as if they were your source. Measured on a real repo: installing produced **90 spurious `no-undef`
+errors** against the skills' `.mjs` files, taking a repo from 2 lint errors to 92 and making it look
+as though enabling new rules had broken the build. Vendoring makes that permanent rather than local
+to one machine, so these entries are mandatory, not a measurement-time workaround:
 
 ```js
-{ ignores: ['node_modules', 'dist', '.agents', '.claude'] }
+globalIgnores(['dist', 'build', 'coverage', '.agents', '.claude/skills']);
 ```
 
-Then decide the `.gitignore` question deliberately. **Do not blanket-ignore `.claude`** — that is
-where committed, shared agent config lives, and ignoring all of it means a teammate gets nothing on
-clone and the standard silently applies to one machine only. Ignore the installed skill folders and
-personal overrides; commit the rest:
-
-```gitignore
-.agents
-.claude/skills
-.claude/settings.local.json
-skills-lock.json
-```
-
-**No trailing slashes on those two paths.** The installer creates `.claude/skills` as a *symlink*,
-and a `dir/` pattern matches only a real directory — so `.claude/skills/` silently fails to ignore
-it and the link gets committed.
+`.claude/skills` and not `.claude` — the rest of the tree is small, hand-written, and worth linting.
+Lint-ignored and git-ignored point opposite ways here: `.claude/skills` is **excluded from linting
+and committed to git** (§10). Missing that distinction is what produces the 90-error jump.

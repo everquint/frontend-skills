@@ -1,9 +1,16 @@
-# Installed agent skills. No trailing slashes: the installer creates .claude/skills as a
-# SYMLINK, and a `dir/` pattern matches only a real directory.
-.agents
-.claude/skills
+# .claude/ is COMMITTED repo policy, not per-developer config: settings, hooks, reviewer agents,
+# commands, and the skills themselves are inherited on clone. Skills are VENDORED there as real
+# copied files (init-greenfield.mjs --vendor-skills), so every teammate gets the exact standard
+# this repo was migrated to. `npx skills add` instead creates .claude/skills as a SYMLINK into
+# ~/.agents/skills — that is the shape of a personal install, and git stores a symlink as its
+# target path, so committing it would hand teammates a broken link to a path on one machine.
+# Deliberately not what a repo commits, which is why .claude/skills is absent below.
+#
+# Ignore only what is genuinely personal, plus the home-side artifacts `npx skills add` drops here.
+# No trailing slashes: those artifacts can be symlinks, and a `dir/` pattern matches only a real
+# directory — so `.agents/` silently fails to ignore a symlinked `.agents` and the link gets
+# committed.
 .claude/settings.local.json
+.claude/*.local.*
+.agents
 skills-lock.json
-
-# Never blanket-ignore .claude — that is where committed, shared agent config lives, and
-# ignoring all of it means a teammate gets nothing on clone.
