@@ -235,8 +235,12 @@ clone and the standard silently applies to one machine only. Ignore the installe
 personal overrides; commit the rest:
 
 ```gitignore
-.agents/
-.claude/skills/
+.agents
+.claude/skills
 .claude/settings.local.json
 skills-lock.json
 ```
+
+**No trailing slashes on those two paths.** The installer creates `.claude/skills` as a *symlink*,
+and a `dir/` pattern matches only a real directory — so `.claude/skills/` silently fails to ignore
+it and the link gets committed.
