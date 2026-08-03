@@ -214,3 +214,29 @@ and the shared settings file; ignore only genuinely personal files:
 
 Same for `.husky/` — commit it, or `prepare` installs nothing on a fresh clone and the hooks exist only
 where they were written.
+
+## Installing these skills changes what your linter sees
+
+`npx skills add` writes the skill folders into the repo — `.agents/skills/` and `.claude/skills/`
+— and those folders contain the skills' own Node scripts. A flat-config `ignores` list that does not
+exclude them will lint those scripts as if they were your source.
+
+Measured on a real repo: installing produced **90 spurious `no-undef` errors** against the skills'
+`.mjs` files, taking a repo from 2 lint errors to 92 and making it look as though enabling new rules
+had broken the build. Add both paths to the ignores list before running any measurement:
+
+```js
+{ ignores: ['node_modules', 'dist', '.agents', '.claude'] }
+```
+
+Then decide the `.gitignore` question deliberately. **Do not blanket-ignore `.claude`** — that is
+where committed, shared agent config lives, and ignoring all of it means a teammate gets nothing on
+clone and the standard silently applies to one machine only. Ignore the installed skill folders and
+personal overrides; commit the rest:
+
+```gitignore
+.agents/
+.claude/skills/
+.claude/settings.local.json
+skills-lock.json
+```
