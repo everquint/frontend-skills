@@ -12,8 +12,10 @@
 // every file and can exceed two minutes on ~1,500 files.
 
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, existsSync, readdirSync } from 'node:fs';
+import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const arg = (flag, fallback) => {
     const i = process.argv.indexOf(flag);
@@ -78,24 +80,50 @@ export default [
 `);
 
 let out = '';
+let errOut = '';
 try {
     out = execFileSync('npx', ['eslint', '--no-config-lookup', '-c', probe, dir, '--format', 'json'],
-        { cwd, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+        { cwd, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
 } catch (err) {
     // ESLint exits non-zero whenever it reports anything; stdout is still the report.
     out = err.stdout ?? '';
+    errOut = err.stderr ?? '';
     if (!out) {
-        console.error('ESLint produced no output. Is eslint installed in this repo? Try a smaller --dir.');
-        unlinkSync(probe);
+        // Discarding stderr here misdiagnoses every config-loading failure as "eslint missing".
+        // A base config that exports an object rather than an array fails at the spread in the
+        // probe, which has nothing to do with installation.
+        console.error('ESLint produced no report. Its own error follows:\n');
+        console.error(errOut.trim() || '(no stderr — try a smaller --dir, or check that eslint is installed)');
         process.exit(1);
     }
-} finally {
-    if (existsSync(probe)) unlinkSync(probe);
 }
 
 const results = JSON.parse(out);
 const counts = new Map();
 const files = new Map();
+
+// A fatal parse error arrives as a message with `ruleId: null`. Silently skipping those reports a
+// repo with an unparseable file as "fully compliant" — the user then enables rules at `error` on
+// that evidence and their CI goes red. Refusing to report is the only safe behaviour.
+const unparseable = results.filter((f) => f.messages.some((m) => m.fatal || (m.ruleId === null && m.severity === 2)));
+if (unparseable.length) {
+    console.error(`\n✗ ${unparseable.length} file(s) could not be parsed, so the measurement is incomplete.`);
+    console.error(`  Reporting counts now would understate them. Fix the parse errors first.\n`);
+    for (const f of unparseable.slice(0, 10)) {
+        const m = f.messages.find((x) => x.fatal || x.ruleId === null);
+        console.error(`  ${f.filePath.replace(cwd + '/', '')}:${m?.line ?? '?'}  ${m?.message ?? ''}`);
+    }
+    if (unparseable.length > 10) console.error(`  … and ${unparseable.length - 10} more`);
+    console.error(`\n  Most often the base config has no parser configured for these files,`);
+    console.error(`  or --dir points outside the config's own \`files\` scope.\n`);
+    process.exit(1);
+}
+
+if (results.length === 0) {
+    console.error(`\n✗ ESLint scanned 0 files under ${dir}/. Nothing was measured.`);
+    console.error(`  Check that the path exists and is not excluded by the base config's ignores.\n`);
+    process.exit(1);
+}
 
 for (const file of results) {
     for (const msg of file.messages) {
@@ -117,13 +145,26 @@ const classify = (id) => {
     return 'real';
 };
 
+// Resolve the plugin the way Node does, from the target repo. A hand-built
+// `cwd/node_modules/...` path misses a hoisted monorepo install and Yarn PnP entirely — and it
+// would throw AFTER a measurement that can take minutes, discarding the whole result.
+const loadHookRuleIds = async () => {
+    try {
+        const require = createRequire(join(cwd, 'package.json'));
+        const entry = require.resolve('eslint-plugin-react-hooks');
+        const mod = await import(pathToFileURL(entry).href);
+        const rules = (mod.default ?? mod).rules;
+        if (!rules || !Object.keys(rules).length) throw new Error('plugin exports no rules');
+        return Object.keys(rules).map((r) => `react-hooks/${r}`);
+    } catch (err) {
+        console.error(`\n✗ Could not load eslint-plugin-react-hooks from ${cwd}: ${err.message}`);
+        console.error(`  It is required for --set react-hooks. Install it, or use --set budgets.\n`);
+        process.exit(1);
+    }
+};
+
 const allRuleIds = [
-    ...(wantHooks
-        ? readdirSync(join(cwd, 'node_modules/eslint-plugin-react-hooks')).length
-            ? Object.keys((await import(join(cwd, 'node_modules/eslint-plugin-react-hooks/index.js'))).default?.rules ?? {})
-                .map((r) => `react-hooks/${r}`)
-            : []
-        : []),
+    ...(wantHooks ? await loadHookRuleIds() : []),
     ...(wantBudgets ? Object.keys(BUDGETS) : []),
 ];
 

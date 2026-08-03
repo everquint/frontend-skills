@@ -27,15 +27,15 @@ For maintainers of this repo, `npm run link` symlinks every skill into `~/.claud
 
 | Skill | Loads when |
 |---|---|
-| `frontend-standards` | writing or reviewing code; setting up lint; auditing a repo against the standard; judging whether a finding is a real defect |
-| `frontend-workflow` | starting a feature; choosing branch vs worktree; writing commits; opening a PR; merging; releasing; reverting |
-| `frontend-quality-bar` | writing tests; wiring coverage gates; adding error reporting; setting bundle budgets; verifying accessibility; reviewing code that renders untrusted HTML |
+| `eq-frontend-standards` | writing or reviewing code; setting up lint; auditing a repo against the standard; judging whether a finding is a real defect |
+| `eq-frontend-workflow` | starting a feature; choosing branch vs worktree; writing commits; opening a PR; merging; releasing; reverting |
+| `eq-frontend-quality-bar` | writing tests; wiring coverage gates; adding error reporting; setting bundle budgets; verifying accessibility; reviewing code that renders untrusted HTML |
 
 ## Updating
 
 ```bash
 npx skills update                    # refresh all installed skills
-npx skills update frontend-standards # just one
+npx skills update eq-frontend-standards # just one
 ```
 
 That refreshes the skill **text**. It changes no repo's ESLint config, hooks, or CI — so a repo
@@ -43,8 +43,9 @@ silently stops complying the moment the standard moves. Each migrated repo there
 version in `.eq-frontend-skills.json`, and CI checks it:
 
 ```bash
-node .../scripts/standard-check.mjs --check     # exit 1 if behind or never migrated
-node .../scripts/standard-check.mjs --record    # after migrating
+# the scripts live beside the installed skill, not in the repo being audited
+node ~/.claude/skills/eq-frontend-standards/scripts/standard-check.mjs --check     # exit 1 if behind or never migrated
+node ~/.claude/skills/eq-frontend-standards/scripts/standard-check.mjs --record    # after migrating
 ```
 
 When a repo is behind, the check prints the named migration steps between its recorded version and

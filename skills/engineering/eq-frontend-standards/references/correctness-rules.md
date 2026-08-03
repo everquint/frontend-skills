@@ -9,7 +9,7 @@ earns a place here only if you can write that scenario down.
 | 1 | No components defined inside another component's body | `react/no-unstable-nested-components` + `react-hooks/static-components` |
 | 2 | No index keys in lists that reorder, filter, or poll | `react/no-array-index-key` (**off by default**) |
 | 3 | No state-writing effect keyed on an unstable identity | `exhaustive-deps` partly; identity half **reviewer** |
-| 4 | `useEffect` callbacks are never `async` | `@typescript-eslint/no-misused-promises` (`checksVoidReturn.arguments`) |
+| 4 | `useEffect` callbacks are never `async` | `react-hooks/exhaustive-deps` |
 | 5 | Every promise awaited, caught, or explicitly `void`ed | `@typescript-eslint/no-floating-promises` (type-aware) |
 | 6 | No `setState` synchronously in an effect body | `react-hooks/set-state-in-effect` |
 | 7 | Never index into an unfiltered array with a filtered index | **reviewer** |
@@ -69,6 +69,12 @@ React stores a promise where it expects a function and never calls it.
 clears a timer, never unsubscribes; every id change leaks a live request. Declare the async function
 inside and call it: `useEffect(() => { void run(); return cleanup; })`.
 
+The gate is `react-hooks/exhaustive-deps` — measured by running all 29 `react-hooks` rules against
+`useEffect(async () => { await Promise.resolve(); }, [])`, where it was the only rule that fired.
+`@typescript-eslint/no-misused-promises` with `checksVoidReturn.arguments` **cannot** catch it:
+`@types/react` declares `type EffectCallback = () => void | Destructor`, a union rather than plain
+`void`, so the void-return check never engages on the argument.
+
 ## 5. Unhandled promises
 
 A promise with no `await`, no `.catch()`, and no `void` becomes an unhandled rejection — logged to a
@@ -94,9 +100,11 @@ const onRemove = (index: number) => {            // user clicks B → index 0
 };
 ```
 
-The user deletes the wrong record. With `splice` on a sorted copy that still shares the source array, it
-also drops the element from the original. Pass the item's id, never its position, across any boundary
-where the list has been filtered, sorted, paginated, or virtualised.
+The user deletes the wrong record. The companion mistake is calling `.sort()` or `.splice()` on the
+original array rather than on a copy: both mutate in place, so the reorder or removal leaks to every
+other holder of that array — props, state, a cache entry — with no reference change for React to
+observe. Pass the item's id, never its position, across any boundary where the list has been filtered,
+sorted, paginated, or virtualised, and reorder through `toSorted` / `toSpliced` / a spread copy.
 
 ## 8. Id-keyed fetch with no abort or stale guard
 
@@ -110,9 +118,12 @@ and discard a response whose id no longer matches. Doing neither is data corrupt
 
 Between the `await` and the `setState`, the component can unmount or its inputs can change.
 **Failure:** a dialog fetches on open, the user closes it mid-flight, the response lands and calls
-`setData`. React 18+ does not warn — it silently retains the unmounted tree's closure and the payload it
-captured, and reopening the dialog renders the previous entity's data for a frame. Guard with the
-effect's own `cancelled` flag set in cleanup, or with an `AbortSignal`.
+`setData`. React 18+ removed the warning, and the write on an unmounted component is a no-op — so the
+update is dropped in total silence, with a remount getting fresh state. The harm is diagnostic: nothing
+distinguishes a lost update from a request that never returned, so the bug is investigated as a network
+fault. The dangerous sibling case is the **still-mounted** one, where a late response overwrites current
+state — rule 8 above. Guard with the effect's own `cancelled` flag set in cleanup, or with an
+`AbortSignal`.
 
 ## 10. Resources not released on every path
 

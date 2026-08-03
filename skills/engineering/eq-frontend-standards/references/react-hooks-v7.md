@@ -110,7 +110,9 @@ Two React 19 + Vite + TypeScript codebases by the same author, measured the same
 | | Repo A (~1,500 files) | Repo B (~334 files) |
 |---|---|---|
 | total violations | 890 | 74 |
-| rules already at zero | 13 of 29 | 22 of 29 |
+| rules at zero violations, all 29 counted | 13 | 22 |
+| of those, **real rules adoptable for free** — excluding the infra-only and compiler-diagnostic rules above, and rules already enabled | **6** | **14** |
 
-Repo B could adopt 13 rules for free; repo A only 6. **A fixed tier list shipped in a package would
-have been wrong for both.** Measure per repo; the standard stays the same, the sequence does not.
+The two rows measure different things and the second is the actionable one: a rule at zero that must
+never be enabled buys nothing. **A fixed tier list shipped in a package would have been wrong for
+both.** Measure per repo; the standard stays the same, the sequence does not.

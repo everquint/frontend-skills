@@ -24,26 +24,21 @@ const MARKER = '.eq-frontend-skills.json';
 const cwd = process.cwd();
 const has = (f) => process.argv.includes(f);
 
-// Version of the standard this script ships with, read from the skills repo's own package.json.
-const standardVersion = (() => {
-    let dir = import.meta.dirname;
-    for (let i = 0; i < 6; i++) {
-        const p = join(dir, 'package.json');
-        if (existsSync(p)) {
-            try {
-                const pkg = JSON.parse(readFileSync(p, 'utf8'));
-                if (pkg.name === 'eq-frontend-skills') return pkg.version;
-            } catch { /* keep walking */ }
-        }
-        dir = dirname(dir);
-    }
-    return '0.0.0';
-})();
+// Version of the standard this script ships with.
+//
+// Embedded as a constant rather than read from package.json, because `npx skills add` installs the
+// SKILL DIRECTORY without the repo manifest — so an upward walk finds nothing and any fallback
+// default makes the drift gate permanently green in the primary install path. That is the one
+// failure this script exists to prevent, so it must not be possible.
+//
+// `npm run validate` asserts this equals the repo's package.json version, so the two cannot drift.
+const STANDARD_VERSION = '1.0.0';
+const standardVersion = STANDARD_VERSION;
 
 // Each entry names what a consumer must DO to move between versions. A version bump that changes
 // enforcement without an entry here is a bug — the consumer has no way to know what to change.
 const MIGRATIONS = {
-    '0.1.0': [
+    '1.0.0': [
         'Enable every react-hooks rule that measures zero violations, at `error`.',
         'Baseline the rest: `npx eslint . --fix && npx eslint . --suppress-all`.',
         'Wire pre-commit (lint-staged), commit-msg (commitlint), pre-push (typecheck --force).',
@@ -54,19 +49,49 @@ const MIGRATIONS = {
     ],
 };
 
+// Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
+// turns `1-beta.0` into NaN, and because NaN fails every comparison the mismatch branch is taken
+// and the result is always "ahead" — so a prerelease install reports the repo as newer than the
+// standard and tells the user to run the update that just landed. `??` does not catch NaN.
+const parseVersion = (v) => {
+    const core = String(v ?? '').trim().split(/[-+]/)[0];
+    const parts = core.split('.').map((s) => Number.parseInt(s, 10));
+    if (parts.length !== 3 || parts.some((n) => !Number.isInteger(n) || n < 0)) return null;
+    return parts;
+};
+
 const cmp = (a, b) => {
-    const pa = String(a).split('.').map(Number);
-    const pb = String(b).split('.').map(Number);
+    const pa = parseVersion(a);
+    const pb = parseVersion(b);
+    if (!pa || !pb) {
+        console.error(`Cannot compare versions: ${JSON.stringify(a)} vs ${JSON.stringify(b)}.`);
+        console.error(`Expected MAJOR.MINOR.PATCH. A malformed marker is a bug, not a direction.`);
+        process.exit(1);
+    }
     for (let i = 0; i < 3; i++) {
-        if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) < (pb[i] ?? 0) ? -1 : 1;
+        if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
     }
     return 0;
 };
 
 const markerPath = join(cwd, MARKER);
-const recorded = existsSync(markerPath)
-    ? (() => { try { return JSON.parse(readFileSync(markerPath, 'utf8')); } catch { return null; } })()
-    : null;
+const markerExists = existsSync(markerPath);
+
+// "Absent" and "present but unparseable" must not collapse to the same state: reporting a corrupt
+// marker as missing tells the user to --record, which overwrites the evidence of what went wrong.
+// A truncated marker is a normal outcome of a bad merge resolution.
+let recorded = null;
+if (markerExists) {
+    try {
+        const parsed = JSON.parse(readFileSync(markerPath, 'utf8'));
+        if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+        recorded = parsed;
+    } catch (err) {
+        console.error(`\n✗ ${MARKER} exists but could not be parsed: ${err.message}`);
+        console.error(`  Fix or delete it by hand. --record will not overwrite a corrupt marker.\n`);
+        process.exit(1);
+    }
+}
 
 const isDirty = () => {
     try {

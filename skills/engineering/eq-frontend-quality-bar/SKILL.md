@@ -1,5 +1,5 @@
 ---
-name: frontend-quality-bar
+name: eq-frontend-quality-bar
 description: Enforces the non-lintable half of frontend quality — test-driven development and coverage ratchets, error reporting and observability, performance budgets, accessibility verification, and client-side security. Use when adding a feature or fixing a bug (tests come first), setting up or auditing a repo's test strategy, deciding what must be tested, wiring coverage gates, adding error reporting, setting bundle budgets, verifying accessibility, or reviewing code that renders untrusted HTML or handles secrets.
 ---
 
@@ -9,7 +9,7 @@ Lint catches syntax-shaped defects. This covers the rest, where the failure is i
 production. Every item here has an enforcement mechanism — where one does not exist, that is stated
 rather than hidden behind "should".
 
-## 1. Test-driven development — enforced
+## 1. Test-driven development — partly enforced
 
 Write the failing test first. Three laws, for **new production code**:
 
@@ -29,7 +29,7 @@ consequence** instead — changed code is covered:
 |---|---|---|
 | **Diff coverage** | new/changed lines are tested | CI fails when changed lines fall below the floor |
 | **Coverage ratchet** | total coverage never drops | `coverage.thresholds.autoUpdate` |
-| **Test-file presence** | every new source module has a test | structure check |
+| **Test-file presence** | every new source module has a test | reviewer-enforced, unless the repo supplies its own checker script — nothing off the shelf does this |
 | **Local loop** | fast feedback while writing | `vitest --changed` / `vitest related <files>` |
 
 This is the honest framing: test-first is a **practice**, reviewer-enforced; "changed code is
@@ -79,14 +79,15 @@ unmeasured. Check what `coverage.include` actually covers before trusting any pe
 modules. Module mocks encode the implementation into the test, so the test passes after a refactor
 that broke the app. This is the single highest-leverage testing decision in a frontend repo.
 
-## 2. Observability — enforced
+## 2. Observability — reviewer-enforced
 
 Banning `console.log` while having nowhere to send errors means production failures are invisible.
 
 - **An error reporter is required** — errors reach a service, not just the console. Product analytics
   is not error reporting; they answer different questions.
 - **Error boundaries at route level and around any independently-failing widget.** Without them one
-  throw blanks the whole app. Gated in part by `react-hooks/error-boundaries`.
+  throw blanks the whole app. Reviewer-enforced: no lint rule detects an **absent** boundary.
+  `react-hooks/error-boundaries` catches misuse of a boundary that already exists.
 - **Every caught error does two things**: a user-facing message that says what to do next, and a
   reported event with enough context to debug. A swallowed error is a defect.
 - **Never surface transport text to users.** "Request failed with status code 403" is not a message;
@@ -95,7 +96,7 @@ Banning `console.log` while having nowhere to send errors means production failu
 
 Reviewer-enforced: no linter knows whether an error went anywhere.
 
-## 3. Performance budgets — enforced
+## 3. Performance budgets — partly enforced
 
 Measured-but-not-gated is not enforced. A bundle analyzer nobody runs catches nothing.
 
@@ -108,7 +109,8 @@ Measured-but-not-gated is not enforced. A bundle analyzer nobody runs catches no
 
 ## 4. Accessibility — partly enforced
 
-`eslint-plugin-jsx-a11y` ships ~35 rules; most configs enable a handful. Enable the recommended set.
+`eslint-plugin-jsx-a11y@6.10.2` ships 39 rules and its `configs.recommended` enables 34; most repos
+enable a handful. Enable the recommended set.
 
 But the failures that matter are **not lintable**, so they are reviewer-enforced with a checklist:
 
@@ -122,8 +124,10 @@ But the failures that matter are **not lintable**, so they are reviewer-enforced
 | Visible focus indicator, never removed without replacement | cannot tell where you are |
 | Contrast meets WCAG AA in **both** light and dark themes | dark mode is where contrast regressions hide |
 
-Run an automated audit (axe) on primary flows in CI or before release. Automated tools catch roughly
-a third of real issues — the checklist covers the rest.
+Run an automated audit (axe) on primary flows in CI or before release. **A clean automated audit does
+not certify accessibility** — every rule it ships is a rule that can be decided from static markup, and
+none of the checks above can be. Published hit-rate figures for automated tooling conflict and are not
+worth quoting; the checklist covers what the audit structurally cannot reach.
 
 ## 5. Client-side security — enforced
 
@@ -140,7 +144,7 @@ a third of real issues — the checklist covers the rest.
 - **Automated dependency updates.** Unpatched transitive dependencies are the common breach path.
 - Tokens are never persisted where any script can read them without a deliberate, recorded decision.
 
-## 6. Architecture decision records — enforced
+## 6. Architecture decision records — reviewer-enforced
 
 Every non-obvious decision gets a short ADR: context, decision, consequences, date.
 

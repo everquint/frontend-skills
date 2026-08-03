@@ -11,7 +11,6 @@ and no CI has no gate at all.
 | | Local (fast, bypassable) | CI (authoritative) |
 |---|---|---|
 | staged lint | `pre-commit` → `lint-staged` | `npm run lint` (whole repo) |
-| structure | `pre-commit` → structure check | `npm run check:structure` |
 | types | `pre-push` → `tsc -b --force` | `npm run typecheck` |
 | commit message | `commit-msg` → `commitlint` | `wagoid/commitlint-github-action` |
 | tests, build | — (too slow to gate a commit) | `npm test`, `npm run build` |
@@ -36,7 +35,6 @@ tutorial mentioning `.husky/_/husky.sh`, `npx husky add`, or `"hooks": { "pre-co
 ```bash
 # .husky/pre-commit
 npx lint-staged
-npm run check:structure
 
 # .husky/commit-msg
 npx commitlint --edit "$1"
@@ -70,8 +68,8 @@ In `package.json`: `"lint-staged": { "*.{ts,tsx,js,jsx}": "eslint --fix" }`. Two
 
 | Flag | Why not |
 |---|---|
-| `--fail-on-changes` | fails the commit whenever a fixer rewrote a file, which is the normal case; teams respond by disabling the hook. Documented loss paths on partially-staged files. |
-| `--no-stash` | removes the backup that restores your work when a task fails mid-run, and **silently also disables `--no-hide-partially-staged`** — unstaged hunks in a partially-staged file are exposed to the fixer and can be committed or overwritten. |
+| `--fail-on-changes` | fails the commit whenever a task rewrote a file — the normal case when `eslint --fix` is the task, so the hook fires on successful runs and teams respond by disabling it. No data-loss path; the objection is that it makes the gate useless. |
+| `--no-stash` | removes the backup stash, the only thing that restores your work when a task corrupts the working tree mid-run. **This is the data-loss flag**: with it there is nothing to recover from. |
 
 If a run is interrupted, recover from `git stash list`; lint-staged leaves its backup stash behind on
 failure.
@@ -105,7 +103,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run check:structure
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -121,7 +118,7 @@ jobs:
       - uses: wagoid/commitlint-github-action@v6
 ```
 
-- Step order is cheapest-first: structure and types fail in seconds, build takes minutes.
+- Step order is cheapest-first: types fail in seconds, build takes minutes.
 - `npm ci` not `npm install` — `ci` fails on a lockfile that disagrees with `package.json` instead of
   quietly rewriting it.
 - `fetch-depth: 0` on the commitlint job; it needs history to find the PR's commit range.
@@ -137,8 +134,14 @@ Four declarations must agree; when they drift, CI passes and a developer's machi
 |---|---|---|
 | `.nvmrc` | `24` | `nvm use`, `fnm`, CI's `node-version-file` |
 | `engines.node` | `">=24 <25"` | `npm ci` (warn; `error` with `engine-strict=true` in `.npmrc`) |
-| `packageManager` | `"npm@10.9.0"` | Corepack — pins the package manager, not just Node |
+| `packageManager` | `"npm@11.5.1"` | Corepack — pins the package manager, not just Node |
 | CI | `node-version-file: .nvmrc` | never a hardcoded `node-version:` |
+
+**`packageManager` must name the npm version the pinned Node line actually bundles.** Node 24 ships
+npm 11.x (24.0.0 → 11.3.0, 24.7.0 → 11.5.1); npm 10.9.0 is Node 22.11.0's. Pinning `.nvmrc` to 24 and
+`packageManager` to an npm 10 release makes Corepack install a package manager Node never shipped with
+— the exact drift this section exists to prevent. Read the bundled version off the release notes for
+the Node line, not off whatever the author's machine happened to have.
 
 **`engines` must not admit a version the test suite cannot run on.** A permissive floor is a bug, not
 flexibility: an older Node satisfying `>=20` can crash the test runner at startup on a missing

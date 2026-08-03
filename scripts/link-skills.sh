@@ -17,8 +17,14 @@ while IFS= read -r -d '' skill_md; do
     for dest in "${DESTS[@]}"; do
         mkdir -p "$dest"
         target="$dest/$name"
-        # Replace only our own symlinks; never clobber a real directory someone authored.
+        # Replace only symlinks that already point into THIS repo. `rm` on any symlink would
+        # silently repoint a link someone aimed at a different skills repo.
         if [ -L "$target" ]; then
+            current="$(readlink "$target")"
+            if [ "$current" != "$src" ]; then
+                echo "skip  $target (symlink points elsewhere: $current)" >&2
+                continue
+            fi
             rm "$target"
         elif [ -e "$target" ]; then
             echo "skip  $target (exists and is not a symlink)" >&2

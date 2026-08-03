@@ -1,5 +1,5 @@
 ---
-name: frontend-workflow
+name: eq-frontend-workflow
 description: The delivery workflow for a frontend TypeScript codebase — branching, commits, PRs, review, merge, release, and rollback. Load this when starting a feature or fix, choosing between a branch and a git worktree (including for parallel agents), naming a branch, writing a commit message, opening or filling in a pull request, running the pre-push gate, reviewing someone else's change, deciding whether a change is mergeable, cutting a release or writing a changeset, or reverting shipped work. It states the rule for each step and which rules are mechanically enforced versus reviewer-enforced.
 ---
 
@@ -22,7 +22,7 @@ A **git worktree** is a second checkout of the same repository on its own branch
 
 Claude Code subagents accept `isolation: "worktree"` natively — the agent gets its own worktree and it is cleaned up automatically if nothing changed. Use it for parallel agent fan-out, not for a single sequential task.
 
-Remove a finished worktree with `git worktree remove <path>`. A stale worktree list is reported by `git worktree prune`.
+Remove a finished worktree with `git worktree remove <path>`. List what exists with `git worktree list`; preview what would be cleaned up with `git worktree prune --dry-run -v`. Bare `git worktree prune` removes stale entries and prints nothing.
 
 ## Branch naming
 
@@ -60,14 +60,14 @@ Rules:
 - **Never mix a refactor and a behaviour change in one commit.** A moved file plus a changed condition produces a diff where the condition is invisible, and reverting the bug reverts the refactor with it. Move first, change second, in separate commits.
 - Scopes (`feat(composer): …`) are optional. If used, be consistent within a package.
 
-### This project merges with merge commits, never squash
+### Merge with merge commits, never squash
 
 Consequences, both directions:
 
-- History keeps **every individual commit**, so the local `commit-msg` hook genuinely protects the log. PR-title linting adds nothing and is not configured — the titles are not what lands.
+- History keeps **every individual commit**, so the local `commit-msg` hook genuinely protects the log. PR-title linting is redundant under this model — do not configure it, since the titles are not what lands.
 - Commit granularity matters far more than under a squash workflow. Under squash a sloppy intermediate commit disappears at merge; here it is permanent and will be read during a future bisect. Clean up the branch before the gate: `git rebase -i` to squash "fix typo" and "wip" commits into the commit they belong to.
 
-`@commitlint/config-conventional` ignores merge commits by default, so a `Merge branch …` message does not need to be conventional.
+commitlint ignores merge commits by default — the patterns live in commitlint core's `defaultIgnores`, not in `@commitlint/config-conventional` (which exports only `parserPreset`, `rules`, and `prompt`). So a `Merge branch …` message does not need to be conventional.
 
 ## When to open the PR
 

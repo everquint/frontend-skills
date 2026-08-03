@@ -1,5 +1,5 @@
 ---
-name: frontend-standards
+name: eq-frontend-standards
 description: Applies one canonical frontend TypeScript engineering standard to a repository — lint rules, correctness gates, file budgets, git hooks, commit conventions and CI. Use when setting up quality tooling in a React repo, auditing a repo against the standard, planning a migration to it, reviewing code for compliance, or deciding whether a lint finding is a real defect. Detects the repo's stack but never derives its standards from existing code.
 ---
 
@@ -24,8 +24,18 @@ sites and `no-array-index-key` disabled has a bug, not a convention. Detection t
 
 ## Procedure
 
-1. **Profile the stack** — `node scripts/profile-repo.mjs`. Facts only, no judgement.
-2. **Measure violations** — `node scripts/measure-rules.mjs`. Per-rule counts against the standard.
+The scripts ship beside this skill, not inside the repo being audited, so `scripts/…` never resolves
+against the audited repo's cwd. Invoke them by absolute path from the install location — usually
+`~/.claude/skills/eq-frontend-standards/scripts/` or `~/.agents/skills/eq-frontend-standards/scripts/`:
+
+```bash
+node ~/.claude/skills/eq-frontend-standards/scripts/profile-repo.mjs
+```
+
+Later references use the short `scripts/<name>.mjs` form for the same path.
+
+1. **Profile the stack** — `scripts/profile-repo.mjs`. Facts only, no judgement.
+2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts against the standard.
    Run scoped (`--dir src/components`) on large repos; a full React Compiler pass over 1,500 files
    can exceed two minutes.
 3. **Build the ladder** (§3). Rules at zero violations go straight to `error`. The rest go to
@@ -65,7 +75,7 @@ no marker at all.
 | Rule | Value |
 |---|---|
 | `@stylistic/indent` | `4`, `SwitchCase: 1`, `flatTernaryExpressions: false` |
-| `quotes` | `single`, `avoidEscape: true` |
+| `@stylistic/quotes` | `single`, `avoidEscape: true` |
 | `@stylistic/semi` | `always` |
 | `max-len` | `200` |
 | `no-console` | error, `allow: ['error']` |
@@ -91,13 +101,20 @@ classification — **which rules are real, and which report compiler limitations
 in your code.** Read that file before enabling anything from `eslint-plugin-react-hooks`; three of
 its rules produce large volumes of noise that are not bugs.
 
-Not covered by any lint rule, and therefore reviewer-enforced:
+**Gated, but off by default — turn these on.** A repo that never enabled them reports zero violations
+and has an unknown real count:
 
-- Every promise `await`ed, `.catch()`ed, or explicitly `void`ed. `useEffect` callbacks are never `async`.
+| Requirement | Rule | Why it is off |
+|---|---|---|
+| Every promise `await`ed, `.catch()`ed, or `void`ed | `@typescript-eslint/no-floating-promises` | needs type-aware linting (`parserOptions.projectService`) |
+| `useEffect` callbacks are never `async` | `react-hooks/exhaustive-deps` | on in most repos; `no-misused-promises` cannot substitute — see `references/correctness-rules.md` §4 |
+| No index keys in lists that reorder, filter, or poll | `react/no-array-index-key` | exists but is not in `react/recommended` |
+
+**Genuinely reviewer-enforced** — no rule exists:
+
 - External data — HTTP responses, `localStorage`, URL params, `postMessage`, tool output — parsed
   with `zod` at the boundary, TS type inferred from the schema. `as T` on a `fetch` result is a
   cast, not a check.
-- No index keys in lists that reorder, filter, or poll.
 - Resources released on **every** path including early returns and errors: timers, listeners,
   `rAF`, `ResizeObserver`, object URLs, `AbortController`.
 - Optimistic updates roll back on failure, and failure reaches the user — not only `console.error`.
@@ -140,8 +157,10 @@ constraints that cause real failures:
 - **`tsc -b` must use `--force`.** Its `.tsbuildinfo` goes stale and produces phantom errors *and*
   false passes. A hook that emits false failures gets bypassed with `--no-verify`, so correctness
   beats the few seconds `--force` costs.
-- **Never `lint-staged --fail-on-changes` or `--no-stash`** — documented data-loss paths on
-  partially-staged files.
+- **Never `lint-staged --no-stash`** — it removes the backup stash, so a task that corrupts the
+  working tree leaves nothing to recover from. **Never `--fail-on-changes`** either, for a different
+  reason: it fails the commit whenever a task rewrites a file, which is every run where
+  `eslint --fix` fixes something.
 
 Node version must be pinned consistently across `.nvmrc`, `engines`, `packageManager`, and CI's
 `node-version-file`. `engines` must not admit a version the test suite cannot run on.

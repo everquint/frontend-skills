@@ -18,9 +18,17 @@ const cwd = process.cwd();
 const json = process.argv.includes('--json');
 const p = (f) => join(cwd, f);
 const exists = (f) => existsSync(p(f));
+const isDir = (f) => { try { return statSync(p(f)).isDirectory(); } catch { return false; } };
+const listDir = (f) => { try { return readdirSync(p(f)); } catch { return []; } };
 const read = (f) => { try { return readFileSync(p(f), 'utf8'); } catch { return ''; } };
 
-const pkg = (() => { try { return JSON.parse(read('package.json')); } catch { return {}; } })();
+const pkg = (() => {
+    try {
+        const parsed = JSON.parse(read('package.json'));
+        // `JSON.parse('null')` succeeds. Optional chaining on a property does not guard a null base.
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch { return {}; }
+})();
 const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 const dep = (n) => n in deps;
 
@@ -88,14 +96,15 @@ const styling = {
 const runner = dep('vitest') ? fact('vitest', 'vitest dependency')
     : dep('jest') ? fact('jest', 'jest dependency')
     : unknown('no test runner dependency');
-const suffix = tests.filter((f) => /\.test\./.test(f)).length >= tests.filter((f) => /\.spec\./.test(f)).length
-    ? '.test.' : '.spec.';
+const suffix = tests.length === 0
+    ? unknown('no test files found').value
+    : (tests.filter((f) => /\.test\./.test(f)).length >= tests.filter((f) => /\.spec\./.test(f)).length ? '.test.' : '.spec.');
 const networkSeam = dep('msw') ? fact('msw', 'msw dependency') : unknown('no network-level mocking library');
 
 // ── gates: what is already wired ─────────────────────────────────────────────
-const huskyDir = exists('.husky');
-const hooks = huskyDir ? readdirSync(p('.husky')).filter((f) => !f.startsWith('_') && !f.startsWith('.')) : [];
-const ciFiles = exists('.github/workflows') ? readdirSync(p('.github/workflows')) : [];
+const huskyDir = isDir('.husky');
+const hooks = listDir('.husky').filter((f) => !f.startsWith('_') && !f.startsWith('.'));
+const ciFiles = listDir('.github/workflows');
 
 const gates = {
     hookManager: huskyDir ? fact('husky', '.husky/ present') : dep('lefthook') ? fact('lefthook', 'dependency') : unknown('none'),
@@ -103,8 +112,16 @@ const gates = {
     lintStaged: 'lint-staged' in pkg || dep('lint-staged') ? fact(true, 'config or dependency') : fact(false, 'absent'),
     commitlint: dep('@commitlint/cli') ? fact(true, 'dependency') : fact(false, 'absent'),
     ci: fact(ciFiles.length ? ciFiles : 'NONE — no CI workflows', '.github/workflows'),
-    coverageThreshold: /thresholds/.test(read('vitest.config.ts') + read('vite.config.ts'))
-        ? fact(true, 'vitest config') : fact(false, 'no thresholds in vitest config'),
+    // Exact filenames miss vitest.config.mts, vitest.workspace.ts and vite.config.app.ts, and
+    // reporting `false` for "we could not find a config" asserts a fact that was never measured.
+    coverageThreshold: (() => {
+        const candidates = [...configLike('vitest'), ...configLike('vite')];
+        if (!candidates.length && !('vitest' in (pkg ?? {}))) return unknown('no vitest/vite config file found');
+        const body = candidates.map((f) => read(f)).join('\n') + JSON.stringify(pkg.vitest ?? {});
+        return /thresholds/.test(body)
+            ? fact(true, candidates.join(', ') || 'package.json')
+            : fact(false, `no thresholds in ${candidates.join(', ') || 'package.json'}`);
+    })(),
     errorReporter: Object.keys(deps).some((d) => /sentry|bugsnag|rollbar|datadog/i.test(d))
         ? fact(true, 'dependency') : fact(false, 'no error-reporting dependency'),
 };
@@ -122,12 +139,16 @@ const pinning = {
 
 // ── size distribution — informs the migration, not the limit ─────────────────
 const lens = source.map((f) => read(f.slice(cwd.length + 1)).split('\n').length).sort((a, b) => a - b);
-const at = (q) => lens.length ? lens[Math.floor(lens.length * q)] : 0;
+// Nearest-rank. `lens[floor(n*q)]` is one rank high, which makes p90 equal max for n <= 10 —
+// so a 3-file repo reports its largest file as the 90th percentile.
+const at = (q) => (lens.length ? lens[Math.min(lens.length - 1, Math.max(0, Math.ceil(q * lens.length) - 1))] : 0);
 
 const profile = {
     profiledAt: new Date().toISOString().slice(0, 10),
     packageManager, framework, uiLib,
-    monorepo: pkg.workspaces || exists('pnpm-workspace.yaml') ? fact(true, 'workspaces field') : fact(false, 'single package'),
+    monorepo: pkg.workspaces ? fact(true, 'workspaces field in package.json')
+        : exists('pnpm-workspace.yaml') ? fact(true, 'pnpm-workspace.yaml')
+        : fact(false, 'no workspaces field, no pnpm-workspace.yaml'),
     router: dep('react-router-dom') ? fact('react-router-dom', 'dependency')
         : dep('@tanstack/react-router') ? fact('@tanstack/react-router', 'dependency')
         : framework.value.startsWith('next') ? fact('next built-in', 'framework') : unknown('none detected'),
