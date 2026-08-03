@@ -1,0 +1,4 @@
+# --force because tsc -b is incremental and a stale .tsbuildinfo produces phantom errors AND
+# false passes. A hook that emits false failures gets bypassed with --no-verify, so correctness
+# beats the seconds --force costs.
+npm run typecheck

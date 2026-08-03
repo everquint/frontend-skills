@@ -1,0 +1,9 @@
+# Installed agent skills. No trailing slashes: the installer creates .claude/skills as a
+# SYMLINK, and a `dir/` pattern matches only a real directory.
+.agents
+.claude/skills
+.claude/settings.local.json
+skills-lock.json
+
+# Never blanket-ignore .claude — that is where committed, shared agent config lives, and
+# ignoring all of it means a teammate gets nothing on clone.

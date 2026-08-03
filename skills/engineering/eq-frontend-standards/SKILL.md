@@ -22,7 +22,29 @@ Deriving standards from existing code launders bad habits into policy. A repo wi
 sites and `no-array-index-key` disabled has a bug, not a convention. Detection tells you the
 *migration cost*, never the *target*.
 
-## Procedure
+## New repo? Skip the measuring
+
+A greenfield repo has no debt, so there is nothing to measure and nothing to baseline — every rule
+goes to `error` on the first commit. `measure-rules.mjs` will refuse to run anyway, because the
+current Vite `react-ts` template ships **no ESLint config at all** (it uses `oxlint`).
+
+```bash
+node <skill>/scripts/init-greenfield.mjs --dry-run   # see the file plan
+node <skill>/scripts/init-greenfield.mjs
+npm install
+npx eslint . --fix      # required: a 2-space/no-semicolon scaffold yields ~130 fixable errors
+npx eslint . && npm run typecheck && npm run build
+```
+
+It never overwrites: existing files are skipped, `package.json` is merged key-by-key, and a script
+you already chose is kept and printed for you to resolve. Verified on a clean `npm create vite`
+scaffold — `eslint` exits 0, typecheck and build pass, and a planted violation is caught on four
+rules.
+
+**Do not use it on an existing repo.** Dropping the full config into a mature codebase produces
+hundreds of errors at once, which is how a whole rule set gets switched back off. Measure instead:
+
+## Procedure — existing repo
 
 The scripts ship beside this skill, not inside the repo being audited, so `scripts/…` never resolves
 against the audited repo's cwd. Invoke them by absolute path from the install location — usually
@@ -49,26 +71,19 @@ each repo holds its own status.
 
 ## Staying current
 
-`npx skills update` refreshes this skill's **text**. It changes no repo's ESLint config, hooks, or CI
-— so a repo silently stops complying the moment the standard moves. Close that gap explicitly:
+`npx skills update` refreshes this skill's **text** only — no repo's ESLint config, hooks or CI move
+with it, so a repo silently stops complying the moment the standard does. Each migrated repo records
+its version in `.eq-frontend-skills.json`:
 
 ```bash
-node scripts/standard-check.mjs --check     # CI gate: exit 1 if behind or never migrated
-node scripts/standard-check.mjs --record    # after migrating: write .eq-frontend-skills.json
+node <skill>/scripts/standard-check.mjs --check    # CI gate: exit 1 if behind or never migrated
+node <skill>/scripts/standard-check.mjs --record   # after migrating
 ```
 
-`--check` belongs in CI. A version marker nobody reads is a comment. When a repo is behind, the
-script prints the named migration steps between its recorded version and the installed one, so
-"what changed" is a list of actions rather than a changelog to interpret.
-
-The design is [copier](https://copier.readthedocs.io/en/stable/updating/)'s, reduced to what a JS
-repo needs — there is no mature JS equivalent, so the pattern is borrowed rather than the tool.
-Three specifics carried over: store the **answers** alongside the version so an update can re-derive
-intent; keep **named migrations** per version; and **refuse to write on a dirty worktree**, because
-otherwise the diff cannot separate the user's edits from the update's.
-
-Never hand-edit the marker. A marker claiming a version the repo was not migrated to is worse than
-no marker at all.
+`--check` belongs in CI; a marker nobody reads is a comment. When behind, it prints the named
+migration steps between the recorded version and the installed one. The design is
+[copier](https://copier.readthedocs.io/en/stable/updating/)'s: answers stored beside the version,
+named migrations per version, and no writing to a dirty worktree. Never hand-edit the marker.
 
 ## 1. Formatting and budgets — enforced
 
@@ -131,13 +146,12 @@ The standard is fixed. The path to it is per-repo, because violation counts diff
 can never be ratcheted and will sit green forever. Never stage at `warn`.
 
 ```bash
-npx eslint . --fix                                   # fix mechanically first
-npx eslint . --suppress-all                          # bake in the remainder
-npx eslint . --prune-suppressions                    # later: drop what has been fixed
+npx eslint . --fix && npx eslint . --suppress-all   # baseline the remainder
+npx eslint . --prune-suppressions                   # later: drop what has been fixed
 ```
 
-Granularity is file + rule + **count** — a file with 2 suppressed violations that grows to 5
-reports all 5.
+Granularity is file + rule + **count**: a file with 2 suppressed violations that grows to 5 reports
+all 5.
 
 ## 4. Gates — enforced
 
@@ -170,25 +184,15 @@ Node version must be pinned consistently across `.nvmrc`, `engines`, `packageMan
 Explicit, dated, argued — in the repo, not in this skill. An exemption needs a reason a cold reader
 can check, and it exempts a **pattern**, never the code that uses it.
 
-**Verify at source before exempting.** Two rules produce known false positives worth checking first:
-
-- `static-components` fires on icon-by-variable — `const Icon = iconFor(ext); <Icon />`. The
-  component is a stable module-level import; only the selection varies. Correct React.
-- `hooks` fires on libraries that invoke a passed function as a hook, e.g. assistant-ui's
-  `useRemoteThreadListRuntime({ runtimeHook })`. The compiler cannot see the contract.
-
-But do not assume a finding is a false positive because it resembles one. Optional-chained hook
+**Verify at source before exempting.** Two known false-positive shapes: `static-components` fires on
+icon-by-variable (`const Icon = iconFor(ext); <Icon />` — the component is a stable module-level
+import, only the selection varies), and `hooks` fires on libraries that invoke a passed function as a
+hook. But do not assume a finding is a false positive because it resembles one. Optional-chained hook
 calls — `slots?.useSidePanel?.()` — look like a library seam and are a **real** hazard: hook order
 breaks the moment the object is passed conditionally.
 
 ## 6. Documentation rule
 
-**Generate every measured claim, or delete it.** Hand-written status tables go stale silently.
-
-Auditing one mature repo produced four false claims in its own conventions doc: a pre-commit hook
-documented as absent that existed; a violation count off by 8; a complexity limit described as
-"lint-enforced" that was never configured; and an oversized-file count three times higher than
-reality because three named offenders had been split.
-
-Every one was a hand-typed number. Keep instruction files under 200 lines and put procedures in
-skills, not in prose.
+**Generate every measured claim, or delete it.** Hand-written status tables go stale silently:
+auditing one mature repo produced four false claims in its own conventions doc, every one a
+hand-typed number. Keep instruction files under 200 lines and put procedures in skills, not prose.
