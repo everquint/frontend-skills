@@ -20,6 +20,40 @@ Write the failing test first. Three laws, for **new production code**:
 Tests are **F.I.R.S.T.** — Fast, Independent, Repeatable, Self-Validating, Timely. *Independent* is
 the one that bites: a test that only passes after another test has run is broken, not order-sensitive.
 
+### The three test levels
+
+| Level | Tests | May touch | Must not touch | Tool | Runs |
+|---|---|---|---|---|---|
+| **Unit** | pure logic — reducers, selectors, formatters, parsers, date/money maths — and hooks with real state transitions | in-memory state, fake timers | network, router, real timers | Vitest | every commit, and CI |
+| **Integration** | a component tree with its real providers — router, query client, store — against an intercepted HTTP boundary | providers, the DOM, an HTTP interceptor | a real server, a real browser | Vitest + Testing Library + MSW | CI |
+| **E2E** | critical user journeys, in a real browser against a real production build | the whole stack, as a user does | nothing — that is the point | Playwright | CI — a fast smoke set on every PR, the full set on merge to the default branch or on a schedule |
+
+**Integration is where most frontend value lives.** It exercises the wiring unit tests mock away —
+provider composition, cache keys, route params, loading and error transitions — and it covers that
+wiring exhaustively at a cost per case E2E cannot pay.
+
+**Ordering rule: more unit tests than integration tests, more integration tests than E2E tests.**
+Never invert it. An inverted pyramid produces a suite slow and flaky enough that a red build gets
+re-run instead of read, which is the moment a test suite stops being a gate. No percentage split is
+quoted here because none has been measured here; the ordering is the rule.
+
+### Test file naming and placement
+
+- Unit and integration: `<name>.test.ts(x)`, co-located beside the file under test.
+- E2E: `<journey>.test.ts`, in one dedicated top-level directory (`e2e/`) — a spec belongs to a
+  journey, not to a module, so there is no source file for it to sit beside.
+- No `__tests__/` directories. No `.spec.*` suffix, **at every level including E2E**: one suffix
+  repo-wide, and Playwright's default `testMatch` collects `.test.ts` (verified on 1.62.1), so a
+  carve-out for E2E would cost a second convention and buy nothing.
+
+The full naming and placement rules are not restated here: they live in
+`../eq-frontend-standards/references/structure.md` — skills install flat in one directory, so a
+sibling skill is one level up — and rule 4 of that skill's `scripts/check-structure.mjs` reports
+both prohibitions above, uniformly, with no per-level exception.
+
+E2E specifics — what earns a spec, Playwright config, selectors, waiting, isolation, artifacts and
+quarantine — are in `references/e2e.md` beside this file.
+
 ### You cannot mechanically prove a test came first
 
 Any claim to enforce test-first via git history is gameable and brittle. So enforce the **observable

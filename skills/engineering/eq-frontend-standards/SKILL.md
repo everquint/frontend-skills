@@ -24,37 +24,31 @@ sites and `no-array-index-key` disabled has a bug, not a convention. Detection t
 
 ## New repo? Skip the measuring
 
-A greenfield repo has no debt, so there is nothing to measure and nothing to baseline — every rule
-goes to `error` on the first commit. `measure-rules.mjs` will refuse to run anyway, because the
-current Vite `react-ts` template ships **no ESLint config at all** (it uses `oxlint`).
+A greenfield repo has no debt: nothing to measure, nothing to baseline, every rule at `error` from the
+first commit. `measure-rules.mjs` refuses to run anyway — the Vite template ships **no ESLint config**.
 
 ```bash
-node <skill>/scripts/init-greenfield.mjs --dry-run   # see the file plan
-node <skill>/scripts/init-greenfield.mjs
+node <skill>/scripts/init-greenfield.mjs [--dry-run]   # --dry-run prints the file plan first
 npm install
 npx eslint . --fix      # required: a 2-space/no-semicolon scaffold yields ~130 fixable errors
 npx eslint . && npm run typecheck && npm run build
+node <skill>/scripts/check-structure.mjs    # the Vite template itself needs three fixes
 ```
 
-It never overwrites: existing files are skipped, `package.json` is merged key-by-key, and a script
-you already chose is kept and printed for you to resolve. Verified on a clean `npm create vite`
-scaffold — `eslint` exits 0, typecheck and build pass, and a planted violation is caught on four
-rules.
+It never overwrites and never edits your source: existing files are skipped, `package.json` is merged
+key-by-key, a script you already chose is kept and printed. Measured on a clean `npm create vite
+--template react-ts` scaffold: after `--fix`, `eslint`, typecheck and build exit 0, and
+`check-structure` exits 1 on three defects in the template itself — `references/structure.md` §4.
 
 **Do not use it on an existing repo.** Dropping the full config into a mature codebase produces
 hundreds of errors at once, which is how a whole rule set gets switched back off. Measure instead:
 
 ## Procedure — existing repo
 
-The scripts ship beside this skill, not inside the repo being audited, so `scripts/…` never resolves
-against the audited repo's cwd. Invoke them by absolute path from the install location — usually
-`~/.claude/skills/eq-frontend-standards/scripts/` or `~/.agents/skills/eq-frontend-standards/scripts/`:
-
-```bash
-node ~/.claude/skills/eq-frontend-standards/scripts/profile-repo.mjs
-```
-
-Later references use the short `scripts/<name>.mjs` form for the same path.
+The scripts ship beside this skill, not in the audited repo, so `scripts/…` never resolves against
+that repo's cwd. Invoke by absolute path from the install location — usually
+`~/.claude/skills/eq-frontend-standards/scripts/`, or `~/.agents/skills/…` — abbreviated below to
+`scripts/<name>.mjs`.
 
 1. **Profile the stack** — `scripts/profile-repo.mjs`. Facts only, no judgement.
 2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts against the standard.
@@ -191,7 +185,14 @@ hook. But do not assume a finding is a false positive because it resembles one. 
 calls — `slots?.useSidePanel?.()` — look like a library seam and are a **real** hazard: hook order
 breaks the moment the object is passed conditionally.
 
-## 6. Documentation rule
+## 6. Structure and duplication
+
+Neither is a runtime failure, so neither belongs in `references/correctness-rules.md` — that file's exclusion list names structure explicitly, and duplication is out of scope there for the same reason. Both are enforced here.
+
+- **Naming, component folders, placement, style-selector collisions** — `references/structure.md`, checked by `scripts/check-structure.mjs`; promotion needs a second consumer counted, so it stays reviewer-enforced.
+- **Which duplication is a defect and which is not** — `references/duplication.md`, reviewer-enforced. `jscpd` is a lead to read, never a gate.
+
+## 7. Documentation rule
 
 **Generate every measured claim, or delete it.** Hand-written status tables go stale silently:
 auditing one mature repo produced four false claims in its own conventions doc, every one a

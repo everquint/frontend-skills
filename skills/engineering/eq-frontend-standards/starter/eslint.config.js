@@ -9,6 +9,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import importPlugin from 'eslint-plugin-import';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
@@ -37,6 +38,7 @@ export default defineConfig([
         },
         settings: { react: { version: 'detect' } },
         plugins: {
+            import: importPlugin,
             react,
             'react-hooks': reactHooks,
             'jsx-a11y': jsxA11y,
@@ -91,6 +93,12 @@ export default defineConfig([
             'react-hooks/capitalized-calls': 'error',
             'react-hooks/component-hook-factories': 'error',
 
+            // ── §6 duplication, the two mechanical cases. Both are judgement-free: neither can
+            // mistake incidental shape for a duplicated decision, so neither needs a reviewer.
+            // no-duplicate-type-constituents is type-aware and rides the projectService above.
+            'import/no-duplicates': 'error',
+            '@typescript-eslint/no-duplicate-type-constituents': 'error',
+
             // ── a11y: the recommended set, not a hand-picked subset.
             ...jsxA11y.flatConfigs.recommended.rules,
 
@@ -101,7 +109,7 @@ export default defineConfig([
 
     // Tests are exempt from the size budget: a long flat list of cases is the right shape.
     {
-        files: ['**/*.{test,spec}.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
+        files: ['**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
         rules: { 'max-lines': 'off', 'max-lines-per-function': 'off' },
     },
 
