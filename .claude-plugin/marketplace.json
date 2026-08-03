@@ -1,6 +1,8 @@
 {
   "name": "frontend-standards",
-  "owner": { "name": "gokulsgr" },
+  "owner": {
+    "name": "Everquint"
+  },
   "description": "One canonical frontend engineering standard, as installable agent skills.",
   "plugins": [
     {
@@ -8,7 +10,14 @@
       "source": "./",
       "description": "Code conventions, delivery workflow, and the non-lintable quality bar for frontend TypeScript repos.",
       "category": "engineering",
-      "keywords": ["frontend", "typescript", "eslint", "tdd", "code-review", "conventions"]
+      "keywords": [
+        "frontend",
+        "typescript",
+        "eslint",
+        "tdd",
+        "code-review",
+        "conventions"
+      ]
     }
   ]
 }

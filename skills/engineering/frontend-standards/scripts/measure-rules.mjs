@@ -48,6 +48,17 @@ const probe = join(cwd, `.probe.eslint.config.${Date.now()}.mjs`);
 const wantHooks = set === 'all' || set === 'react-hooks';
 const wantBudgets = set === 'all' || set === 'budgets';
 
+// A `finally` block does not run when the process is signalled, and a measurement pass over a
+// large repo takes long enough that Ctrl-C during it is normal. Without these handlers an
+// interrupted run leaves a probe config in someone else's repository — the worst outcome this
+// script has. Registered before the file is created so there is no unguarded window.
+const cleanup = () => { try { if (existsSync(probe)) unlinkSync(probe); } catch { /* nothing left to do */ } };
+process.on('exit', cleanup);
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(signal, () => { cleanup(); process.exit(130); });
+}
+process.on('uncaughtException', (err) => { cleanup(); console.error(err); process.exit(1); });
+
 writeFileSync(probe, `
 import base from './${configFile}';
 ${wantHooks ? "import reactHooks from 'eslint-plugin-react-hooks';" : ''}
