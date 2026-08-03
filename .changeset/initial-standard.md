@@ -1,5 +1,5 @@
 ---
-"eq-frontend-skills": major
+"frontend-skills": major
 ---
 
 Initial release: three skills — `frontend-standards`, `frontend-workflow`, `frontend-quality-bar` — plus `profile-repo`, `measure-rules` and `standard-check` scripts.

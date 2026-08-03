@@ -1,6 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "gokulsgr/eq-frontend-skills" }],
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "everquint/frontend-skills"
+    }
+  ],
   "commit": false,
   "access": "restricted",
   "baseBranch": "main"

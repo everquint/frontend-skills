@@ -8,7 +8,7 @@ Repos migrate to it once, then maintain it. The standard does not vary per repo 
 ## Install
 
 ```bash
-npx skills add gokulsgr/eq-frontend-skills
+npx skills add everquint/frontend-skills
 ```
 
 Works in any harness that supports [Agent Skills](https://agentskills.io) — Claude Code, Cursor,
@@ -17,7 +17,7 @@ Codex, Gemini CLI, VS Code, Copilot, OpenCode and others.
 As a Claude Code plugin:
 
 ```
-/plugin marketplace add gokulsgr/eq-frontend-skills
+/plugin marketplace add everquint/frontend-skills
 ```
 
 For maintainers of this repo, `npm run link` symlinks every skill into `~/.claude/skills` and
