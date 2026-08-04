@@ -41,5 +41,9 @@
         /* An override that does not override. */
         "noImplicitOverride": true
     },
-    "include": ["vite.config.ts"]
+    /* Every build-time config, not just the bundler's. `vitest.config.ts` IS the coverage gate and
+     * `playwright.config.ts` IS the E2E entry point, so the rationale at the top of this file applies
+     * to them unchanged — and a file in no project is read by no `tsc -b`, which means a type error in
+     * the gate config surfaces as a confusing runtime failure instead of a build error. */
+    "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }
