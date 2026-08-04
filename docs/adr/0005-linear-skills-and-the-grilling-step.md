@@ -1,4 +1,4 @@
-# 5. Linear as the tracker, and grilling as a step rather than a skill
+# 0005 — Linear as the tracker, and grilling as a step rather than a skill
 
 Date: 2026-08-04
 
