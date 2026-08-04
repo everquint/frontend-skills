@@ -1,0 +1,19 @@
+{
+    // Committed on purpose: .gitignore ignores `.vscode/*` EXCEPT this file and settings.json, so
+    // they are the editor files every clone inherits. This one only recommends — the editor
+    // prompts, it never installs.
+    "recommendations": [
+        // The formatter AND linter for this repo: it drives oxfmt (.oxfmtrc.json) and oxlint
+        // (.oxlintrc.json) — the same tools the pre-commit hook and CI run.
+        "oxc.oxc-vscode",
+        // Cursor does not read .editorconfig without this. Without it the editor emits 2-space
+        // indent before oxfmt ever sees the file.
+        "editorconfig.editorconfig"
+    ],
+    // All three format to Prettier's defaults — double quotes, printWidth 80 — which contradicts
+    // .oxfmtrc.json (single quotes, 200). Two formatters on one file means every save fights
+    // `npm run format:check`. Marked unwanted so the recommendation prompt cannot re-add them for
+    // THIS workspace; they stay installed and active for other repos, and settings.json is what
+    // actually takes the ts/tsx files away from them.
+    "unwantedRecommendations": ["esbenp.prettier-vscode", "hb432.prettier-eslint-typescript", "rvest.vs-code-prettier-eslint"]
+}

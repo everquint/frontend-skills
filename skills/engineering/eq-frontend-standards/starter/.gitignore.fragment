@@ -30,3 +30,11 @@ playwright/.cache
 # format:check step runs before it, so CI never sees it; a local run of the same steps in order does,
 # and `format:check` then fails on a generated file.
 oxlint-report.json
+
+# Editor state is personal — EXCEPT the two files that defend the formatter. extensions.json
+# recommends oxc and marks the Prettier extensions unwanted for this workspace; settings.json routes
+# ts/tsx saves to oxfmt with per-language blocks. Without them, a save under a personal Prettier
+# default emits double quotes at printWidth 80 and fails `npm run format:check` on every file.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
