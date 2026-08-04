@@ -201,9 +201,11 @@ Not E2E — these are integration tests:
 integration test and a minute in a browser, and multiplying the matrix by a browser is how a suite
 reaches an hour and stops running on PRs.
 
-<!-- No Playwright config or E2E CI job ships in the eq-frontend-standards starter, deliberately: a
-greenfield repo has no journeys yet, and the config above encodes a baseURL and a webServer command
-only the real app knows. The `test:e2e` scripts and the devDependency ship; the config and the CI job
-arrive with the first real journey. Both scripts pass `--pass-with-no-tests`, so they exit 0 on a
-repo with no config and no specs instead of `Error: No tests found` — verified on 1.62.1, where the
-same command without the flag exits 1. -->
+<!-- `playwright.config.ts` and an empty `e2e/` DO ship in the eq-frontend-standards starter; no E2E CI
+job does, deliberately. With zero specs a job is a green check asserting nothing, while its
+`webServer` pays for a production build on every PR — so the job arrives with the first real journey,
+and `test:e2e:smoke` has no caller until then. The shipped config's `baseURL` and `webServer` command
+are scaffold defaults; a real app sets its own. Both scripts pass `--pass-with-no-tests`, so they
+exit 0 on a repo with no specs instead of `Error: No tests found` — verified on 1.62.1, where the same
+command without the flag exits 1, and re-verified against the shipped config with an empty `e2e/`:
+exit 0 in 4.8s, with the `webServer` production build never starting. -->

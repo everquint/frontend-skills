@@ -46,6 +46,15 @@ The primary agent edits directly in exactly three cases: a one-line or trivially
 
 Every rule in this section is reviewer-enforced except the stash denial, which the starter's settings file blocks at the tool call.
 
+## Before writing it: look it up
+
+Three rules, all facts rather than judgement, so all looked up rather than assumed. **Does it already
+exist** — search the registry and the org's repos before hand-rolling, and justify any new dependency in
+the PR body. **Does the API behave as you assume** — read its docs at the pinned version, via a
+docs-retrieval tool such as Context7 when one is mounted, otherwise the installed package's own `.d.ts`
+and `CHANGELOG`. **Can the runtime answer instead** — then measure; a probe outranks any document,
+including this one. Precedence, and the losses that produced these rules: `references/looking-it-up.md`.
+
 ## Branch naming
 
 `<type>/<ticket>-<short-slug>`
@@ -168,16 +177,7 @@ The PR author merges, after approval. Do not merge someone else's PR for them �
 
 Versioning uses **Changesets**. A PR that changes published behaviour includes a changeset file, human-authored, naming the packages and the bump level (`patch` / `minor` / `major`) with a one-line consumer-facing summary. Add it with the changesets CLI; the file lands in the PR and is reviewed like code.
 
-Why changesets rather than semantic-release:
-
-| | Changesets | semantic-release |
-|---|---|---|
-| Source of the bump | Human decision, per PR, reviewable | Inferred from commit messages |
-| Assumption | Commits are for humans | Commits are fully machine-parseable |
-| Monorepos | First-class, multi-package bumps in one file | No native concept |
-| Failure mode | Missing changeset — caught by a CI check | A mistyped commit type silently ships a wrong version |
-
-`feat:` versus `fix:` is a judgement about consumer impact, and it is routinely wrong at commit time on a branch that later grows. A curated changeset per PR moves that judgement to where the whole change is visible.
+Changesets rather than semantic-release because the bump is a human decision about consumer impact, reviewable per PR, rather than inferred from commit messages — and `feat:` versus `fix:` is routinely wrong at commit time on a branch that later grows. Full comparison: `references/release-tooling.md`.
 
 **Manual version bumps in a `chore: bump version` commit are an anti-pattern.** They race with the release tooling, produce versions with no changelog entry, and make the published version disagree with the tag. Version numbers are written by the release job, never by hand.
 

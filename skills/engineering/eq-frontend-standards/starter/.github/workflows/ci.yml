@@ -133,8 +133,98 @@ jobs:
           # Only now does the lint result itself decide the step.
           exit "$lint_exit"
 
-      - run: npm test
+      # THE COVERAGE RATCHET, not a coverage report.
+      #
+      # `npm test` is `vitest run`, which measures NO coverage — so a job running it satisfies the
+      # test row of the gate table and leaves the coverage row unenforced. `test:coverage` is
+      # `vitest run --coverage`, and the floors it enforces live in vitest.config.ts with
+      # `thresholds.autoUpdate: true`.
+      #
+      # Measured on a scaffolded consumer repo, so the direction of the ratchet is not theoretical:
+      # a full run at 42.85% lines rewrote the floors from 0 to the measured numbers and exited 0;
+      # adding one untested module dropped lines to 30% and the same command exited 1 with
+      # "Coverage for lines (30%) does not meet global threshold (42.85%)" WITHOUT lowering the
+      # recorded floor. A filtered run (`vitest run --coverage <one file>`) also exited 1 and left
+      # the floors untouched, which is why only the unfiltered command belongs in CI.
+      - name: Test with the coverage ratchet
+        run: |
+          set -euo pipefail
+          npm run test:coverage
+
+          # autoUpdate rewrites vitest.config.ts IN THE RUNNER when coverage improved, and a runner's
+          # working tree is thrown away — so the gain is only locked in once that file is committed.
+          # A notice, not a failure: a PR that adds tests must not be blocked for having improved the
+          # number. Left uncommitted, the slack it leaves is what a later regression fits through.
+          if ! git diff --quiet -- vitest.config.ts; then
+            # Single-quoted: a backtick inside double quotes is command substitution, so the prose
+            # markup this repo's comments use everywhere would be executed here.
+            echo '::notice::Coverage improved, so autoUpdate raised the floors in vitest.config.ts. Run `npm run test:coverage` locally and commit that file to lock the gain in.'
+            git --no-pager diff -- vitest.config.ts
+          fi
+
       - run: npm run build
+
+      # THE STRUCTURE GATE — the mechanical half of references/structure.md: kebab-case naming,
+      # hooks/ folder contents, component barrels, test placement (no `__tests__/`, no `.spec.*`),
+      # and a top-level style class declared in two files. Exit 0 clean, 1 violations, 2 the scan
+      # could not be trusted; `set -e` fails the step on either non-zero, so an unreadable directory
+      # is a red build rather than a clean one.
+      #
+      # THE SCRIPT SHIPS WITH THE SKILL, NOT WITH THIS REPO, and this step REQUIRES IT VENDORED.
+      # Three locations are tried, in the same order and with the same paths as
+      # .claude/commands/pre-pr.md step 0 — the two must not drift. On a CI runner only the first can
+      # exist: nothing installs anything into $HOME, so `~/.claude/skills` and `~/.agents/skills` are
+      # there for the local run of this same snippet.
+      #
+      # A "skip if absent" guard is what this step refuses to be. A gate that reports success when it
+      # never executed is the failure this whole workflow is built against, and it would hide the
+      # entire structure standard behind a green check.
+      #
+      # Vendoring rather than `npx skills add everquint/frontend-skills -g --all` in CI, which does
+      # work non-interactively:
+      #   * it installs whatever `main` currently holds, so CI would enforce a DIFFERENT version of
+      #     the standard than the one this repo recorded in .eq-frontend-skills.json — the version
+      #     gate and the structure gate then disagree with nobody able to see it;
+      #   * where it lands (`~/.claude/skills` vs `~/.agents/skills`) and whether it lands as a
+      #     symlink or a copy are decided by that CLI's flags and its agent auto-detection, so a
+      #     change in a third-party tool at a floating version turns this gate red or off;
+      #   * it adds a GitHub clone to every CI run, outside the npm registry `npm ci` already needs.
+      # The vendored copy is real committed files, so every clone and every runner audits the exact
+      # standard this repo was migrated to.
+      - name: Structure and naming
+        run: |
+          set -euo pipefail
+
+          # An explicit `if` rather than pre-pr.md's `[ -d "$d" ] && { … }`: under `set -e` a failing
+          # test at the end of a loop body exits the script, so the AND-list form would abort here
+          # whenever the FIRST candidate is absent — which on a runner it always is.
+          EQ_STANDARD=""
+          for d in .claude/skills/eq-frontend-standards "$HOME/.claude/skills/eq-frontend-standards" "$HOME/.agents/skills/eq-frontend-standards"; do
+            if [ -d "$d" ]; then EQ_STANDARD="$d"; break; fi
+          done
+
+          if [ -z "$EQ_STANDARD" ]; then
+            echo "::error::The structure gate did NOT run: eq-frontend-standards is not vendored into this repo, and its scripts are not part of it. This step fails rather than skipping, because a skipped check reports green while enforcing nothing."
+            echo "Tried, in order:"
+            echo "  .claude/skills/eq-frontend-standards          <- the one a runner can have; commit it"
+            echo "  \$HOME/.claude/skills/eq-frontend-standards    <- a personal install, absent on a runner"
+            echo "  \$HOME/.agents/skills/eq-frontend-standards    <- a personal install, absent on a runner"
+            echo "Fix it once, from the root of this repo:"
+            echo "  npx skills add everquint/frontend-skills"
+            echo "  node \"\$HOME/.agents/skills/eq-frontend-standards/scripts/init-greenfield.mjs\" --vendor-skills"
+            echo "  git add .claude/skills && git commit -m 'ci: vendor the standard so CI can run the structure gate'"
+            echo "If \`skills add\` put the skill under \$HOME/.claude/skills instead, run init-greenfield.mjs from there."
+            exit 1
+          fi
+
+          # `--dir .` and not the default. Autodetection picks src/, which leaves e2e/ in the
+          # script's own "not scanned" list — and rule 4 is exactly what has to see e2e/, since the
+          # `.spec.*` ban applies at EVERY level including E2E. Measured on a scaffolded consumer
+          # repo: with the default root an `e2e/sign-in.spec.ts` reports 0 violations; with `--dir .`
+          # it reports "no .spec.* suffix; rename to sign-in.test.ts". node_modules, dist, coverage,
+          # public and .claude are skipped by the script, so the wider root costs nothing.
+          echo "Using $EQ_STANDARD"
+          node "$EQ_STANDARD/scripts/check-structure.mjs" --dir .
 
   # THE noUncheckedIndexedAccess RATCHET.
   #
@@ -282,3 +372,66 @@ jobs:
         with:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v6
+
+  # BRANCH NAMING — `<type>/<ticket>-<short-slug>`, the eq-frontend-workflow rule that had no
+  # mechanism at all. commitlint next door gates the commit MESSAGES; nothing gated the branch, so
+  # the one naming rule everybody sees first was the one rule nothing checked.
+  #
+  # `pull_request` only, and it is not a step in `verify`: a push carries no head_ref, so on a push
+  # the check has no branch name to read and would either fail on an empty string or be written to
+  # skip — and a step that skips is what this workflow refuses to contain.
+  branch-name:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      # THE ONE LINE A REPO ADJUSTS. The ticket half is tracker-specific: `AB-1420` is this
+      # standard's example, and a repo on a different tracker has a different shape (a bare number, a
+      # longer prefix, a lowercase key). Change the pattern here and nothing else in this job moves.
+      #
+      # The three halves, and what each rejects:
+      #   (feat|fix|…)  the commit types from eq-frontend-workflow, character for character. A
+      #                 different set here and the branch prefix stops matching the commit prefix.
+      #   [A-Z][A-Z0-9]+-[0-9]+   the tracker ID. Rejects a branch with no ticket.
+      #   [a-z0-9]+(-[a-z0-9]+){0,2}   the slug: lowercase kebab, three words or fewer, as the
+      #                 standard states. Rejects `Inline-Citations`.
+      BRANCH_NAME_PATTERN: '^(feat|fix|refactor|perf|docs|test|build|ci|chore|style|revert)/[A-Z][A-Z0-9]+-[0-9]+-[a-z0-9]+(-[a-z0-9]+){0,2}$'
+    steps:
+      # No checkout: the branch name comes from the event payload, and cloning to read it would be
+      # wasted minutes.
+      #
+      # `github.head_ref` is the PR's SOURCE branch. It is read through `env`, never interpolated
+      # into the script body — a branch name is attacker-controlled text on a fork PR, and
+      # `${{ … }}` inside `run:` is textual substitution, so a crafted name would execute.
+      #
+      # It is also the only correct source. `actions/checkout` on a pull_request leaves a DETACHED
+      # HEAD at the merge commit, so `git rev-parse --abbrev-ref HEAD` prints `HEAD` and
+      # `github.ref` is `refs/pull/<n>/merge` — neither carries the branch name.
+      - name: Assert the PR branch is <type>/<ticket>-<short-slug>
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${HEAD_REF}" ]; then
+            echo "::error::github.head_ref is empty, so the branch name is unknown and was NOT checked. This job is gated on pull_request, where head_ref is always set — if this fires, the trigger changed."
+            exit 1
+          fi
+
+          if printf '%s' "${HEAD_REF}" | grep -Eq -- "${BRANCH_NAME_PATTERN}"; then
+            echo "Branch \`${HEAD_REF}\` matches <type>/<ticket>-<short-slug>."
+            exit 0
+          fi
+
+          echo "::error::Branch \`${HEAD_REF}\` does not match <type>/<ticket>-<short-slug>."
+          echo "Expected: <type>/<TICKET>-<short-slug>, e.g. feat/AB-1420-inline-citations or chore/AB-1601-bump-vite"
+          echo "  type   one of: feat fix refactor perf docs test build ci chore style revert"
+          echo "  ticket the tracker ID for this work, one ticket per branch"
+          echo "  slug   lowercase kebab-case, three words or fewer"
+          echo "Pattern in force (edit BRANCH_NAME_PATTERN in .github/workflows/ci.yml for a different tracker):"
+          echo "  ${BRANCH_NAME_PATTERN}"
+          echo "Rename it:"
+          echo "  git branch -m <type>/<TICKET>-<short-slug>"
+          echo "  git push origin -u <type>/<TICKET>-<short-slug>"
+          echo "  git push origin --delete ${HEAD_REF}"
+          echo "A local rename does not retarget an open PR — deleting the old branch closes this one, so open a new PR from the renamed branch."
+          exit 1
