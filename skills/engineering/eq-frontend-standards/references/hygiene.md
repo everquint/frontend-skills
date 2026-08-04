@@ -99,6 +99,18 @@ Two flags to never use:
 If a run is interrupted, recover from `git stash list`; lint-staged leaves its backup stash behind on
 failure.
 
+**The `json` glob reaches `package-lock.json`, and that is safe — oxfmt ignores lockfiles by name.**
+Worth stating because the obvious reading is that it is not: a formatter rewriting a lockfile on every
+commit would fight `npm install`, which rewrites it back, and `format:check` would then whipsaw in CI.
+Measured on oxfmt 0.62.0 with this config: `oxfmt --check package-lock.json` reports *"All matched
+files may have been excluded by ignore rules"*, and **the same bytes copied to `control.json` report
+format issues** — so the exclusion is by filename, not content. `yarn.lock` and `pnpm-lock.yaml` are
+excluded too. Prettier ships no such default, so a repo swapping formatters must add the ignore by hand.
+
+`oxfmt --check` exit codes, measured: **1** on a misformatted file, **0** when clean, and **2** when the
+glob matched nothing. That last one matters — a `format:check` whose paths resolve to nothing fails
+rather than reporting success.
+
 ## 6. CI workflows
 
 `.github/workflows/ci.yml`
