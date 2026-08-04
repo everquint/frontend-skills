@@ -34,6 +34,30 @@ Both were verified by running the release job, not by reading the docs.
   a constant a validator asserts against, a doc header — must be updated in the same step, or the
   Version PR lands red.
 
+## The release job's own commit must satisfy commitlint
+
+`changesets/action` defaults both its commit message and its PR title to **`Version Packages`**, which
+has no conventional-commit type. This standard installs husky, and the release job runs `npm ci`, which
+runs `prepare: husky` — so the `commit-msg` hook is live in the runner and rejects the action's own
+commit with `subject may not be empty` / `type may not be empty`. The job fails at `git commit`, having
+already rewritten `package.json` and `CHANGELOG.md`.
+
+Set both inputs to a conventional message:
+
+```yaml
+commit: 'chore: version packages'
+title: 'chore: version packages'
+```
+
+**Override the message rather than disabling the hook.** `HUSKY=0` would get the commit made, but the
+version commit lands on the default branch where the commitlint CI job reads it, so the same rejection
+arrives one step later — and a repo that suppresses its own hooks in CI has lost the guarantee that
+every commit in history is parseable.
+
+The failure has one property worth noting: it appears **only on the first release with changesets
+pending.** A release with none pending skips the version phase entirely and never makes a commit, so a
+repo can release successfully several times before hitting this.
+
 ## Don't hand-write what the job generates
 
 `CHANGELOG.md` is a build output. A hand-written entry disagrees with the changesets that actually
