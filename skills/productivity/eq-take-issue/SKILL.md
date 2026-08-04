@@ -31,6 +31,11 @@ Report a short map: the modules involved, the current behaviour at the seam, and
 the closest thing the repo already does. Prior art settles more approach questions than discussion
 does.
 
+Look outside the repo too, before proposing anything: whether a maintained package already solves this,
+and how the libraries involved actually behave at the versions this repo pins. Both are facts, so both
+are looked up rather than asked — `../eq-frontend-workflow/SKILL.md` owns the mechanisms and their
+precedence. An approach built on a misremembered API gets settled in step 4 and discovered in step 6.
+
 Look for a prefactor: a mechanical change that makes the real change small. Make the change easy,
 then make the easy change. A prefactor is its own commit, landed first.
 
