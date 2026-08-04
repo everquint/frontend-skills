@@ -51,11 +51,11 @@ by absolute path from the install location — usually `~/.claude/skills/eq-fron
    Scope it with `--dir` on large repos: measured 18s over 2,185 files with the JS plugin bridge on.
 3. **Follow the ladder** (§3). Zero-violation rules to `error`; the rest branch on the total.
 4. **Wire the gates** (§4). Every local hook gets a CI counterpart.
-5. **Record exemptions** (§5). Read findings at source before exempting anything.
-6. **Record the version** — `node scripts/standard-check.mjs --record`, then commit the marker.
+5. **Install the agent policy** — copy `starter/.claude/` in whole (settings, the guard and lint-fix hooks, both reviewer agents, `pre-pr`) and `chmod 755` the hooks: without the executable bit a hook looks wired and never runs. Greenfield gets this from `init-greenfield.mjs`; an existing repo must do it explicitly, and it is the repo most exposed to agent edits that needs `guard-protected-files.sh` most.
+6. **Record exemptions** (§5). Read findings at source before exempting anything.
+7. **Record the version** — `node scripts/standard-check.mjs --record`, then commit the marker. It refuses while step 5's files are missing.
 
-Write the measured numbers into the repo — never into this skill. This skill holds the standard;
-each repo holds its own status.
+Write the measured numbers into the repo — never into this skill: the skill holds the standard, each repo its own status.
 
 ## Staying current
 
@@ -81,7 +81,7 @@ no formatting rules at all, so nothing in the lint gate can contradict it, and `
 |---|---|
 | `no-console` | error, `allow: ['error']` |
 | `typescript/no-explicit-any` | error |
-| `max-lines` | `500`, `skipBlankLines`, `skipComments` — **code** lines |
+| `max-lines` | `500`, `skipBlankLines`, `skipComments` — **code** lines. Coupled to `printWidth`, the wrong way: wider lines pack more code per line and deflate the count, so never widen the formatter to bring a file under this budget — measured: files over budget at 120 sat under it at 200 |
 | `max-depth` | `4` |
 | `complexity` | `15` |
 | `max-lines-per-function` | **off** — deliberate; hooks, reducers and `render*` helpers are legitimately long |

@@ -17,7 +17,7 @@
 //   node <path>/standard-check.mjs             # human-readable status
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const MARKER = '.eq-frontend-skills.json';
@@ -73,6 +73,15 @@ const MIGRATIONS = {
         'Set `printWidth: 120` in .oxfmtrc.json and `max_line_length = 120` in .editorconfig (or re-pull both from the starter).',
         'Run `npm run format`, commit the rewrap as its own mechanical commit, and list that commit in `.git-blame-ignore-revs`.',
         'Class strings the formatter cannot wrap under 120: extract to a named constant or `cva` map — `references/styling.md` §1. Generated `src/components/ui/` stays as generated.',
+        'Expect `max-lines` findings to surface from the rewrap: packing code at 200 columns deflated the line count, so files over budget before adoption come back over it. The debt is pre-existing, not caused by the reformat — fix by extraction, never by widening the formatter.',
+    ],
+    // The existing-repo procedure omitted the agent-side policy: greenfield repos got
+    // starter/.claude/ from init-greenfield.mjs, migrated repos got nothing and were told nothing —
+    // so the repos most exposed to agent edits ran without guard-protected-files.sh. Found by the
+    // first migrated repo. --check and --record now assert the six files.
+    '1.2.2': [
+        "Install the agent-side repo policy if missing: `cp -R <skill>/starter/.claude/. .claude/` (merge an existing settings.json by hand), then `chmod 755 .claude/hooks/*.sh` — a hook without the executable bit looks wired and never runs. Commit .claude/.",
+        'This check now runs in --check and --record, so a repo without the guard hook no longer reads as compliant.',
     ],
 };
 
@@ -120,6 +129,37 @@ if (markerExists) {
     }
 }
 
+// ── the agent-side policy files ──────────────────────────────────────────────
+// starter/.claude/ is repo policy the same way the hooks and CI are — and guard-protected-files.sh
+// is the hook that refuses agent writes to the files that ARE the gate. Greenfield repos get all
+// six from init-greenfield.mjs; an existing repo installs them as a named procedure step. A marker
+// recording a version on a repo with no guard hook overstates compliance, so both --record and
+// --check assert them. The executable bit is asserted too: a hook copied without it reads as
+// installed while never running — `cp` from a tarball install drops it.
+const POLICY_FILES = [
+    'settings.json',
+    'hooks/guard-protected-files.sh',
+    'hooks/lint-fix.sh',
+    'agents/code-reviewer.md',
+    'agents/conventions-reviewer.md',
+    'commands/pre-pr.md',
+].map((f) => join('.claude', f));
+
+const policyGaps = [];
+for (const rel of POLICY_FILES) {
+    const p = join(cwd, rel);
+    if (!existsSync(p)) policyGaps.push(`${rel} — missing`);
+    else if (rel.includes('hooks/') && !(statSync(p).mode & 0o111)) policyGaps.push(`${rel} — present but NOT executable, so it looks wired and never runs`);
+}
+
+const reportPolicyGaps = (log) => {
+    log(`  The agent-side repo policy is incomplete — ${policyGaps.length} of ${POLICY_FILES.length} file(s):`);
+    for (const g of policyGaps) log(`    ! ${g}`);
+    log(`  Install from the skill's starter (merge an existing settings.json by hand, never clobber it):`);
+    log(`      cp -R ${join(import.meta.dirname, '..', 'starter', '.claude')}/. .claude/`);
+    log(`      chmod 755 .claude/hooks/*.sh`);
+};
+
 const isDirty = () => {
     try {
         return execFileSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf8' }).trim().length > 0;
@@ -130,6 +170,12 @@ const isDirty = () => {
 
 // ── --record ────────────────────────────────────────────────────────────────
 if (has('--record')) {
+    if (policyGaps.length) {
+        console.error(`\n✗ Refusing to record: the marker would overstate compliance.`);
+        reportPolicyGaps((l) => console.error(l));
+        console.error('');
+        process.exit(1);
+    }
     if (isDirty() && !has('--allow-dirty')) {
         console.error(`Refusing to write ${MARKER} with a dirty worktree.`);
         console.error('Commit the migration first, so the marker records a state that actually exists.');
@@ -177,6 +223,12 @@ if (ahead) {
 }
 
 if (!behind) {
+    if (policyGaps.length) {
+        console.error(`\n✗ Version current (v${standardVersion}), but the repo is not fully compliant:`);
+        reportPolicyGaps((l) => console.error(l));
+        console.error('');
+        process.exit(has('--check') ? 1 : 0);
+    }
     console.log(`\n✓ Up to date with the frontend standard — v${standardVersion}`);
     console.log(`  Migrated ${recorded.recordedAt}.\n`);
     process.exit(0);
@@ -198,6 +250,11 @@ if (steps.length) {
 } else {
     console.error(`  No migration steps recorded between these versions — the change was text-only.`);
     console.error(`  Re-record after review: --record`);
+}
+
+if (policyGaps.length) {
+    console.error('');
+    reportPolicyGaps((l) => console.error(l));
 }
 
 console.error(`\n  Measure the delta first:  node <path>/measure-rules.mjs\n`);
