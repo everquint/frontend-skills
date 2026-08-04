@@ -1,5 +1,16 @@
 # frontend-skills
 
+## 1.2.1
+
+### Patch Changes
+
+- [#12](https://github.com/everquint/frontend-skills/pull/12) [`506bb4b`](https://github.com/everquint/frontend-skills/commit/506bb4bcdd75eea4c43579cc277fffee2b75b7d8) Thanks [@gokulsgr](https://github.com/gokulsgr)! - ADR citations inside shipped skill files are now full GitHub URLs. `docs/adr/` does not ship with
+  an installed skill, so `docs/adr/0007`-style references dangled for every consumer — found by the
+  first migrated repo. The README's Updating section also documents the mid-release window: between a
+  feature merge and its "Version Packages" PR, `main` carries new skill text with the previous
+  version constant, so a copy installed from that window reports "up to date" at the old version;
+  re-run `npx skills update -g` after the version PR lands.
+
 ## 1.2.0
 
 ### Minor Changes
