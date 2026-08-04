@@ -237,6 +237,23 @@ wider root costs nothing.
 Rename the files and delete the dead declaration in the setup commit, alongside the `npm run lint:fix`
 that `init-greenfield.mjs` already asks for.
 
+**A fresh scaffold's first CI run goes red at the coverage step, and that is the intended state.**
+`vitest run` exits **1** on a repo with no test files — measured on vitest 4.1.10: bare `vitest run`
+exits 1 with `No test files found, exiting with code 1`, and both `--pass-with-no-tests` and
+`--passWithNoTests` exit 0. The Vite `react-ts` scaffold ships zero tests, so `npm run test:coverage`
+fails until the first test exists.
+
+**The escape hatch is deliberately not taken on the unit path.** `passWithNoTests` would make the
+coverage gate green on a repo with no tests — a check that reports success while asserting nothing,
+which is the single failure mode this workflow is built against. A React repo with zero unit tests
+should not have a green pipeline, so writing the first test is setup-commit work exactly like the two
+structure failures above.
+
+This is why the unit and E2E paths differ, and the asymmetry is the decision rather than an
+inconsistency: E2E ships **no CI job at all**, so nothing there reports green — `--pass-with-no-tests`
+only keeps the local script usable before the first journey exists. The unit path ships a live gate, so
+it must be able to fail.
+
 **No E2E job ships, and that is a recorded decision rather than an oversight.** `playwright.config.ts`
 and `e2e/` ship so the first spec has somewhere to land, but both `test:e2e` scripts pass
 `--pass-with-no-tests` — so a CI job wired to them on a repo with zero specs is a green check that
