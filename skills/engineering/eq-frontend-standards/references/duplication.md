@@ -40,6 +40,28 @@ query key, a permission check, a magic threshold, a feature-flag name. Each gets
 module** that exports it, and every consumer imports it. Two copies is already the defect — there is
 no rule of three here, because the second copy is already a place the next fix will miss.
 
+#### One module instance per library
+
+Two entry points for one library are two copies of that dependency. The duplicated decision is *which
+module instance the app talks to*, and it is a defect at the second import specifier.
+
+**Failure:** a component imports `useNavigate` from `react-router`; its test renders that component
+inside a `<MemoryRouter>` imported from `react-router-dom`. The resolver treats the two specifiers as
+two modules, so there are two copies of the router and two distinct React contexts — the hook looks in
+the copy that has no provider and throws `useNavigate() may be used only in the context of a <Router>`
+**in the test only**. The browser build resolves one copy and is green. From a browser-green, test-red
+split the conclusion drawn is "Testing Library cannot do routing here", and the test is deleted rather
+than the import corrected: the coverage is gone and the defect that removed it is still in the source.
+One specifier per library, in source and in tests alike.
+
+Same class, wider blast radius — a **duplicated peer dependency**. A package that declares React as a
+direct dependency instead of a peer installs its own copy beside the consumer's, and every hook in
+every consumer throws `Invalid hook call. Hooks can only be called inside of the body of a function
+component`, with no wrong line of code anywhere to point at. Declare a shared runtime library as a peer
+dependency, never a direct one, and check the resolution with `npm ls react` — exactly one version, and
+`npm ls` is a manual check, not a gate. §6 applies: no lint rule in the starter config detects either
+case.
+
 ### Duplicated logic — the Rule of Three
 
 Two similar blocks may be coincidence, and the shared abstraction is a guess about which parts vary.
@@ -87,6 +109,7 @@ The abstract rule does not decide real cases. These are decided.
 | **Test fixture** | A factory function per shape. **Never** a shared mutable object — see `correctness-rules.md` §17: a module-level object mutated by one test leaks into whichever test runs second |
 | **Env / config value** | Read once, in one schema-validated config module. A second `import.meta.env.VITE_X` read is a second place to update |
 | **Error message text** | Duplicated strings are shape. Duplicated *mapping* from an error code to a message is a decision — one module |
+| **Library entry point** | One specifier per library, source and tests alike. A second entry point (`react-router` beside `react-router-dom`) is a second module instance with its own React context — §2 |
 
 ## 5. What is not deduplicated
 

@@ -202,6 +202,44 @@ Rules:
 Line, complexity, and depth budgets are `SKILL.md` §1, which owns the numbers — do not restate them
 here or in a repo-local doc.
 
+## 9. Import direction — which layer may import which
+
+§1–§8 decide where a module **lives**. Nothing above decides what it is allowed to **import**, and that
+is the gap this closes. Dependencies point one way: application code imports shared code.
+
+**A shared or publishable layer never imports an application global** — a Redux or Zustand store, an
+app-scoped hook, a route or auth context, a router or analytics singleton, a feature-flag client bound to
+the app's provider tree.
+
+**Failure:** a component in the shared folder imports and calls `useAppSelector`. It type-checks, it
+lints, and it works in the host app, because in the only tree ever exercised a provider sits above it. A
+second surface then renders that component outside the provider — or the folder ships to npm — and the
+first render throws `could not find react-redux context value`, taking the whole subtree down with it.
+Nothing before that point signals the fault: the import was legal, and the only test that rendered the
+component rendered it inside the host app.
+
+The mechanism is a restricted-import rule scoped by path. oxlint has **no** `import/no-restricted-paths`
+— checked against the complete 835-rule set of oxlint 1.77.0, printed with
+`npx oxlint@1.77.0 -D all --print-config` and every plugin named in `plugins` (`--rules` prints nothing
+in this version); the `import` plugin's 32 rules do not include it. Core `no-restricted-imports` does
+exist, and an `overrides` block supplies the boundary it lacks:
+
+```jsonc
+"overrides": [
+    {
+        "files": ["src/shared/**", "packages/*/src/**"],
+        "rules": { "no-restricted-imports": ["error", { "patterns": ["**/app/store", "**/app/contexts/*"] }] }
+    }
+]
+```
+
+Verified by execution on a fixture: a file under `src/shared/` importing `../app/store` reports
+`eslint(no-restricted-imports)`, and the same import from a file under `src/app/` reports nothing. Two
+patterns that both match one specifier report it twice, so keep the pattern list disjoint. The boundary
+is machine-enforced once that block is in a repo's config; **the starter's `.oxlintrc.json` ships no
+such block**, because the directory names are per-repo. Until a repo adds one, this rule is
+reviewer-enforced.
+
 ## What the checker enforces, and what it does not
 
 `scripts/check-structure.mjs` decides only what a filesystem walk can decide, and is built to
@@ -241,6 +279,8 @@ Reviewer-enforced, because no filesystem walk can decide them:
 - **No inline `fetch` (§6).**
 - **The media-query specificity rule and the naming half of §7.**
 - **File size (§8)** — oxlint's `max-lines` owns it.
+- **Import direction (§9)** — a repo-local `no-restricted-imports` override owns it where one is
+  configured; `check-structure.mjs` reads filenames and never opens a file's import list.
 
 Rules 1 and 3 skip a CLI-generated `components/ui/`. Rule 5 does not: a class collision with a file
 the CLI overwrites is worse, because the next `add` restores the losing declaration and the bug

@@ -35,6 +35,8 @@ The primary agent **orients, plans, decides the approach, and holds the thread**
 | Model per task class, not per habit | Scaffolds, renames, mechanical test edits and doc updates go to a smaller model. Design-sensitive work, tricky runtime logic and reviews go to the strongest available. |
 | No upward escalation from a subagent | A subagent must not call a stronger-model advisory tool. Doing so re-sends a large transcript to re-derive context the subagent was already briefed on: real cost, no new information. State the prohibition in the brief — a subagent that inherits such a tool reaches for it otherwise. |
 | A subagent finishes, then reports | It runs the gate steps below for the files it touched and states what each returned. Its report is evidence, not a conclusion. |
+| The working tree may hold work you did not author | `git stash` to get a clean build ends the session with a clean `git status` and someone else's work parked on no branch, invisible until a person thinks to run `git stash list` — where it also interleaves with lint-staged's backup stash (`../eq-frontend-standards/references/hygiene.md` §5). The starter's `.claude/settings.json` denies `Bash(git stash:*)` outright. |
+| Destructive git verbs are never incidental to another task | `git checkout -- .`, `git restore <path>`, or reverting a hunk you did not recognise in order to get lint green destroys unstaged changes, and unstaged changes have **no reflog entry** — nothing recovers them. Run one only when the user named that revert. |
 
 **Reviews belong to the top-level agent, never a subagent.** A subagent sees only its own slice, so its review is scoped wrong and duplicates what the orchestrator must run over the whole change anyway. The two-review gate in the Review section below runs once, by the agent that owns the full change, against its final state.
 
@@ -42,7 +44,7 @@ The primary agent **orients, plans, decides the approach, and holds the thread**
 
 The primary agent edits directly in exactly three cases: a one-line or trivially mechanical fix, documentation, and anything the user asks to be done inline.
 
-Every rule in this section is reviewer-enforced; no tool checks them.
+Every rule in this section is reviewer-enforced except the stash denial, which the starter's settings file blocks at the tool call.
 
 ## Branch naming
 
