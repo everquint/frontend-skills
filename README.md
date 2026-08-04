@@ -31,6 +31,23 @@ For maintainers of this repo, `npm run link` symlinks every skill into `~/.claud
 | `eq-frontend-workflow` | starting a feature; choosing branch vs worktree; writing commits; opening a PR; merging; releasing; reverting |
 | `eq-frontend-quality-bar` | writing tests; wiring coverage gates; adding error reporting; setting bundle budgets; verifying accessibility; reviewing code that renders untrusted HTML |
 
+## Repo layout
+
+```
+skills/<category>/<skill>/
+  SKILL.md        always in context — the harness loads it from its frontmatter description
+  references/     loaded on demand, when SKILL.md names the file
+  scripts/        executed by the agent, never auto-loaded
+  starter/        config files copied into a repo being migrated
+docs/adr/         decision records — rationale, kept out of the skills
+scripts/          this repo's own tooling: validate-skills.mjs, link-skills.sh
+```
+
+The three layers are the point: a `SKILL.md` costs context on every turn, a `references/` file
+costs context only when the procedure sends the agent to it, and a script costs none. `npm run
+validate` stats every path a `SKILL.md` names — including `../<sibling-skill>/references/…`, which
+works only because skills install flat — so a rename breaks CI instead of breaking silently.
+
 ## Updating
 
 ```bash
@@ -38,7 +55,7 @@ npx skills update                    # refresh all installed skills
 npx skills update eq-frontend-standards # just one
 ```
 
-That refreshes the skill **text**. It changes no repo's ESLint config, hooks, or CI — so a repo
+That refreshes the skill **text**. It changes no repo's lint config, hooks, or CI — so a repo
 silently stops complying the moment the standard moves. Each migrated repo therefore records its
 version in `.eq-frontend-skills.json`, and CI checks it:
 
@@ -66,20 +83,24 @@ bug, not a convention. Detection tells you the migration cost; it never sets the
 
 ## Design principles
 
-**Adopt, don't rebuild.** Everything enforceable here is enforced by mature, widely-adopted tools —
-ESLint and its plugin ecosystem, `eslint-plugin-react-hooks` v7 (which bundles the React Compiler
-lint suite), husky, lint-staged, commitlint, Vitest coverage thresholds, changesets. These skills
-contribute the part no package ships: **which rules to turn on, in what order, and what each one
-actually means.** Custom rules and bespoke tooling are a last resort — every one is maintenance you
-inherit, and the ecosystem outlives any internal library.
+**Adopt, don't rebuild.** Everything enforceable here is enforced by existing tools — oxlint and
+oxfmt, `eslint-plugin-react-hooks` v7 loaded through oxlint's `jsPlugins` bridge (it bundles the
+React Compiler lint suite), husky, lint-staged, commitlint, Vitest coverage thresholds, changesets.
+These skills contribute the part no package ships: **which rules to turn on, in what order, and what
+each one actually means.** Custom rules and bespoke tooling are a last resort — every one is
+maintenance you inherit, and the ecosystem outlives any internal library.
 
 **Ratchet, never big-bang.** No repo passes a new standard on day one. Every gate adopts at the
-repo's current level and only allows improvement: ESLint bulk suppressions for lint, Vitest
-`thresholds.autoUpdate` for coverage. New code complies immediately; existing debt ratchets down.
-A standard that requires a week of cleanup before it can be installed never gets installed.
+repo's current level and only allows improvement: Vitest `thresholds.autoUpdate` for coverage, a
+committed error-count baseline for the strict-typing flags, and — on the one migration branch that
+still runs ESLint — its bulk suppressions. New code complies immediately; existing debt ratchets
+down. A standard that requires a week of cleanup before it can be installed never gets installed.
 
-**Suppress at `error`, never park at `warn`.** ESLint suppressions apply only to `error`-severity
-violations. A rule left at `warn` can never be ratcheted and will sit green forever.
+**A rule parked at `warn` can never be ratcheted** and will sit green forever, so nothing is staged
+at `warn`. The corollary is tool-specific: ESLint's suppressions apply only to `error`-severity
+violations, and oxlint has no suppressions mechanism at all
+([`oxc#10549`](https://github.com/oxc-project/oxc/issues/10549) is open), which is why the migration
+ladder branches on violation count rather than parking rules — see `docs/adr/0002-*`.
 
 **Generate every measured claim, or delete it.** Auditing one mature codebase produced four false
 statements in its own conventions document: a git hook documented as absent that existed, a violation
@@ -91,11 +112,26 @@ hand-typed number. Numbers belong in generated reports; documents state rules.
 live in the standard, reasoning lives in `docs/adr/`. Mixing them is how a document ends up
 confidently asserting things that stopped being true.
 
+## Deliberately out of scope
+
+Recorded rather than left to drift, so a reviewer reads a decision instead of finding a gap. Each
+becomes in scope the moment a consuming repo needs it.
+
+| Excluded | Why |
+|---|---|
+| Storybook / component documentation | the starter ships no Storybook dependency and no component-library build target; supersede when one is added |
+| Feature-flag lifecycle | no repo-level flag tooling adopted to date — the starter ships no flag SDK; supersede when one enters its dependency set |
+| SEO and meta tags | **unverified assumption — confirm before relying on it:** that no consuming app has an unauthenticated, crawlable surface. Nothing in this repo can check that |
+| SSR / RSC-specific rules | **unverified assumption — confirm before relying on it:** that consuming apps render on the client. `init-greenfield.mjs` supports Next.js, webpack and Rspack, so the standard does not require it |
+| i18n | no localization requirement recorded to date; supersede when one appears |
+
 ## Contributing
 
 - Every `SKILL.md` stays under **200 lines**, with `name` and `description` frontmatter. `npm run
-  validate` gates this, plus the 1,536-character description cap, name/directory agreement, and
-  hedging phrases.
+  validate` gates this, plus the 1,024-character description cap and the installer's name rules,
+  name/directory agreement, hedging phrases, and the existence of every referenced file.
+- `npm i` installs a husky `pre-commit` running `npm run validate` and a `commit-msg` running
+  commitlint. Both have a CI counterpart, which is the rule the standard itself states.
 - Procedures go in a skill. Reference material goes in that skill's `references/`, loaded on demand.
 - No repo-specific names, paths, or measured numbers in a skill — those belong in the repo being
   audited, not in the published standard.

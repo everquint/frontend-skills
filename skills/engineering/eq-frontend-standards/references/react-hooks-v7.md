@@ -11,11 +11,28 @@ codebases; the counts are illustrative of scale, not targets.
 
 Verified against `eslint-plugin-react-hooks@7.1.1`.
 
+## The rule names carry an alias prefix
+
+The package name is unchanged — `eslint-plugin-react-hooks` is what the standard installs and what
+oxlint's `jsPlugins` loads. **The prefix you write is not.** Both `react-hooks` and `react_hooks` are
+reserved names in oxlint, which ships its own native Rust react-hooks plugin, so the real plugin is
+registered under an alias:
+
+```json
+"jsPlugins": [{ "name": "react-hooks-js", "specifier": "eslint-plugin-react-hooks" }]
+```
+
+Every rule name in this document is therefore written `react-hooks-js/<rule>` in a config, **and every
+suppression comment in a consuming repo must use the same prefix**: `// oxlint-disable-next-line
+react-hooks-js/exhaustive-deps`. A comment naming `react-hooks/exhaustive-deps` suppresses nothing and
+reports nothing about having failed — it is an inert comment beside a live finding.
+
 ---
 
 ## Enable — real rules
 
-Adopt via the ladder: zero-violation rules to `error` immediately, the rest to `error` + suppressions.
+Adopt via the ladder in `../SKILL.md` §3: rules at zero violations go to `error` immediately, and the
+rest follow the path that section sets for a repo of this size.
 
 | Rule | Catches |
 |---|---|
@@ -70,38 +87,49 @@ Compiler's own build.
 
 ## Measurement method
 
-Do not edit the live ESLint config to measure. Copy it, flip rules in the copy, delete the copy:
+Do not edit the live lint config to measure. Generate a throwaway config that names all 29 rules, run
+it, delete it. Generating the list beats typing it: oxlint **rejects** a config holding a rule name the
+plugin does not export, so one typo aborts the whole run.
 
 ```js
-// probe.eslint.config.mjs
-import base from './eslint.config.js';
-import reactHooks from 'eslint-plugin-react-hooks';
+// write-probe.mjs
+import { writeFileSync } from 'node:fs';
+import plugin from 'eslint-plugin-react-hooks';
 
-const ALL = Object.fromEntries(
-    Object.keys(reactHooks.rules).map(r => [`react-hooks/${r}`, 'error'])
-);
+const rules = Object.keys(plugin.rules).sort();
 
-export default [
-    ...base,
-    { files: ['src/**/*.{ts,tsx}'], plugins: { 'react-hooks': reactHooks }, rules: ALL },
-];
+writeFileSync('probe.oxlintrc.json', JSON.stringify({
+    categories: { correctness: 'off' },
+    jsPlugins: [{ name: 'react-hooks-js', specifier: 'eslint-plugin-react-hooks' }],
+    rules: Object.fromEntries(rules.map((r) => [`react-hooks-js/${r}`, 'error'])),
+}, null, 4));
 ```
 
 ```bash
-npx eslint --no-config-lookup -c probe.eslint.config.mjs src --format json > out.json
-rm probe.eslint.config.mjs out.json   # always clean up
+node write-probe.mjs
+npx oxlint -c probe.oxlintrc.json -f json src > out.json
+rm probe.oxlintrc.json out.json   # always clean up
 ```
 
-Two practical notes:
+`categories: { correctness: 'off' }` keeps the output to hook findings; without it the default
+`correctness` category reports alongside them and the counts have to be filtered afterwards.
+
+Three practical notes:
 
 - **Scope it on large repos.** A full pass with all rules enabled invokes the React Compiler on every
-  file and can exceed two minutes on ~1,500 files. Measure directory by directory.
-- **Confirm the rules are live.** A misspelled rule name in flat config fails **silently** — a green
-  run may mean nothing ran. Verify with:
-  ```bash
-  npx eslint --print-config path/to/a/real/file.tsx | grep react-hooks
+  file. The JS plugin bridge is where the time goes: on a 2,185-file repo the same rule set costs 18.6s
+  against 0.70–0.82s for oxlint's native rules alone. Measure directory by directory.
+- **Confirm the rules are live** — from `number_of_rules` in the `-f json` output, which reads **29** for
+  the config above. `--print-config` does **not** work here: verified, it echoes the `jsPlugins` entry but
+  prints `"rules": {}`, because the JS plugin's rules are resolved after the config is dumped. A config
+  asserted only against `--print-config` looks empty when it is fully loaded.
+- **A misspelled rule name is not a silent pass.** oxlint refuses to start:
   ```
-  Severity `2` means active.
+  Failed to parse oxlint configuration file.
+    x Rule 'set-state-in-effectt' not found in plugin 'react-hooks-js'
+  ```
+  This is the one place the migration off ESLint made measurement safer — a typo in ESLint flat config
+  produced a green run against rules that never loaded.
 
 ## Expect wide variance between repos
 

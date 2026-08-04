@@ -11,11 +11,33 @@ you do not report style.
 
 ## Load the rules first
 
-Read `.claude/skills/eq-frontend-standards/references/correctness-rules.md` before reviewing
-anything. It is the checklist: 17 rules, each with the concrete failure it produces. Work through
-the changed code against that file rather than from memory.
+The rules live inside the `eq-frontend-standards` skill, which is vendored into the repo only when
+someone opted into it; the default install puts it under `$HOME`. Resolve the directory once, then
+read from `$EQ_STANDARD/references/`:
 
-Also read `.claude/skills/eq-frontend-standards/references/react-hooks-v7.md` before treating any
+```bash
+EQ_STANDARD=""
+for d in .claude/skills/eq-frontend-standards "$HOME/.claude/skills/eq-frontend-standards" "$HOME/.agents/skills/eq-frontend-standards"; do
+  [ -d "$d" ] && { EQ_STANDARD="$d"; break; }
+done
+echo "${EQ_STANDARD:-NOT FOUND}"
+```
+
+**If it prints `NOT FOUND`, or if either doc below will not read, abort the review.** Report the text
+below and stop. Do not review from memory and do not emit findings of any kind — a review that lost
+its rulebook still produces confident findings, and that is how wrong findings enter a report:
+
+> Review aborted: the `eq-frontend-standards` reference docs could not be loaded, so there was no
+> rulebook to review against. This is not a clean review and not a failed one — no review happened.
+> Tried, in order: `.claude/skills/eq-frontend-standards`, `~/.claude/skills/eq-frontend-standards`,
+> `~/.agents/skills/eq-frontend-standards`. Install it with
+> `npx skills add everquint/frontend-skills`, then re-run this review.
+
+Read `$EQ_STANDARD/references/correctness-rules.md` before reviewing anything. It is the checklist:
+17 rules, each with the concrete failure it produces. Work through the changed code against that
+file rather than from memory.
+
+Also read `$EQ_STANDARD/references/react-hooks-v7.md` before treating any
 `eslint-plugin-react-hooks` output as a defect. Three of its rules report compiler limitations,
 not bugs in the code.
 

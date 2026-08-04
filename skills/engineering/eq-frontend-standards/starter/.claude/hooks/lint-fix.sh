@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# PostToolUse hook: run `eslint --fix` on the single file that was just written or edited.
+# PostToolUse hook: run `oxfmt` then `oxlint --fix` on the single file that was just written or
+# edited — the same pair, in the same order, that lint-staged runs on commit.
 #
-# WHY it always exits 0: a formatter that can block an edit gets switched off within a week, and
+# WHY a clean run exits 0: a formatter that can block an edit gets switched off within a week, and
 # then nothing formats at all. Unfixable violations are reported on stderr as feedback; the gate
 # that actually rejects them is the pre-push hook and CI, not this.
+#
+# The one thing that is NOT a quiet exit 0 is a missing binary — see the diagnostic below.
 #
 # WHY node and not jq: jq is not installed everywhere, and a hook whose dependency is missing
 # fails in the worst way — silently, while looking wired. node is already a hard requirement of
@@ -49,11 +52,30 @@ case "$file_path" in
     *) exit 0 ;;
 esac
 
-eslint_bin="$project_dir/node_modules/.bin/eslint"
-[ -x "$eslint_bin" ] || exit 0
+oxfmt_bin="$project_dir/node_modules/.bin/oxfmt"
+oxlint_bin="$project_dir/node_modules/.bin/oxlint"
 
-if ! output=$("$eslint_bin" --fix "$file_path" 2>&1); then
-    echo "eslint could not auto-fix everything in $file_path:" >&2
+missing=
+[ -x "$oxfmt_bin" ] || missing="$missing oxfmt"
+[ -x "$oxlint_bin" ] || missing="$missing oxlint"
+
+if [ -n "$missing" ]; then
+    # Exit 1, not 0 and not 2: exit 0 hides stderr, so a hook whose binary is gone reports success
+    # while formatting nothing, forever — and exit 2 blocks the edit, so a repo mid-`npm install`
+    # could not be touched. Exit 1 is Claude Code's non-blocking error: stderr is shown, edit stands.
+    echo "lint-fix hook: missing${missing} in $project_dir/node_modules/.bin — $file_path was NOT formatted." >&2
+    echo "lint-fix hook: run \`npm install\` in $project_dir. Until then this hook formats nothing." >&2
+    exit 1
+fi
+
+# oxfmt writes in place by default; --write is passed explicitly so the intent survives a default change.
+if ! output=$("$oxfmt_bin" --write "$file_path" 2>&1); then
+    echo "oxfmt could not format $file_path:" >&2
+    echo "$output" >&2
+fi
+
+if ! output=$("$oxlint_bin" --fix "$file_path" 2>&1); then
+    echo "oxlint could not auto-fix everything in $file_path:" >&2
     echo "$output" >&2
 fi
 

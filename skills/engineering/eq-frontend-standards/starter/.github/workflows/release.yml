@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# A release must never be cancelled halfway: `changeset version` rewrites package.json and
+# CHANGELOG.md, `changeset tag` writes the tag, and the action pushes it. A run killed between those
+# steps leaves a bumped version with no tag, which the next run cannot detect. Queue instead.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+# contents: write pushes the version commit, the tag and the GitHub release.
+# pull-requests: write opens and updates the "Version Packages" PR.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # REQUIRED. `changeset tag` decides what to tag by reading the tags that already exist, so
+          # a shallow clone has no history to compare against and the job either re-tags or tags
+          # nothing. Both outcomes exit 0.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # THIS JOB DOES NOT TRUST ITS OWN EXIT CODE, for the same reason ci.yml's lint gate does not.
+      #
+      # A consumer repo is a private application: package.json says `"private": true`. Changesets
+      # defaults private packages to `{ version: true, tag: false }`, and with `tag: false`
+      # `changeset tag` FILTERS THE PACKAGE OUT and creates no tag at all — no error, no warning,
+      # exit 0, and the step below reports a successful release that produced nothing. Measured on a
+      # scaffolded consumer repo: with `tag: true`, `changeset tag` prints `New tag: v0.1.0` and
+      # `git tag` lists it; with the key removed, the same command prints nothing and `git tag` is
+      # empty while both runs exit 0.
+      #
+      # The action also parses `New tag:` out of the publish script's stdout to decide whether to
+      # push a tag, so `tag: false` means nothing is pushed either.
+      - name: Assert private-package tagging is enabled
+        run: |
+          set -euo pipefail
+          node -e '
+            const config = require("./.changeset/config.json");
+            if (config.privatePackages?.tag !== true) {
+              console.error(`privatePackages.tag is ${JSON.stringify(config.privatePackages?.tag)}, not true`);
+              process.exit(1);
+            }
+          ' || {
+            echo "::error::.changeset/config.json does not set privatePackages.tag to true. This repo is private, so \`changeset tag\` would filter it out, tag nothing, and exit 0 — a green release that released nothing."
+            exit 1
+          }
+          echo "privatePackages.tag is true, so a version bump produces a tag."
+
+      # Two-phase, and it releases nothing on an ordinary push.
+      #
+      #   changesets pending  -> opens or updates the "Version Packages" PR. Nothing is tagged. That
+      #                          PR carries the version bump and the generated CHANGELOG.md.
+      #   none pending        -> the merge of that PR is what lands here, so `publish` runs. There is
+      #                          no npm publish: `npm run release` is `changeset tag`, which tags
+      #                          only a version that is not tagged yet, and the action pushes the tag
+      #                          and opens a GitHub release for it.
+      #
+      # CHANGELOG.md is a build output of this job. It is never hand-edited: an edit is overwritten
+      # by the next `changeset version`, and the entry belongs in a `.changeset/*.md` file instead.
+      - uses: changesets/action@v1.9.0
+        with:
+          version: npm run version
+          publish: npm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

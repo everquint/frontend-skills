@@ -40,6 +40,28 @@ query key, a permission check, a magic threshold, a feature-flag name. Each gets
 module** that exports it, and every consumer imports it. Two copies is already the defect — there is
 no rule of three here, because the second copy is already a place the next fix will miss.
 
+#### One module instance per library
+
+Two entry points for one library are two copies of that dependency. The duplicated decision is *which
+module instance the app talks to*, and it is a defect at the second import specifier.
+
+**Failure:** a component imports `useNavigate` from `react-router`; its test renders that component
+inside a `<MemoryRouter>` imported from `react-router-dom`. The resolver treats the two specifiers as
+two modules, so there are two copies of the router and two distinct React contexts — the hook looks in
+the copy that has no provider and throws `useNavigate() may be used only in the context of a <Router>`
+**in the test only**. The browser build resolves one copy and is green. From a browser-green, test-red
+split the conclusion drawn is "Testing Library cannot do routing here", and the test is deleted rather
+than the import corrected: the coverage is gone and the defect that removed it is still in the source.
+One specifier per library, in source and in tests alike.
+
+Same class, wider blast radius — a **duplicated peer dependency**. A package that declares React as a
+direct dependency instead of a peer installs its own copy beside the consumer's, and every hook in
+every consumer throws `Invalid hook call. Hooks can only be called inside of the body of a function
+component`, with no wrong line of code anywhere to point at. Declare a shared runtime library as a peer
+dependency, never a direct one, and check the resolution with `npm ls react` — exactly one version, and
+`npm ls` is a manual check, not a gate. §6 applies: no lint rule in the starter config detects either
+case.
+
 ### Duplicated logic — the Rule of Three
 
 Two similar blocks may be coincidence, and the shared abstraction is a guess about which parts vary.
@@ -87,6 +109,7 @@ The abstract rule does not decide real cases. These are decided.
 | **Test fixture** | A factory function per shape. **Never** a shared mutable object — see `correctness-rules.md` §17: a module-level object mutated by one test leaks into whichever test runs second |
 | **Env / config value** | Read once, in one schema-validated config module. A second `import.meta.env.VITE_X` read is a second place to update |
 | **Error message text** | Duplicated strings are shape. Duplicated *mapping* from an error code to a message is a decision — one module |
+| **Library entry point** | One specifier per library, source and tests alike. A second entry point (`react-router` beside `react-router-dom`) is a second module instance with its own React context — §2 |
 
 ## 5. What is not deduplicated
 
@@ -129,18 +152,20 @@ extractions — and the pressure is strongest on the highest-percentage files, w
 merging is most harmful.
 
 **Partly machine-enforced — two rules with no judgement in them.** Neither can mistake incidental
-shape for a duplicated decision, so neither needs a reviewer. Both are set to `error` in
-`starter/eslint.config.js`; neither is on in any preset the starter spreads, so a repo that has not
-set them explicitly is not running them and its violation count is unknown.
+shape for a duplicated decision, so neither needs a reviewer. Both are set to `error` in the starter's
+oxlint config; **neither is in oxlint's `correctness` category**, so a repo that has not named them
+explicitly is not running them and its violation count is unknown. Verified: a fixture holding both
+defects exits 0 under a bare `npx oxlint`.
 
 | Rule | Catches | Status |
 |---|---|---|
-| `import/no-duplicates` | two `import` statements from the same module specifier | `eslint-plugin-import@2.32.0`, which the starter lists as a devDependency and registers as the `import` plugin. Not in `js.configs.recommended` or `tseslint.configs.recommended` — the plugin must be installed and the rule named to run at all |
-| `@typescript-eslint/no-duplicate-type-constituents` | a repeated member in a union or intersection (`A \| B \| A`) | `@typescript-eslint/eslint-plugin@8.65.0`; `requiresTypeChecking: true`, so it needs `parserOptions.projectService` — the same prerequisite as `no-floating-promises` (`../SKILL.md` §2). The starter already sets `projectService` for that rule, so this one rides it. It is `false` in `tseslint.configs.recommended` and only enabled by `recommendedTypeChecked`, which the starter does not spread |
+| `import/no-duplicates` | two `import` statements from the same module specifier | Native to oxlint under the `import` plugin — no `eslint-plugin-import` dependency, and the plugin is in the base config's `plugins` list. Named in `.oxlintrc.json`, so it runs in the fast path and in the editor |
+| `typescript/no-duplicate-type-constituents` | a repeated member in a union or intersection (`A \| B \| A`) | Type-aware, so it lives in `.oxlintrc.strict.json` and needs `--type-aware` plus the `oxlint-tsgolint` package — the same prerequisite as `no-floating-promises` (`../SKILL.md` §2). Without the flag it is skipped in silence: verified, the same fixture reports the duplicate import and says nothing about the duplicate union member |
 
-Both were verified by execution against a fixture on the starter's config: two `react` imports report
-`import/no-duplicates` twice, `string | number | string` reports
-`@typescript-eslint/no-duplicate-type-constituents`, and a file with neither exits 0.
+Both were verified by execution against a fixture on the starter's rule names. Two `react` imports
+report `import(no-duplicates)` **once** for the file, not once per import; `string | number | string`
+reports `typescript(no-duplicate-type-constituents)` when `--type-aware` is passed; and a file with
+neither exits 0.
 
 ## 7. Wording a duplication finding
 

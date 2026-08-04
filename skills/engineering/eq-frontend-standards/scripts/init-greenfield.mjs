@@ -18,23 +18,35 @@
 // symlink `npx skills add` makes: git stores a symlink as its target path, so a committed symlink
 // hands every teammate a broken link into one machine's home directory.
 //
-// It also VERIFIES, and exits non-zero on, the one part of the standard that cannot be installed:
-// tailwindcss ships in package.fragment.json, but Tailwind is inert until two SOURCE files say so.
-// This script never edits source, so it reports the exact two edits and fails until they exist —
-// see the styling-pipeline block near the bottom for why a printed reminder is not sufficient.
+// It also VERIFIES, and exits non-zero on, the parts of the standard that cannot be installed by
+// copying a file — the ones whose failure mode is a GREEN build:
+//   * the base lint config .oxlintrc.strict.json extends. If the repo already had its own
+//     .oxlintrc.json, that file is the gate, and never-overwrite means this script cannot fix it.
+//   * the `@/` source alias. tsconfig `paths` makes it type-check; only a bundler alias makes vitest
+//     and vite 7 resolve it. Both files are ones this script must not edit.
+//   * the styling pipeline. tailwindcss ships in package.fragment.json, but Tailwind is inert until
+//     two SOURCE files say so, and this script never edits source.
+//   * the release job. .changeset/config.json and .github/workflows/release.yml are written here, but
+//     a pre-existing changesets config with `privatePackages.tag` unset tags nothing while exiting 0,
+//     and release.yml runs whatever `scripts.version` and `scripts.release` already contained.
+// All are reported in ONE run, with the exact change to make, and fail until those changes exist. See
+// the blocks they live in for why a printed reminder is not sufficient.
 //
 // Usage, from the root of the new repo:
 //   node <path>/init-greenfield.mjs [--dry-run] [--vendor-skills]
 //
 // Exit codes — distinct, because a wrapper has to tell "finish the setup" from "the run never
 // started", and the two need opposite responses:
-//   0  setup complete: everything landed and the styling pipeline is wired. Also EVERY --dry-run,
-//      including one that reports styling gaps — a dry run wrote nothing, so it cannot have failed,
-//      and `node … --dry-run && node …` has to reach the real run.
+//   0  setup complete: everything landed and both verified gates are enforcing. Also EVERY --dry-run,
+//      including one that reports gaps — a dry run wrote nothing, so it cannot have failed, and
+//      `node … --dry-run && node …` has to reach the real run.
 //   1  the run did not happen: wrong directory, an incomplete skill install, --vendor-skills with
 //      the sibling skills missing, or an unexpected throw. Nothing was written.
-//   2  files landed, but the styling pipeline is unwired. Make the two printed source edits and
-//      re-run; nothing else in the install is affected.
+//   2  files landed, but a verified gate is not enforcing: a pre-existing .oxlintrc.json is the base
+//      of the lint gate, the styling pipeline is unwired, and/or the release job would report a
+//      release it did not make. Make the printed change(s) and re-run; nothing else in the install is
+//      affected. The two release items printed under `ℹ` are deliberately NOT part of this: they stop
+//      a release from happening at all, which is visible rather than falsely green.
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, statSync, realpathSync, chmodSync, cpSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
@@ -65,6 +77,24 @@ const walk = (dir, base = dir) => readdirSync(dir).flatMap((e) => {
     return statSync(p).isDirectory() ? walk(p, base) : [relative(base, p)];
 });
 
+// Every gate this script VERIFIES rather than writes reads a file the user controls, so an unreadable
+// file must be NOT A MATCH and never an exception: a dangling symlink (ENOENT) and a chmod 000 file
+// (EACCES) both mean "this file does not prove the thing", and neither may abort a run that has
+// already rewritten package.json.
+const readTextFile = (file) => {
+    try {
+        const buf = readFileSync(file);
+        // A UTF-16 file decoded as utf8 is NUL-interleaved mojibake, so the string being searched for
+        // is invisible and a WIRED repo gets reported as unwired.
+        if (buf[0] === 0xff && buf[1] === 0xfe) return buf.subarray(2).toString('utf16le');
+        if (buf[0] === 0xfe && buf[1] === 0xff) return buf.subarray(2).swap16().toString('utf16le');
+        // A UTF-8 BOM sits in front of the first character and would break a first-line anchor.
+        return buf.toString('utf8').replace(/^﻿/, '');
+    } catch {
+        return null;
+    }
+};
+
 // ── plain file copies ───────────────────────────────────────────────────────
 for (const rel of walk(STARTER)) {
     // `.fragment` files are merged, not copied.
@@ -80,6 +110,43 @@ for (const rel of walk(STARTER)) {
         if (rel.startsWith('.husky/') || rel.startsWith('.claude/hooks/')) chmodSync(target, 0o755);
     }
     created.push(rel);
+}
+
+// ── the base lint config the strict config inherits — VERIFIED, never written ─
+// The two lint configs are a pair: .oxlintrc.strict.json is `"extends": ["./.oxlintrc.json"]` plus the
+// expensive checks, and `npm run lint` runs the strict one. The copy loop above never overwrites, so a
+// repo that already has its OWN .oxlintrc.json keeps it — and the strict config then extends THAT.
+// `extends` can add but never subtract, so there is no config-side fix: the base file has to be the
+// standard's.
+//
+// WHY THIS CARRIES EXIT 2, the same as the styling pipeline below: it is strictly the worse of the
+// two. An unwired Tailwind pipeline is VISIBLE — styles do not apply and someone notices in the
+// browser within minutes. A strict config extending a scaffold's base is INVISIBLE: `npm run lint`
+// exits 0, CI is green, and the repo enforces the scaffold's handful of rules instead of the
+// standard's full set. A gate whose failure is indistinguishable from success is worse than no gate,
+// which is the principle every other verified check here already rests on. The Vite react-ts template
+// ships a two-rule .oxlintrc.json, so this is the most common scaffold in the world, not an edge case
+// — and `= .oxlintrc.json` in the "left alone" list reads as harmlessly as tsconfig.json.
+const OXLINTRC = '.oxlintrc.json';
+// The sentinel is a RULE NAME, not the file's bytes: a repo that took the standard's base and then
+// retuned a value or added its own rules must not be pinned at exit 2 forever, so "derived from the
+// standard" has to count as the standard's. Same device as the .gitignore sentinel further down.
+// `max-lines` is the §1 size budget — it is in the standard's base config and in no scaffold's.
+const STANDARD_BASE_SENTINEL = 'max-lines';
+const lintGaps = [];
+if (skipped.includes(OXLINTRC)) {
+    const body = readTextFile(join(cwd, OXLINTRC));
+    if (body === null || !body.includes(STANDARD_BASE_SENTINEL)) {
+        const why = body === null ? `could not be read, so it cannot be shown to hold the standard's rules` : `does not contain the standard's base rules (no \`${STANDARD_BASE_SENTINEL}\` budget in it)`;
+        lintGaps.push([
+            `${OXLINTRC} already existed and was NOT replaced — this script does not overwrite your`,
+            `files — but it ${why}.`,
+            `.oxlintrc.strict.json extends ./${OXLINTRC}, so YOUR file is the base of the gate that`,
+            `\`npm run lint\` and CI run: whatever is missing from it is missing from the gate, green.`,
+            `Replace it with the standard's, then merge any additions of your own back on top:`,
+            `      cp ${join(STARTER, OXLINTRC)} ${OXLINTRC}`,
+        ].join('\n    '));
+    }
 }
 
 // ── vendored skills ─────────────────────────────────────────────────────────
@@ -142,16 +209,21 @@ const mergeSection = (key) => {
 
 // ── foreign linter holding the lint gate ────────────────────────────────────
 // `scripts.lint` is not user content, it is the definition of the gate: starter/.github/workflows/
-// ci.yml runs `npm run lint`, so whatever sits there is what CI enforces. The Vite react-ts template
-// ships `"lint": "oxlint"`, and keeping it means CI runs oxlint's two-rule default config and never
-// the eslint.config.js this script just wrote — every correctness rule and every budget in the
-// standard passes unenforced, on a green build, with only a one-time warning in this output to say
-// so. So a recognised foreign linter is moved aside to a named key and `eslint .` takes the gate.
-// An `eslint` command with different flags is a user choice inside the standard's own tool: that
-// stays an ordinary reported conflict, untouched.
+// ci.yml runs `npm run lint`, so whatever sits there is what CI enforces. A repo that ships
+// `"lint": "eslint ."` and keeps it means CI runs that eslint config and never the .oxlintrc.strict
+// .json this script just wrote — every correctness rule and every budget in the standard passes
+// unenforced, on a green build, with only a one-time warning in this output to say so. So a
+// recognised foreign linter is moved aside to a named key and the standard's oxlint command takes
+// the gate. An `oxlint` command with different flags is a user choice inside the standard's own
+// tool: that stays an ordinary reported conflict, untouched.
+//
+// oxlint is OURS, so it must never appear in the list below: the Vite react-ts template ships
+// `"lint": "oxlint"`, and treating that as a rival relocates the standard's own linter to
+// `lint:legacy`. See reconcileLintScript for what that head start gets instead.
+const STANDARD_LINTER = 'oxlint';
 // [name, matches the segment's FIRST EXECUTABLE TOKEN, optional extra test on the whole segment].
 const FOREIGN_LINTERS = [
-    ['oxlint', /^oxlint$/],
+    ['eslint', /^eslint$/],
     ['biome', /^(@biomejs\/)?biome$/],
     ['rome', /^(@rometools\/)?rome$/],
     ['standard', /^standard$/],
@@ -161,19 +233,24 @@ const FOREIGN_LINTERS = [
     // checking form counts.
     ['prettier --check', /^prettier$/, /(^|\s)(--check|-c)(\s|$)/],
 ];
-const FOREIGN_LINTER_CONFIGS = ['.oxlintrc.json', 'oxlintrc.json', 'biome.json', 'biome.jsonc', 'tslint.json'];
+// The standard's own .oxlintrc*.json and .oxfmtrc.json are deliberately absent: reporting the config
+// this script just wrote as a file to delete is how a repo gets talked into deleting its own gate.
+const FOREIGN_LINTER_CONFIGS = [
+    'eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs', 'eslint.config.ts', 'eslint.config.mts',
+    'biome.json', 'biome.jsonc', 'tslint.json',
+];
 
 // Classification reads the first executable token of each `&&` / `;` / `||` / `|` segment, never the
 // whole string. Searching anywhere matched a script NAME: `"lint": "npm run standard-lint"` with
-// `"standard-lint": "eslint . --max-warnings 0 && tsc --noEmit"` was relocated as the `standard`
+// `"standard-lint": "oxlint --max-warnings 0 && tsc --noEmit"` was relocated as the `standard`
 // linter, silently dropping `--max-warnings 0` and the typecheck from CI. `run-s standard-checks` and
 // `echo standard` misfired the same way, and `xo` had the same pattern shape.
 const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 // Tools that run something else: the thing they run is the token that decides.
 const COMMAND_WRAPPERS = new Set(['npm', 'npx', 'pnpm', 'pnpx', 'yarn', 'bun', 'bunx', 'dlx', 'exec', 'cross-env', 'env', 'dotenv', 'dotenv-cli']);
 const SCRIPT_RUNNERS = /^(run-s|run-p|npm-run-all)$/;
-// One level of `npm run` indirection is what hid oxlint in practice; the depth cap and the visited
-// set are what stop `"lint": "npm run lint"` from recursing forever.
+// One level of `npm run` indirection is what hid a foreign linter in practice; the depth cap and the
+// visited set are what stop `"lint": "npm run lint"` from recursing forever.
 const MAX_SCRIPT_DEPTH = 3;
 
 const tokenize = (segment) => segment.trim().split(/\s+/).map((t) => t.replace(/^['"]+|['"]+$/g, '')).filter(Boolean);
@@ -198,8 +275,9 @@ const expandScriptGlob = (arg, scripts) => {
     return Object.keys(scripts ?? {}).filter((name) => pattern.test(name));
 };
 
-// Every classifier below returns 'eslint', a foreign linter's name, or null.
-const firstLinterIn = (results) => (results.includes('eslint') ? 'eslint' : results.find(Boolean) ?? null);
+// Every classifier below returns STANDARD_LINTER, a foreign linter's name, or null. The standard's
+// own tool anywhere in the chain wins: `tsc --noEmit && oxlint` is our gate, not a foreign one.
+const firstLinterIn = (results) => (results.includes(STANDARD_LINTER) ? STANDARD_LINTER : results.find(Boolean) ?? null);
 
 const classifyChain = (cmd, scripts, seen, depth) => firstLinterIn(cmd.split(/[;&|]+/).map((segment) => classifySegment(segment, scripts, seen, depth)));
 
@@ -228,7 +306,7 @@ function classifySegment (segment, scripts, seen, depth) {
 
     const bin = binName(tokens[0]);
     // The standard's own tool running in the chain means this is flags, not a different linter.
-    if (bin === 'eslint') return 'eslint';
+    if (bin === STANDARD_LINTER) return STANDARD_LINTER;
     const linter = FOREIGN_LINTERS.find(([, tokenPattern, segmentPattern]) => tokenPattern.test(bin) && (!segmentPattern || segmentPattern.test(segment)))?.[0];
     if (linter) return linter;
     // A bare script name, as `yarn <script>` and `run-s` both allow.
@@ -237,19 +315,39 @@ function classifySegment (segment, scripts, seen, depth) {
 
 const foreignLinterIn = (cmd, scripts) => {
     const found = classifyChain(cmd, scripts, new Set(), 0);
-    return found && found !== 'eslint' ? found : null;
+    return found && found !== STANDARD_LINTER ? found : null;
+};
+
+// A bare `oxlint`, with no flags and no paths, is the scaffold's default rather than a decision: the
+// Vite react-ts template ships exactly that. It is the standard's own linter, so relocating it would
+// be nonsense — but it is not the standard's gate either. Bare `oxlint` reads .oxlintrc.json only, so
+// CI would run the fast native-only set and never the type-aware rules and jsPlugins in
+// .oxlintrc.strict.json: green, and half the standard unenforced. The fragment's command is a strict
+// superset of what the bare form does, so it replaces it. Any oxlint command carrying a flag or a path
+// IS a decision inside our own tool and is left alone as an ordinary reported conflict.
+const isBareStandardLinter = (cmd) => {
+    const tokens = stripWrappers(tokenize(cmd));
+    return tokens.length === 1 && binName(tokens[0]) === STANDARD_LINTER;
 };
 
 const moved = [];
+const upgraded = [];
 
-const relocateForeignLint = (key) => {
+const reconcileLintScript = (key) => {
     const existing = pkg.scripts?.[key];
     if (typeof existing !== 'string') return;
+    const standard = JSON.stringify(fragment.scripts[key]);
+
+    if (isBareStandardLinter(existing)) {
+        delete pkg.scripts[key];   // so the merge below installs the standard's value, not a conflict
+        upgraded.push(`package.json scripts.${key}: yours was ${JSON.stringify(existing)} — already the standard's linter, so nothing was moved aside. Replaced with ${standard}, because bare \`${STANDARD_LINTER}\` reads .oxlintrc.json only and CI's \`npm run ${key}\` would never run the type-aware rules in .oxlintrc.strict.json. To reverse: set scripts.${key} back by hand.`);
+        return;
+    }
+
     const tool = foreignLinterIn(existing, pkg.scripts);
     if (!tool) return;
 
     const dest = `${key}:legacy`;
-    const standard = JSON.stringify(fragment.scripts[key]);
     if (dest in pkg.scripts) {
         // This line says everything the merge's generic conflict would, and more, so suppress that one.
         scriptKeysAlreadyReported.add(key);
@@ -259,13 +357,15 @@ const relocateForeignLint = (key) => {
 
     pkg.scripts[dest] = existing;
     delete pkg.scripts[key];   // so the merge below installs the standard's value, not a conflict
-    moved.push(`package.json scripts.${key}: yours ran ${tool}, not eslint — kept verbatim as scripts.${dest}, and the standard's ${standard} installed as scripts.${key}, because CI's \`npm run ${key}\` step would otherwise enforce ${tool} instead of the eslint.config.js written above. To reverse: swap the two values back by hand.`);
+    moved.push(`package.json scripts.${key}: yours ran ${tool}, not ${STANDARD_LINTER} — kept verbatim as scripts.${dest}, and the standard's ${standard} installed as scripts.${key}, because CI's \`npm run ${key}\` step would otherwise enforce ${tool} instead of the .oxlintrc*.json written above. To reverse: swap the two values back by hand. Note that ${tool} is NOT in the standard's devDependencies, so \`npm run ${dest}\` only works while you keep it installed.`);
 };
 
-for (const key of ['lint', 'lint:fix']) relocateForeignLint(key);
+for (const key of ['lint', 'lint:fix']) reconcileLintScript(key);
 
 // Reported, never deleted — this script does not remove a user's files.
-const staleLinterConfigs = readdirSync(cwd).filter((e) => FOREIGN_LINTER_CONFIGS.includes(e) || e.startsWith('.xo-config'));
+// `.eslintrc*` and `.xo-config*` are prefix families (`.eslintrc`, `.eslintrc.json`, `.eslintrc.cjs`,
+// `.eslintrc.yml`, …), so they cannot be listed exhaustively above.
+const staleLinterConfigs = readdirSync(cwd).filter((e) => FOREIGN_LINTER_CONFIGS.includes(e) || e.startsWith('.eslintrc') || e.startsWith('.xo-config'));
 
 for (const key of ['engines', 'packageManager', 'scripts', 'lint-staged', 'devDependencies']) mergeSection(key);
 if (!dryRun) writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
@@ -298,13 +398,18 @@ if (moved.length) {
     console.log(moved.map((m) => `  > ${m}`).join('\n'));
 }
 
+if (upgraded.length) {
+    console.log(dryRun ? `\n→ WOULD UPGRADE — the standard's own linter was holding the CI lint gate with default arguments:` : `\n→ upgraded — the standard's own linter was holding the CI lint gate with default arguments:`);
+    console.log(upgraded.map((m) => `  > ${m}`).join('\n'));
+}
+
 if (conflicts.length) {
     console.log(`\n⚠ resolve by hand — your value was kept:`);
     console.log(conflicts.map((c) => `  ! ${c}`).join('\n'));
 }
 
 if (staleLinterConfigs.length) {
-    console.log(`\n⚠ delete by hand — a foreign linter's config, unused now that eslint is the gate (this script never removes your files):`);
+    console.log(`\n⚠ delete by hand — a foreign linter's config, unused now that oxlint is the gate (this script never removes your files):`);
     console.log(staleLinterConfigs.map((f) => `  ! ${f}`).join('\n'));
 }
 
@@ -313,7 +418,8 @@ console.log(`  npm install`);
 if (staleLinterConfigs.length) {
     console.log(`  rm ${staleLinterConfigs.join(' ')}`);
     console.log(`                          # stale foreign-linter config, and drop that linter from`);
-    console.log(`                          # devDependencies — eslint.config.js is the only config read now`);
+    console.log(`                          # devDependencies — .oxlintrc.json and .oxlintrc.strict.json`);
+    console.log(`                          # are the only lint configs read now`);
 }
 if (!vendorSkills) {
     console.log(`  node <skill>/scripts/init-greenfield.mjs --vendor-skills`);
@@ -322,11 +428,13 @@ if (!vendorSkills) {
     console.log(`                          # repo policy, not personal config.`);
 }
 console.log(`  npx husky init          # only if .husky/_ is missing; it wires core.hooksPath`);
-console.log(`  npx eslint . --fix      # REQUIRED FIRST: a scaffold written 2-space/no-semicolon`);
-console.log(`                          # produces ~130 formatting errors, all mechanically fixable`);
+console.log(`  npm run lint:fix        # REQUIRED FIRST: \`oxfmt && oxlint --fix\`. A scaffold written`);
+console.log(`                          # 2-space/no-semicolon reformats wholesale here, and the`);
+console.log(`                          # remaining lint errors are the ones worth reading`);
 console.log(`  npm run lint && npm run typecheck && npm run build`);
-console.log(`                          # \`npm run lint\` is what CI runs — verify it is eslint, not the`);
-console.log(`                          # linter the scaffold shipped`);
+console.log(`                          # \`npm run lint\` is what CI runs — verify it is the standard's`);
+console.log(`                          # \`oxlint -c .oxlintrc.strict.json --type-aware\`, not the bare`);
+console.log(`                          # \`oxlint\` or other linter the scaffold shipped`);
 console.log(`  git add .claude && git commit                      # commit the shared agent config`);
 console.log(`  node <skill>/scripts/standard-check.mjs --record   # writes .eq-frontend-skills.json,`);
 console.log(`                          # the version CI reads via --check. Run after the first commit.\n`);
@@ -360,27 +468,16 @@ const statOrNull = (p) => {
     try { return statSync(p); } catch { return null; }
 };
 
-// An unreadable file is NOT A MATCH, never an exception: a dangling symlink (ENOENT) and a chmod 000
-// stylesheet (EACCES) are both "this file does not wire Tailwind", and neither may abort the run.
-const readTextFile = (file) => {
-    try {
-        const buf = readFileSync(file);
-        // A UTF-16 stylesheet decoded as utf8 is NUL-interleaved mojibake, so its `@import` is
-        // invisible and the gate reported "no stylesheet imports Tailwind" about a wired repo.
-        if (buf[0] === 0xff && buf[1] === 0xfe) return buf.subarray(2).toString('utf16le');
-        if (buf[0] === 0xfe && buf[1] === 0xff) return buf.subarray(2).swap16().toString('utf16le');
-        // A UTF-8 BOM sits in front of the first character and would break a first-line anchor.
-        return buf.toString('utf8').replace(/^\uFEFF/, '');
-    } catch {
-        return null;
-    }
-};
-
 // Same approach as check-structure.mjs rule 5: a state machine with newlines preserved, not a regex
 // a `*/` inside a quoted value would break. A commented-out `@import 'tailwindcss'` or a
 // commented-out plugin import is the exact bug this exit code exists to catch, so neither may read as
 // wiring. `//` is not a CSS comment, so line comments are opt-in and used only for the vite config.
-const stripComments = (body, { lineComments = false } = {}) => {
+// blockComments is opt-OUT for one reason, and it is not hypothetical: this stripper is not
+// string-aware, and the tsconfig mapping `"@/*": ["./src/*"]` CONTAINS the pair `/*`. Stripping block
+// comments from a tsconfig therefore eats the mapping and everything after it, and the `@/` gate below
+// reported a correctly-wired repo as unwired — a gate that cannot be satisfied. tsconfig comments are
+// `//` in practice, so the alias check turns block stripping off and keeps line stripping on.
+const stripComments = (body, { lineComments = false, blockComments = true } = {}) => {
     let out = '';
     let inBlock = false;
     let inLine = false;
@@ -397,7 +494,7 @@ const stripComments = (body, { lineComments = false } = {}) => {
             i += 1;
             continue;
         }
-        if (body[i] === '/' && body[i + 1] === '*') { inBlock = true; i += 2; continue; }
+        if (blockComments && body[i] === '/' && body[i + 1] === '*') { inBlock = true; i += 2; continue; }
         if (lineComments && body[i] === '/' && body[i + 1] === '/') { inLine = true; i += 2; continue; }
         out += body[i];
         i += 1;
@@ -488,19 +585,195 @@ if (!tailwindEntry) {
     ].join('\n    '));
 }
 
-if (!viteConfig) {
-    console.log(`ℹ no vite.config.* here, so the bundler half of the Tailwind wiring was not checked —`);
-    console.log(`  register Tailwind the way your bundler wants it (Next.js, Rspack, and webpack use`);
-    console.log(`  @tailwindcss/postcss instead of @tailwindcss/vite; swap the dependency to match).\n`);
+// ── the `@/` source alias — two halves, both required ───────────────────────
+// tsconfig `paths` makes `@/x` TYPE-CHECK. It does not make every consumer RESOLVE it. Measured on the
+// exact scaffold this script targets (vite 8.2.0, vitest 4.1.10, tsc 5.9):
+//
+//   tsc -b --noEmit    `paths` alone ......................... ✔ passes
+//   vite build         `paths` alone, vite 8 ................. ✔ passes (the new resolver reads paths)
+//   vite build         `paths` alone, vite 7 ................. ✘ "error during build"
+//   vitest run         `paths` alone, vitest 4 ............... ✘ "Cannot find package '@/lib/greet'"
+//
+// So `paths` on its own buys a repo that type-checks and builds while every test importing `@/` fails,
+// and a `resolve.alias` on its own buys one that bundles while tsc rejects the import. Both halves or
+// neither — and do not lean on vite 8 reading `paths`, since vite 7 does not.
+//
+// This is checked, not written: `paths` lives in a tsconfig and the alias lives in vite.config.*, and
+// both are files this script must not edit (a scaffold's own tsconfig.app.json is skipped by the copy
+// loop, so the standard's `paths` may never have landed).
+const TSCONFIG_AT_ROOT = /^tsconfig(\..+)?\.json$/;
+const TS_PATH_ALIAS = /(['"])@\/\*\1\s*:/;
+// Object form `'@': <expr naming src>`, and the array form `{ find: '@', replacement: <expr naming
+// src> }`, with or without the key's trailing slash. Deliberately loose about HOW src is resolved
+// (path.resolve, fileURLToPath, a bare '/src') and strict about the two things that decide it: the key
+// is `@`, and the target names src.
+const VITE_SRC_ALIAS = /(['"])@\/?\1\s*:\s*[^,}\n]*\bsrc\b|\bfind\s*:\s*(['"])@\/?\2[\s\S]{0,160}?\breplacement\s*:\s*[^,}\n]*\bsrc\b/;
+
+const aliasGaps = [];
+// Skipped entirely when there is no readable vite config: a Next.js or webpack repo declares the
+// bundler half somewhere this regex would never see, and a gate that cannot be satisfied gets ignored.
+if (viteSource !== null) {
+    const tsconfigs = readdirSync(cwd).filter((e) => TSCONFIG_AT_ROOT.test(e));
+    // jsonc: a `//`-commented-out `"@/*"` is not a path mapping, exactly as a commented-out plugin
+    // import is not a registered plugin. blockComments is off here — see stripComments for why.
+    const tsHasPaths = tsconfigs.some((e) => {
+        const body = readTextFile(join(cwd, e));
+        return body !== null && TS_PATH_ALIAS.test(stripComments(body, { lineComments: true, blockComments: false }));
+    });
+    const viteHasAlias = VITE_SRC_ALIAS.test(viteSource);
+    if (!tsHasPaths || !viteHasAlias) {
+        const lines = [`the \`@/\` source alias is only half-wired, so \`@/…\` imports work in some tools and not others.`];
+        if (!tsHasPaths) {
+            lines.push(
+                `MISSING the tsc half: no tsconfig*.json here maps "@/*". Add it to the LEAF config that`,
+                `covers src (tsconfig.app.json), not the root — a solution-style root with only`,
+                `"references" applies no compilerOptions to your files:`,
+                `      "paths": { "@/*": ["./src/*"] }        // inside compilerOptions`,
+            );
+        }
+        if (!viteHasAlias) {
+            lines.push(
+                `MISSING the bundler half: ${viteConfig} declares no resolve.alias for "@". Without it`,
+                `\`vitest run\` cannot resolve \`@/…\` at all (and on vite 7 neither can \`vite build\`).`,
+                `Add exactly these two edits:`,
+                `      import { fileURLToPath } from 'node:url';   // beside the other imports`,
+                `      resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },`,
+                `                                                  // a sibling of \`plugins\`, inside defineConfig`,
+            );
+        }
+        aliasGaps.push(lines.join('\n    '));
+    }
 }
 
-if (styleGaps.length) {
-    console.log(`✗ SETUP INCOMPLETE — tailwindcss is installed but produces no CSS, so every utility`);
-    console.log(`  class in the repo is inert while typecheck, lint, test and build all pass:`);
-    console.log(styleGaps.map((g) => `  ! ${g}`).join('\n'));
-    console.log(`\n  Make the edit(s) above, then re-run this script. It exits 0 once both hold. Nothing`);
-    console.log(`  else here is affected — every file listed above was still ${dryRun ? 'reported' : 'written'}.\n`);
-    console.log(dryRun ? `  Exit 0: a dry run wrote nothing, so there is nothing to fail.\n` : `  Exit code 2 (files landed, styling unwired) — distinct from 1, which means the run never started.\n`);
+if (!viteConfig) {
+    console.log(`ℹ no vite.config.* here, so the bundler half of the Tailwind wiring and the \`@/\` alias`);
+    console.log(`  were not checked — register Tailwind the way your bundler wants it (Next.js, Rspack and`);
+    console.log(`  webpack use @tailwindcss/postcss instead of @tailwindcss/vite; swap the dependency to`);
+    console.log(`  match), and declare the \`@\` → src alias in the same place.\n`);
+}
+
+// ── the release job — written, then VERIFIED ─────────────────────────────────
+// starter/.changeset/config.json and starter/.github/workflows/release.yml land in the copy loop, so
+// a repo with neither is fully set up by this script and has nothing to report here. What is checked
+// is the two ways the machinery lands and still releases nothing:
+//
+//   1. A pre-existing .changeset/config.json. Never-overwrite keeps it, and a consumer repo is a
+//      PRIVATE application, so `privatePackages.tag` decides everything: changesets defaults a
+//      private package to `{ version: true, tag: false }`, and with `tag: false` `changeset tag`
+//      filters the package out, creates no tag, prints nothing and exits 0. changesets/action then
+//      finds no `New tag:` line to parse and pushes nothing either. The release job is green and
+//      there is no tag and no CHANGELOG.md — the same false-green shape as a scaffold's base config
+//      holding the lint gate, so it carries the same exit 2.
+//   2. `scripts.version` / `scripts.release` that are not the standard's. release.yml passes those
+//      two script NAMES to changesets/action as `version:` and `publish:`, so whatever sits there is
+//      what a merge to the default branch executes. A repo whose `release` script is `npm publish`
+//      or a deploy gets that command run by the workflow this script just installed, on a private
+//      package, triggered by a PR merge. Blocking, and the loudest of the two.
+//
+// The baseBranch and the foreign-workflow cases are reported without an exit code: they stop a
+// release from ever happening, which is visible the first time someone looks for a tag, rather than
+// producing a green job that claims to have released.
+const CHANGESET_CONFIG = join('.changeset', 'config.json');
+const RELEASE_WORKFLOW = join('.github', 'workflows', 'release.yml');
+const landed = (rel) => created.includes(rel) || skipped.includes(rel);
+// ci.yml's `on: push: branches` — changesets diffs against baseBranch to find changed packages, so a
+// baseBranch the CI workflow does not gate means the two disagree about what the default branch is.
+const CI_DEFAULT_BRANCH = 'main';
+
+const releaseGaps = [];
+const releaseNotes = [];
+
+if (skipped.includes(CHANGESET_CONFIG)) {
+    const body = readTextFile(join(cwd, CHANGESET_CONFIG));
+    let config = null;
+    try { config = body === null ? null : JSON.parse(body); } catch { config = null; }
+    if (config === null || config.privatePackages?.tag !== true) {
+        const why = config === null
+            ? `could not be read as JSON, so it cannot be shown to enable tagging`
+            : `sets privatePackages.tag to ${JSON.stringify(config.privatePackages?.tag)}, not true`;
+        releaseGaps.push([
+            `${CHANGESET_CONFIG} already existed and was NOT replaced — this script does not overwrite`,
+            `your files — but it ${why}.`,
+            `This repo is a private package, and changesets SKIPS private packages when tagging unless`,
+            `that key is true: \`changeset tag\` then prints nothing, creates no tag, and exits 0, so`,
+            `the release job succeeds having produced no version tag and no CHANGELOG.md entry.`,
+            `Add it, keeping the rest of your config:`,
+            `      "privatePackages": { "version": true, "tag": true }`,
+        ].join('\n    '));
+    } else if (config.baseBranch !== CI_DEFAULT_BRANCH) {
+        releaseNotes.push([
+            `${CHANGESET_CONFIG} sets baseBranch to ${JSON.stringify(config.baseBranch)}, while`,
+            `${join('.github', 'workflows', 'ci.yml')} and ${RELEASE_WORKFLOW} run on \`${CI_DEFAULT_BRANCH}\`. changesets diffs against`,
+            `baseBranch to decide which packages changed, so set both to your real default branch.`,
+        ].join('\n    '));
+    }
+}
+
+// `scripts.version` and `scripts.release` only decide anything while a workflow passes them to
+// changesets/action. A repo that kept its OWN release.yml runs neither, so reporting them there would
+// name the wrong file and demand a change that fixes nothing — that repo gets the note below instead.
+const workflowRunsChangesets = landed(RELEASE_WORKFLOW) && (readTextFile(join(cwd, RELEASE_WORKFLOW)) ?? '').includes('changesets/action');
+
+if (workflowRunsChangesets) {
+    for (const key of ['version', 'release']) {
+        const mine = pkg.scripts?.[key];
+        if (mine === fragment.scripts[key]) continue;
+        releaseGaps.push([
+            `package.json scripts.${key} is ${JSON.stringify(mine ?? null)}, not ${JSON.stringify(fragment.scripts[key])}.`,
+            `${RELEASE_WORKFLOW} passes the script NAMES \`npm run version\` and \`npm run release\` to`,
+            `changesets/action, so that command is what a merge to \`${CI_DEFAULT_BRANCH}\` executes. Yours runs`,
+            `instead of changesets — and if it publishes or deploys, a merged "Version Packages" PR runs it.`,
+            `Set it by hand, then re-run:`,
+            `      npm pkg set scripts.${key}=${JSON.stringify(fragment.scripts[key])}`,
+        ].join('\n    '));
+    }
+} else if (landed(RELEASE_WORKFLOW)) {
+    releaseNotes.push([
+        `${RELEASE_WORKFLOW} already existed and does not run \`changesets/action\` (or could not be`,
+        `read). Nothing bumps the version or regenerates CHANGELOG.md, so the release row of the`,
+        `standard's gate table is unenforced, and scripts.version / scripts.release were not checked`,
+        `because your workflow does not call them. Compare yours against ${join(STARTER, RELEASE_WORKFLOW)}.`,
+    ].join('\n    '));
+}
+
+// EVERY verified gate reports in ONE run and the script exits once. Discovering them serially — fix
+// Tailwind, re-run, exit 2 again for a different reason, re-run — makes a first run feel like a fight
+// and trains people to stop reading this output, which is the only place these failures are visible.
+if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
+    console.log(`✗ SETUP INCOMPLETE — every file above landed, but a gate below is installed and NOT`);
+    console.log(`  doing its job. These are grouped so one re-run can clear all of them:`);
+    if (lintGaps.length) {
+        console.log(`\n  the lint gate runs your base config, not the standard's — green, and unenforced:`);
+        console.log(lintGaps.map((g) => `  ! ${g}`).join('\n'));
+    }
+    if (aliasGaps.length) {
+        console.log(`\n  the \`@/\` source alias resolves in some tools and not others:`);
+        console.log(aliasGaps.map((g) => `  ! ${g}`).join('\n'));
+    }
+    if (styleGaps.length) {
+        console.log(`\n  tailwindcss is installed but produces no CSS, so every utility class is inert:`);
+        console.log(styleGaps.map((g) => `  ! ${g}`).join('\n'));
+    }
+    if (releaseGaps.length) {
+        console.log(`\n  the release job would run and report success while producing no version bump, no`);
+        console.log(`  CHANGELOG.md entry and no tag:`);
+        console.log(releaseGaps.map((g) => `  ! ${g}`).join('\n'));
+    }
+    console.log(`\n  Make the change(s) above, then re-run this script. It exits 0 once they all hold.`);
+    console.log(`  Nothing else here is affected — every file listed above was still ${dryRun ? 'reported' : 'written'}.\n`);
+    console.log(dryRun ? `  Exit 0: a dry run wrote nothing, so there is nothing to fail.\n` : `  Exit code 2 (files landed, a gate is not enforcing) — distinct from 1, which means the run never started.\n`);
+}
+
+// Printed in the SAME run as the block above, and after it so the blocking items are read first.
+// These two do not carry an exit code: they leave a repo that never releases, which is visible the
+// first time someone looks for a tag — not a green job reporting a release that did not happen.
+if (releaseNotes.length) {
+    console.log(`ℹ the release setup is incomplete, but nothing reports a release it did not make:`);
+    console.log(releaseNotes.map((g) => `  · ${g}`).join('\n'));
+    console.log('');
+}
+
+if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
     // A --dry-run must not exit non-zero, or `node … --dry-run && node …` never reaches the real run.
     process.exit(dryRun ? 0 : 2);
 }
@@ -509,5 +782,6 @@ if (styleGaps.length) {
 // not that the entry module imports THAT file. Claiming more is how a stray stylesheet passed for a
 // pipeline that emitted nothing.
 const bundlerNote = viteConfig ? `${viteConfig} imports and calls @tailwindcss/vite, and ` : '';
+if (viteConfig) console.log(`✓ \`@/\` alias wired both halves: a tsconfig maps "@/*", and ${viteConfig} aliases "@" to src.`);
 console.log(`✓ styling pipeline wired: ${bundlerNote}${relative(cwd, tailwindEntry)} imports Tailwind.`);
 console.log(`  Scanned ${relative(cwd, scanRoot) || '.'}/ only — if that stylesheet is not the one your entry module imports, the utilities are still inert.\n`);

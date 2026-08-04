@@ -1,0 +1,86 @@
+// The FULL lint gate: everything in .oxlintrc.json, plus the two groups of checks that cost real
+// time. `npm run lint` and CI run this file. `npm run lint:fast` and the editor run the base.
+//
+// WHY THIS IS A SEPARATE FILE. oxlint has no CLI flag to disable JS plugins — there is no
+// `--disable-js-plugins`, and `-A react-hooks-js` does not help (measured: 18.9s, and the plugin
+// still counts in `number_of_rules`, because declaring `jsPlugins` at all pays the bridge cost).
+// Since `extends` can add but never subtract, the fast config has to be the one WITHOUT
+// `jsPlugins`, and the strict config extends it.
+//
+// The dev-loop speed win is roughly 30x and lives ENTIRELY in the base config; this full gate is
+// within noise of the ESLint setup it replaced, because nearly all of its time is the JS plugin
+// bridge rather than --type-aware. That is why the pre-commit hook runs `lint:fast` and CI runs
+// `lint`. The measurement itself lives in references/hygiene.md — one copy, so the two cannot
+// drift apart and leave a reader unable to tell which number is current.
+//
+// MUST BE RUN WITH --type-aware. The three type-aware rules below are SILENTLY SKIPPED without it:
+// exit 0, no warning, no diagnostic, and a floating promise ships. `npm run lint` passes the flag,
+// and CI additionally asserts on `number_of_rules` from `-f json` so a dropped flag goes RED rather
+// than green. It also needs the `oxlint-tsgolint` package, which is in devDependencies.
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+    "extends": ["./.oxlintrc.json"],
+
+    // Both 'react-hooks' and 'react_hooks' are RESERVED alias names: oxlint ships a native Rust
+    // react-hooks plugin and rejects those aliases to avoid ambiguity with it. The standard gates
+    // all 20 rules of eslint-plugin-react-hooks v7 — including the 18 React Compiler rules oxlint
+    // has no native equivalent for — so the real plugin is loaded here under the alias oxlint's own
+    // error message recommends.
+    //
+    // THE ALIAS IS PART OF THE STANDARD. Every rule name below uses it, and so must every
+    // suppression comment in a consuming repo: `react-hooks-js/...`, never `react-hooks/...`.
+    "jsPlugins": [{ "name": "react-hooks-js", "specifier": "eslint-plugin-react-hooks" }],
+
+    "rules": {
+        // The native pair the base config enables is redundant with the real plugin's versions and
+        // would report every hook finding twice. Off here, on there.
+        "react/rules-of-hooks": "off",
+        "react/exhaustive-deps": "off",
+
+        // ── §2 React, all 20 gated rules of eslint-plugin-react-hooks v7, through the alias.
+        //
+        // The plugin's other 9 rules stay OFF on purpose — config, fbt, gating,
+        // incompatible-library, invariant, rule-suppression, syntax, todo and unsupported-syntax
+        // report React Compiler limitations rather than defects in your code; `todo` fires on
+        // ordinary try/finally.
+        "react-hooks-js/rules-of-hooks": "error",
+        "react-hooks-js/exhaustive-deps": "error",
+        "react-hooks-js/hooks": "error",
+        "react-hooks-js/static-components": "error",
+        "react-hooks-js/set-state-in-effect": "error",
+        "react-hooks-js/set-state-in-render": "error",
+        "react-hooks-js/no-deriving-state-in-effects": "error",
+        "react-hooks-js/memoized-effect-dependencies": "error",
+        "react-hooks-js/exhaustive-effect-dependencies": "error",
+        "react-hooks-js/preserve-manual-memoization": "error",
+        "react-hooks-js/memo-dependencies": "error",
+        "react-hooks-js/use-memo": "error",
+        "react-hooks-js/void-use-memo": "error",
+        "react-hooks-js/immutability": "error",
+        "react-hooks-js/globals": "error",
+        "react-hooks-js/purity": "error",
+        "react-hooks-js/refs": "error",
+        "react-hooks-js/error-boundaries": "error",
+        "react-hooks-js/capitalized-calls": "error",
+        "react-hooks-js/component-hook-factories": "error",
+
+        // ── §2 and §6, the type-aware rules. See the --type-aware warning in the header: these
+        // three are the ones that vanish without the flag.
+        "typescript/no-floating-promises": "error",
+        "typescript/no-misused-promises": ["error", { "checksVoidReturn": { "attributes": false } }],
+        "typescript/no-duplicate-type-constituents": "error"
+    },
+
+    "overrides": [
+        {
+            // Config files run in Node and are not part of the app's type-checked project, so the
+            // type-aware promise rules have no type information to work from.
+            "files": ["*.config.js", "*.config.ts", "*.config.mjs", "*.config.mts"],
+            "rules": {
+                "typescript/no-floating-promises": "off",
+                "typescript/no-misused-promises": "off"
+            }
+        }
+    ]
+}

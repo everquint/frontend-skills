@@ -35,6 +35,8 @@ The primary agent **orients, plans, decides the approach, and holds the thread**
 | Model per task class, not per habit | Scaffolds, renames, mechanical test edits and doc updates go to a smaller model. Design-sensitive work, tricky runtime logic and reviews go to the strongest available. |
 | No upward escalation from a subagent | A subagent must not call a stronger-model advisory tool. Doing so re-sends a large transcript to re-derive context the subagent was already briefed on: real cost, no new information. State the prohibition in the brief — a subagent that inherits such a tool reaches for it otherwise. |
 | A subagent finishes, then reports | It runs the gate steps below for the files it touched and states what each returned. Its report is evidence, not a conclusion. |
+| The working tree may hold work you did not author | `git stash` to get a clean build ends the session with a clean `git status` and someone else's work parked on no branch, invisible until a person thinks to run `git stash list` — where it also interleaves with lint-staged's backup stash (`../eq-frontend-standards/references/hygiene.md` §5). The starter's `.claude/settings.json` denies `Bash(git stash:*)` outright. |
+| Destructive git verbs are never incidental to another task | `git checkout -- .`, `git restore <path>`, or reverting a hunk you did not recognise in order to get lint green destroys unstaged changes, and unstaged changes have **no reflog entry** — nothing recovers them. Run one only when the user named that revert. |
 
 **Reviews belong to the top-level agent, never a subagent.** A subagent sees only its own slice, so its review is scoped wrong and duplicates what the orchestrator must run over the whole change anyway. The two-review gate in the Review section below runs once, by the agent that owns the full change, against its final state.
 
@@ -42,7 +44,7 @@ The primary agent **orients, plans, decides the approach, and holds the thread**
 
 The primary agent edits directly in exactly three cases: a one-line or trivially mechanical fix, documentation, and anything the user asks to be done inline.
 
-Every rule in this section is reviewer-enforced; no tool checks them.
+Every rule in this section is reviewer-enforced except the stash denial, which the starter's settings file blocks at the tool call.
 
 ## Branch naming
 
@@ -178,6 +180,12 @@ Why changesets rather than semantic-release:
 `feat:` versus `fix:` is a judgement about consumer impact, and it is routinely wrong at commit time on a branch that later grows. A curated changeset per PR moves that judgement to where the whole change is visible.
 
 **Manual version bumps in a `chore: bump version` commit are an anti-pattern.** They race with the release tooling, produce versions with no changelog entry, and make the published version disagree with the tag. Version numbers are written by the release job, never by hand.
+
+**`CHANGELOG.md` is generated at the repo root by the release job — never hand-written and never hand-edited.** `changeset version` writes it from the accumulated changesets, so it first appears at the first release; the requirement on a repo with no releases yet is the mechanism, not the file. A hand-written entry disagrees with the changesets that actually shipped, so the file stops being derivable from them and the next `changeset version` either overwrites the edit or conflicts with it.
+
+**A release job is required.** It consumes the changesets, bumps the versions, regenerates `CHANGELOG.md`, and tags. Doing any of that by hand fails exactly as the paragraph above describes. It lives in `.github/workflows/release.yml`; `hygiene.md` §1 carries the gate row and §6 the wiring.
+
+Enforcement splits, and the halves are not equal. **Regeneration is machine-enforced**: the release job rewrites `CHANGELOG.md` from the changesets, so a hand-edit is destroyed at the next release rather than caught at the commit that made it. **That no commit hand-edits the file is reviewer-enforced** — a `CHANGELOG.md` diff in any commit that is not the release job's is a finding. The missing-changeset half is already a merge requirement above, caught by a CI check.
 
 ## Rollback
 

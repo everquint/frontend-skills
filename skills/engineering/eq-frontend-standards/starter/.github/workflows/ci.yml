@@ -9,6 +9,31 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The number of rules `npm run lint` must load. It is a property of the config, not of the files,
+  # so it is identical for one file and for 2,185 of them. Raise it when you add rules; never lower
+  # it to make a red build green.
+  #
+  # 214 = 194 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
+  # the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute both
+  # halves from a real run rather than copying the number forward — `npx oxlint --rules` prints
+  # nothing in 1.77.0, so neither half is readable off the CLI without parsing:
+  #
+  #   # 193 — enabled rules in the resolved config
+  #   npx oxlint -c .oxlintrc.strict.json --type-aware --print-config \
+  #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.values(JSON.parse(s).rules).filter(v=>!["off","allow"].includes(Array.isArray(v)?v[0]:v)).length))'
+  #
+  #   # 214 — rules actually loaded by the run this job asserts on
+  #   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
+  #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
+  #
+  # THIS NUMBER IS DUPLICATED. Its second copy is `EXPECTED_RULES` in the eq-frontend-standards
+  # skill's scripts/measure-rules.mjs. Nothing links them and nothing can: this workflow ships into
+  # a consuming repo where that script is absent, and the script runs from the skill where this
+  # workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
+  # .oxlintrc.strict.json moves both, and both are edited in the same commit.
+  EXPECTED_OXLINT_RULES: 214
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -24,9 +49,230 @@ jobs:
       # noise. Each step mirrors a local git hook, because hooks are bypassable with
       # --no-verify and CI is the real gate.
       - run: npm run typecheck
-      - run: npm run lint
+
+      # oxfmt is the formatter, so an unformatted file is a build failure, not a nag.
+      - run: npm run format:check
+
+      # ...but format:check alone cannot see the third silent-failure mode. Tailwind v4 keeps its
+      # theme in CSS, so oxfmt's class sorter has to resolve `sortTailwindcss.stylesheet`. When that
+      # path is wrong the sorter is a COMPLETE no-op — every class, core utilities included — and
+      # oxfmt still prints nothing and exits 0. Already-sorted files stay sorted, so format:check
+      # goes green while new code is never sorted again.
+      #
+      # So sorting is asserted directly: feed a deliberately out-of-order class list through the
+      # real config and require that it comes back sorted. Core utilities only, so this canary is
+      # valid in any repo regardless of its theme.
+      - name: Assert oxfmt Tailwind sorting is live
+        run: |
+          set -euo pipefail
+          canary='export const C = () => <div className="text-white flex p-4 items-center">x</div>;'
+          expected='export const C = () => <div className="flex items-center p-4 text-white">x</div>;'
+          actual=$(printf '%s\n' "$canary" | npx oxfmt --stdin-filepath canary.tsx)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::oxfmt is not sorting Tailwind classes. Check sortTailwindcss.stylesheet in .oxfmtrc.json — a path that does not resolve disables sorting silently."
+            printf 'expected: %s\nactual:   %s\n' "$expected" "$actual"
+            exit 1
+          fi
+          echo "Tailwind class sorting is live."
+
+      # THE LINT GATE DOES NOT TRUST EXIT 0.
+      #
+      # This toolchain has three ways to enforce nothing while exiting 0, and all three were
+      # observed, not theorised:
+      #   1. --type-aware missing => typescript/no-floating-promises, no-misused-promises and
+      #      no-duplicate-type-constituents are SILENTLY SKIPPED. No warning, no diagnostic.
+      #   2. jsPlugins failing to resolve, or the alias being renamed, drops all 20
+      #      eslint-plugin-react-hooks rules including the React Compiler suite.
+      #   3. oxfmt's Tailwind sorter no-ops when it cannot resolve its stylesheet.
+      #
+      # A rule that does not load reports nothing, and "reports nothing" is indistinguishable
+      # from "found nothing" if you only read the exit code. So the count of loaded rules is
+      # asserted explicitly, and the assertion is what makes green mean something.
+      - name: Lint (assert rule count, then lint)
+        run: |
+          set -euo pipefail
+
+          # ONE lint run, in JSON, so the rule count and the diagnostics come from the same
+          # invocation `npm run lint` would perform. --silent keeps npm's banner out of the JSON.
+          # A lint failure must not abort the step before the assertion runs, so the exit code is
+          # captured rather than propagated.
+          lint_exit=0
+          npm run --silent lint -- -f json > oxlint-report.json || lint_exit=$?
+
+          loaded=$(node -e '
+            const r = require("./oxlint-report.json");
+            if (typeof r.number_of_rules !== "number") {
+              console.error("oxlint JSON has no number_of_rules field — output shape changed.");
+              process.exit(1);
+            }
+            console.log(r.number_of_rules);
+          ')
+
+          echo "oxlint loaded $loaded rules (expected >= ${EXPECTED_OXLINT_RULES})"
+
+          if [ "$loaded" -lt "${EXPECTED_OXLINT_RULES}" ]; then
+            echo "::error::Lint gate is under-enforcing: $loaded rules loaded, expected at least ${EXPECTED_OXLINT_RULES}."
+            echo "Measured causes, both of which exit 0 on their own:"
+            echo "  --type-aware dropped from scripts.lint ....... 197 rules (-16)"
+            echo "  jsPlugins react-hooks-js failed to resolve ... 193 rules (-20)"
+            echo "  .oxlintrc.strict.json not passed via -c ...... 166 rules (-47)"
+            exit 1
+          fi
+
+          # -f json means the human-readable diagnostics were not printed, so render them from the
+          # report rather than paying for a second 20s run.
+          if [ "$lint_exit" -ne 0 ]; then
+            node -e '
+              for (const d of require("./oxlint-report.json").diagnostics) {
+                const s = d.labels?.[0]?.span;
+                console.log(`${d.severity}: ${d.filename}:${s?.line ?? 0}:${s?.column ?? 0} ${d.code} ${d.message.split("\n")[0]}`);
+              }
+            '
+          fi
+
+          # Only now does the lint result itself decide the step.
+          exit "$lint_exit"
+
       - run: npm test
       - run: npm run build
+
+  # THE noUncheckedIndexedAccess RATCHET.
+  #
+  # The flag is required for new repos and measures 906 errors across 193 files on an existing one,
+  # so it adopts as a ratchet rather than as a gate. A ratchet, NOT a report: an informational job
+  # that prints a number nobody is allowed to fail on is the measured-but-not-gated anti-pattern,
+  # and it decays into a green checkmark next to a rising count.
+  #
+  # What it blocks on: the count RISING above tsconfig.strict.baseline. It does NOT block on the
+  # existing debt, so an adopting repo is never held hostage by its own 906. When the baseline
+  # reaches 0 — which is where this starter STARTS, because tsconfig.app.json already sets the flag
+  # for greenfield — this same job is already a hard gate on every new violation, with no edit to it.
+  # At that point tsconfig.strict.json, the baseline and this job are all deleted together.
+  #
+  # It runs as its own job rather than a step in `verify` so that debt in a migrating repo cannot
+  # mask, or be masked by, the real gates.
+  typecheck-strict-ratchet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      # THIS STEP DOES NOT READ "tsc could not run" AS "0 errors".
+      #
+      # That is the failure mode that turns a ratchet into decoration, and it is why each of the
+      # four ways to get a false 0 is checked before any count is believed:
+      #
+      #   1. A config-level diagnostic. tsc emits these on the SAME exit code 2 as real type errors,
+      #      distinguished only by shape — a type error carries a file(line,col) prefix, a config
+      #      error does not:
+      #        src/x.ts(3,21): error TS18048: 'first' is possibly 'undefined.'   <- COUNT IT
+      #        error TS5023: Unknown compiler option 'noUncheckedIndexedAcess'.  <- ABORT, count unknown
+      #      A typo'd flag name, a missing file, a bad `extends` — all take the second shape.
+      #   2. The flag not actually being in effect. Measured: the same flag in the solution-style
+      #      root tsconfig.json instead of a leaf gives exit 0 on an out-of-bounds read, because a
+      #      referenced project does not inherit the root's compilerOptions. So the EFFECTIVE value
+      #      is read back with --showConfig rather than trusted from the file.
+      #   3. Compiling nothing. An `include` that matches no files exits 0 over 0 files, which is
+      #      indistinguishable from a clean repo by exit code alone. So the src file count is
+      #      asserted to be non-zero.
+      #   4. An unparseable baseline. A missing or non-numeric threshold means there is nothing to
+      #      compare against; that is a hard failure, not a default of 0.
+      - name: Ratchet noUncheckedIndexedAccess against baseline
+        run: |
+          set -uo pipefail
+
+          # Scratch goes in a temp dir, never the working tree: this script is meant to be runnable
+          # locally, and a stray strict-showconfig.json in the repo root would fail `format:check`.
+          work=$(mktemp -d)
+
+          # (4) The baseline must be exactly one non-negative integer.
+          baseline=$(node -e '
+            const fs = require("node:fs");
+            const lines = fs.readFileSync("tsconfig.strict.baseline", "utf8")
+              .split("\n").map((l) => l.replace(/#.*/, "").trim()).filter(Boolean);
+            if (lines.length !== 1 || !/^\d+$/.test(lines[0])) {
+              console.error(`expected one non-negative integer, found ${JSON.stringify(lines)}`);
+              process.exit(1);
+            }
+            console.log(lines[0]);
+          ') || {
+            echo "::error::Cannot read the ratchet baseline from tsconfig.strict.baseline. Not defaulting to 0 — see the comments in that file for its format."
+            exit 1
+          }
+
+          # (2) The flag must be true in the EFFECTIVE config, not merely present in some file.
+          if ! npx tsc -p tsconfig.strict.json --showConfig > "$work/showconfig.json" 2> "$work/showconfig-err.txt"; then
+            echo "::error::tsconfig.strict.json is not a loadable project, so the error count is unknown."
+            cat "$work/showconfig-err.txt"
+            exit 1
+          fi
+          SHOWCONFIG="$work/showconfig.json" node -e '
+            const c = require(process.env.SHOWCONFIG).compilerOptions ?? {};
+            if (c.noUncheckedIndexedAccess !== true) {
+              console.error(`effective noUncheckedIndexedAccess is ${JSON.stringify(c.noUncheckedIndexedAccess)}, not true`);
+              process.exit(1);
+            }
+          ' || {
+            echo "::error::The ratchet is enforcing nothing: noUncheckedIndexedAccess is not true in the effective config for tsconfig.strict.json. A checking flag in the solution-style root tsconfig.json is inert — it belongs in a leaf config."
+            exit 1
+          }
+
+          # (3) It must compile real source files.
+          src_files=$(npx tsc -p tsconfig.strict.json --listFilesOnly 2>/dev/null | grep -v node_modules | grep -c '/src/' || true)
+          if [ "$src_files" -eq 0 ]; then
+            echo "::error::tsconfig.strict.json compiles 0 files under src/, so exit 0 would mean nothing. Check that it still inherits \`include\` from tsconfig.app.json."
+            exit 1
+          fi
+
+          # Only now is a count worth taking. --pretty false keeps the diagnostics on one
+          # machine-readable line each; no --force is needed because a CI checkout has no
+          # .tsbuildinfo to go stale.
+          tsc_out=$(npx tsc -p tsconfig.strict.json --noEmit --pretty false 2>&1)
+          tsc_exit=$?
+          printf '%s\n' "$tsc_out" > "$work/errors.txt"
+
+          # (1) Separate the two diagnostic shapes.
+          global_errors=$(grep -c -E '^error TS[0-9]+:' "$work/errors.txt" || true)
+          count=$(grep -c -E '^.+\([0-9]+,[0-9]+\): error TS[0-9]+:' "$work/errors.txt" || true)
+
+          if [ "$global_errors" -ne 0 ]; then
+            echo "::error::Could NOT compile: $global_errors config-level diagnostic(s). The error count is UNKNOWN and is not being read as 0."
+            grep -E '^error TS[0-9]+:' "$work/errors.txt"
+            exit 1
+          fi
+
+          if [ "$tsc_exit" -ne 0 ] && [ "$count" -eq 0 ]; then
+            echo "::error::Could NOT compile: tsc exited $tsc_exit but produced no parseable file-scoped errors. Refusing to read this as 0 errors."
+            cat "$work/errors.txt"
+            exit 1
+          fi
+
+          if [ "$tsc_exit" -eq 0 ] && [ "$count" -ne 0 ]; then
+            echo "::error::Inconsistent result: tsc exited 0 yet $count error line(s) parsed. tsc output shape changed — fix the parser before trusting this gate."
+            cat "$work/errors.txt"
+            exit 1
+          fi
+
+          affected=$(grep -oE '^.+\([0-9]+,[0-9]+\): error TS[0-9]+:' "$work/errors.txt" | sed -E 's/\(.*//' | sort -u | grep -c . || true)
+          echo "noUncheckedIndexedAccess: ${count} error(s) across ${affected} file(s) in ${src_files} checked src file(s). Baseline: ${baseline}."
+
+          if [ "$count" -gt "$baseline" ]; then
+            echo "::error::Ratchet went BACKWARDS: ${count} errors against a baseline of ${baseline}. This branch added an unguarded indexed read. Fix it with a guard, \`?.\`, or a destructured default — not \`as\` and not \`!\`, which silence the diagnostic and keep the bug. Raising the baseline is not a fix."
+            grep -E '^.+\([0-9]+,[0-9]+\): error TS[0-9]+:' "$work/errors.txt"
+            exit 1
+          fi
+
+          if [ "$count" -lt "$baseline" ]; then
+            echo "::notice::Ratchet improved: ${count} < ${baseline}. Lower the number in tsconfig.strict.baseline to ${count} to lock the gain in — otherwise the slack lets a future regression through."
+          fi
+
+          if [ "$baseline" -eq 0 ]; then
+            echo "Baseline is 0, so this job is a hard gate: any new unguarded indexed read fails CI."
+          fi
 
   commitlint:
     runs-on: ubuntu-latest

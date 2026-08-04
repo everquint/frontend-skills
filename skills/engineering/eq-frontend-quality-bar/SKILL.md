@@ -121,7 +121,8 @@ Banning `console.log` while having nowhere to send errors means production failu
   is not error reporting; they answer different questions.
 - **Error boundaries at route level and around any independently-failing widget.** Without them one
   throw blanks the whole app. Reviewer-enforced: no lint rule detects an **absent** boundary.
-  `react-hooks/error-boundaries` catches misuse of a boundary that already exists.
+  `react-hooks-js/error-boundaries` catches misuse of a boundary that already exists — the alias is
+  `../eq-frontend-standards/references/react-hooks-v7.md`.
 - **Every caught error does two things**: a user-facing message that says what to do next, and a
   reported event with enough context to debug. A swallowed error is a defect.
 - **Never surface transport text to users.** "Request failed with status code 403" is not a message;
@@ -143,8 +144,10 @@ Measured-but-not-gated is not enforced. A bundle analyzer nobody runs catches no
 
 ## 4. Accessibility — partly enforced
 
-`eslint-plugin-jsx-a11y@6.10.2` ships 39 rules and its `configs.recommended` enables 34; most repos
-enable a handful. Enable the recommended set.
+The standard pins **31 `jsx_a11y/*` rules by name** — oxlint's port of `eslint-plugin-jsx-a11y`,
+under `jsx_a11y` with an underscore. Pinned rather than enabled by category, because oxlint sorts
+a11y rules across `correctness` and `restriction`, so enabling one category silently leaves the
+others off at exit 0. Enable all 31; see the standards skill's `starter/.oxlintrc.json`.
 
 But the failures that matter are **not lintable**, so they are reviewer-enforced with a checklist:
 
@@ -157,6 +160,9 @@ But the failures that matter are **not lintable**, so they are reviewer-enforced
 | Icon-only controls have an accessible label | control announced as "button" |
 | Visible focus indicator, never removed without replacement | cannot tell where you are |
 | Contrast meets WCAG AA in **both** light and dark themes | dark mode is where contrast regressions hide |
+
+Which element to write — landmarks, heading outline, lists, form labelling, tables, ARIA, live
+regions — is `references/semantic-html.md` beside this file, with the lint-vs-reviewer split verified.
 
 Run an automated audit (axe) on primary flows in CI or before release. **A clean automated audit does
 not certify accessibility** — every rule it ships is a rule that can be decided from static markup, and

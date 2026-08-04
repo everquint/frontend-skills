@@ -10,12 +10,22 @@ and no CI has no gate at all.
 
 | | Local (fast, bypassable) | CI (authoritative) |
 |---|---|---|
-| staged lint | `pre-commit` → `lint-staged` | `npm run lint` (whole repo) |
-| types | `pre-push` → `tsc -b --force` | `npm run typecheck` |
+| staged lint | `pre-commit` → `lint-staged` → `oxfmt` + `oxlint --fix` on staged files | `npm run lint` — the strict config, `--type-aware`, whole repo |
+| whole-repo lint, local | `npm run lint:fast` — the base config, native rules only | same job, `npm run lint` |
+| types | `pre-push` → `tsc -b --noEmit --force` | `npm run typecheck` |
 | commit message | `commit-msg` → `commitlint` | `wagoid/commitlint-github-action` |
 | tests, build | — (too slow to gate a commit) | `npm test`, `npm run build` |
+| release | — (a release is a merge event, not a local one) | `.github/workflows/release.yml` → `changesets/action` — bumps versions, regenerates `CHANGELOG.md`, tags |
+
+**The release row inverts the principle above and is CI-only by construction.** A release reads the merged state of the default branch to write the version, `CHANGELOG.md` and the tag; a local hook cannot observe that state, so a local counterpart would tag one developer's checkout and push a version nobody merged.
 
 Local hooks shorten the feedback loop. Branch protection requiring the CI job is the gate.
+
+**The two lint rows are the same rule set at two speeds, and the split is deliberate.** Measured on a
+2,185-file repo: the base config, native Rust rules only, runs in **0.70–0.82s**; the strict config with
+`jsPlugins` and `--type-aware` takes **18.6s**. An 18-second pre-commit hook gets answered with
+`--no-verify` and then the hook enforces nothing, so the commit path runs the fast half and CI runs the
+whole thing. Nothing is dropped — only deferred to the gate that cannot be bypassed.
 
 ## 2. husky v9
 
@@ -43,8 +53,10 @@ npx commitlint --edit "$1"
 npm run typecheck
 ```
 
-The scripts they call, in `package.json`: `"prepare": "husky"`, `"typecheck": "tsc -b --force"`,
-`"lint": "eslint ."`, `"lint:fix": "eslint . --fix"`. `commitlint.config.js` is one line —
+The scripts they call, in `package.json`: `"prepare": "husky"`, `"typecheck": "tsc -b --noEmit --force"`,
+`"lint": "oxlint -c .oxlintrc.strict.json --type-aware"`, `"lint:fast": "oxlint"`,
+`"lint:fix": "oxfmt && oxlint --fix"`, `"format": "oxfmt"`, `"format:check": "oxfmt --check"`.
+`commitlint.config.js` is one line —
 `export default { extends: ['@commitlint/config-conventional'] };`
 
 ## 4. Why `tsc -b --force`
@@ -64,17 +76,42 @@ case that actually matters. `--force` costs seconds and buys a hook people trust
 
 ## 5. lint-staged
 
-In `package.json`: `"lint-staged": { "*.{ts,tsx,js,jsx}": "eslint --fix" }`. Two flags to never use:
+In `package.json`:
+
+```json
+"lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt", "oxlint --fix"],
+    "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt"]
+}
+```
+
+The formatter runs before the linter, because `oxlint --fix` rewrites code and oxfmt owns the final
+layout. The second glob exists because oxfmt formats stylesheets, JSON, Markdown and YAML while oxlint
+reads none of them — those file types are formatted on commit and never linted.
+
+Two flags to never use:
 
 | Flag | Why not |
 |---|---|
-| `--fail-on-changes` | fails the commit whenever a task rewrote a file — the normal case when `eslint --fix` is the task, so the hook fires on successful runs and teams respond by disabling it. No data-loss path; the objection is that it makes the gate useless. |
+| `--fail-on-changes` | fails the commit whenever a task rewrote a file — the normal case when `oxfmt` and `oxlint --fix` are the tasks, so the hook fires on successful runs and teams respond by disabling it. No data-loss path; the objection is that it makes the gate useless. |
 | `--no-stash` | removes the backup stash, the only thing that restores your work when a task corrupts the working tree mid-run. **This is the data-loss flag**: with it there is nothing to recover from. |
 
 If a run is interrupted, recover from `git stash list`; lint-staged leaves its backup stash behind on
 failure.
 
-## 6. CI workflow
+**The `json` glob reaches `package-lock.json`, and that is safe — oxfmt ignores lockfiles by name.**
+Worth stating because the obvious reading is that it is not: a formatter rewriting a lockfile on every
+commit would fight `npm install`, which rewrites it back, and `format:check` would then whipsaw in CI.
+Measured on oxfmt 0.62.0 with this config: `oxfmt --check package-lock.json` reports *"All matched
+files may have been excluded by ignore rules"*, and **the same bytes copied to `control.json` report
+format issues** — so the exclusion is by filename, not content. `yarn.lock` and `pnpm-lock.yaml` are
+excluded too. Prettier ships no such default, so a repo swapping formatters must add the ignore by hand.
+
+`oxfmt --check` exit codes, measured: **1** on a misformatted file, **0** when clean, and **2** when the
+glob matched nothing. That last one matters — a `format:check` whose paths resolve to nothing fails
+rather than reporting success.
+
+## 6. CI workflows
 
 `.github/workflows/ci.yml`
 
@@ -126,6 +163,131 @@ jobs:
   pipelines and the first two results are noise.
 - Mark `verify` required in branch protection. A workflow that is not required is a report, not a gate.
 
+### `.github/workflows/release.yml`
+
+The release row of the §1 table. Three pieces ship in the starter and `init-greenfield.mjs` lands all
+three: `.changeset/config.json`, the `changeset` / `version` / `release` scripts, and this workflow.
+
+```json
+// .changeset/config.json
+{
+    "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+    "changelog": "@changesets/cli/changelog",
+    "commit": false,
+    "access": "restricted",
+    "baseBranch": "main",
+    "privatePackages": {
+        "version": true,
+        "tag": true
+    }
+}
+```
+
+```json
+// package.json
+"scripts": {
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset tag"
+},
+"devDependencies": { "@changesets/cli": "^2.31.1" }
+```
+
+```yaml
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Assert private-package tagging is enabled
+        run: |
+          set -euo pipefail
+          node -e '
+            const config = require("./.changeset/config.json");
+            if (config.privatePackages?.tag !== true) {
+              console.error(`privatePackages.tag is ${JSON.stringify(config.privatePackages?.tag)}, not true`);
+              process.exit(1);
+            }
+          ' || {
+            echo "::error::.changeset/config.json does not set privatePackages.tag to true. This repo is private, so \`changeset tag\` would filter it out, tag nothing, and exit 0 — a green release that released nothing."
+            exit 1
+          }
+          echo "privatePackages.tag is true, so a version bump produces a tag."
+
+      - uses: changesets/action@v1.9.0
+        with:
+          version: npm run version
+          publish: npm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+- **There is no npm publish step, and `privatePackages.tag: true` is what makes the job do anything.**
+  A consumer repo is a private application: a release here is a version bump, a regenerated
+  `CHANGELOG.md`, and a `v<version>` tag. Changesets defaults a private package to
+  `{ version: true, tag: false }`, and with `tag: false` `changeset tag` filters the package out,
+  creates no tag, prints nothing and exits 0 — so `changesets/action`, which decides what to push by
+  parsing `New tag:` out of that command's stdout, pushes nothing either. Measured on a scaffolded
+  consumer repo: with `tag: true`, `npm run release` prints `New tag: v0.1.0` and `git tag` lists it;
+  with the key removed, the same command prints nothing, `git tag` is empty, and both runs exit 0.
+  That is why the assert step exists and why `init-greenfield.mjs` exits 2 on a pre-existing
+  changesets config that leaves the key unset.
+- Two phases, and an ordinary push releases nothing. With changesets pending the action opens or
+  updates the "Version Packages" PR carrying the bump and the changelog entry; with none pending —
+  the state a merge of that PR produces — `publish` runs and tags the new version.
+- `fetch-depth: 0` is required: `changeset tag` decides what to tag by reading the tags that already
+  exist, and a shallow clone has none to compare against.
+- `cancel-in-progress: false`, the opposite of `ci.yml`. Cancelling a run between `changeset version`
+  and `changeset tag` leaves a bumped version with no tag, which the next run cannot detect.
+- `baseBranch` must name the branch `on: push:` gates in both workflows. Changesets diffs against it
+  to find changed packages.
+- The default changelog generator needs no configuration. Swap it for
+  `["@changesets/changelog-github", { "repo": "your-org/your-repo" }]` — and add that package — to get
+  entries that link back to their PR and author.
+- `scripts.version` and `scripts.release` are the workflow's two inputs, so whatever sits under those
+  names is what a merge to the default branch executes. `init-greenfield.mjs` exits 2 rather than let
+  a repo's own `release` script — `npm publish`, a deploy — be run by the workflow it just installed.
+
+### `CHANGELOG.md` is a build output, and the starter ships no copy of it
+
+The file appears at the **first release**, written by `changeset version`. A new repo has no releases,
+so there is nothing to put in one; a hand-written placeholder would be the first version of a file
+whose whole contract is that it is generated. What the standard requires of a new repo is the
+mechanism — `.changeset/config.json`, the three scripts, and `release.yml` — plus the rule that the
+generated file is never hand-edited. An edit to `CHANGELOG.md` is overwritten by the next
+`changeset version`; the text belongs in a `.changeset/*.md` file, which is where the generator reads
+it from.
+
+Authoring one, per change that users can observe:
+
+```bash
+npx changeset            # writes .changeset/<name>.md — commit it with the change
+```
+
 ## 7. Node pinning
 
 Four declarations must agree; when they drift, CI passes and a developer's machine does not.
@@ -150,8 +312,8 @@ version the suite is verified on, and make CI use that exact version via `.nvmrc
 
 ## 8. `.editorconfig`
 
-Without it the editor inserts 2 spaces while the lint rule demands 4, so the linter fights the author
-on the first keystroke and every file arrives with a reformat diff. It mirrors the lint config exactly.
+Without it the editor inserts 2 spaces while the formatter emits 4, so every file arrives with a
+reformat diff that hides the real change. It mirrors `.oxfmtrc.json` exactly.
 
 ```ini
 root = true
@@ -173,9 +335,12 @@ indent_size = 2
 trim_trailing_whitespace = false
 ```
 
-`indent_size` matches `@stylistic/indent: 4`, `quote_type` matches `quotes: single`, `max_line_length`
-matches `max-len: 200`. YAML overrides to 2 because most YAML tooling assumes it; Markdown keeps
-trailing whitespace because two trailing spaces is a hard line break.
+`indent_size` matches oxfmt's `tabWidth: 4`, `quote_type` matches `singleQuote: true`, and
+`max_line_length` matches `printWidth: 200`. That last pair is the one to read carefully: `printWidth`
+is a wrap target, not a bound, so oxfmt will emit a line past 200 columns when there is nothing in it to
+break, and the editor guide is then stricter than the formatter. No lint rule backs it — `max-len` has
+no oxlint equivalent and the standard dropped it. YAML overrides to 2 because most YAML tooling assumes
+it; Markdown keeps trailing whitespace because two trailing spaces is a hard line break.
 
 ## 9. Files every repo needs
 
@@ -235,16 +400,18 @@ where they were written.
 ## Installing these skills changes what your linter sees
 
 Skill folders — `.agents/skills/` from a personal install, `.claude/skills/` once vendored — hold the
-skills' own Node scripts. A flat-config `ignores` list that does not exclude them lints those scripts
-as if they were your source. Measured on a real repo: installing produced **90 spurious `no-undef`
-errors** against the skills' `.mjs` files, taking a repo from 2 lint errors to 92 and making it look
-as though enabling new rules had broken the build. Vendoring makes that permanent rather than local
+skills' own Node scripts. An `ignorePatterns` list that does not exclude them lints those scripts as if
+they were your source. Measured by running the starter's base config against a vendored copy of this
+skill with those two entries deleted: **108 findings across 6 files** — 91 `no-console`, 15
+`no-nested-ternary`, one `no-unused-vars`, one `prefer-const` — none of them about the repo's own code,
+and every one of them looking like a rule the team just enabled breaking the build. With the entries
+present the same run reports `No files found to lint`. Vendoring makes that permanent rather than local
 to one machine, so these entries are mandatory, not a measurement-time workaround:
 
-```js
-globalIgnores(['dist', 'build', 'coverage', '.agents', '.claude/skills']);
+```json
+"ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"]
 ```
 
 `.claude/skills` and not `.claude` — the rest of the tree is small, hand-written, and worth linting.
 Lint-ignored and git-ignored point opposite ways here: `.claude/skills` is **excluded from linting
-and committed to git** (§10). Missing that distinction is what produces the 90-error jump.
+and committed to git** (§10). Missing that distinction is what produces the 108-finding jump.

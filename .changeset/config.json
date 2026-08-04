@@ -8,5 +8,9 @@
   ],
   "commit": false,
   "access": "restricted",
+  "privatePackages": {
+    "version": true,
+    "tag": true
+  },
   "baseBranch": "main"
 }

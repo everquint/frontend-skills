@@ -1,4 +1,4 @@
-# Matches eslint.config.js. Without this the editor fights the linter on the first keystroke.
+# Matches .oxfmtrc.json. Without this the editor fights the formatter on the first keystroke.
 root = true
 
 [*]
@@ -12,5 +12,7 @@ trim_trailing_whitespace = true
 [*.md]
 trim_trailing_whitespace = false
 
-[*.{json,yml,yaml}]
+# JSON follows the global 4, because oxfmt formats it at `tabWidth` and the standard's own config
+# files are authored at 4. Only YAML is carved out — see `.oxfmtrc.json`'s override for why.
+[*.{yml,yaml}]
 indent_size = 2

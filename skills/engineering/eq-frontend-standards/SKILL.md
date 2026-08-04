@@ -24,23 +24,19 @@ Deriving standards from existing code launders bad habits into policy. A repo wi
 ## New repo? Skip the measuring
 
 A greenfield repo has no debt: nothing to measure, nothing to baseline, every rule at `error` from the
-first commit. `measure-rules.mjs` refuses to run anyway — the Vite template ships **no ESLint config**.
+first commit. Skip the measuring — `measure-rules.mjs` would only report zeroes.
 
 ```bash
 node <skill>/scripts/init-greenfield.mjs [--dry-run]   # --dry-run prints the file plan first
-# exits 1 the first time, naming the two lines Tailwind needs in vite.config.ts and a
-# stylesheet. Make those edits, re-run until it exits 0 — files are written either way.
-npm install
-npx eslint . --fix      # required: a 2-space/no-semicolon scaffold yields ~130 fixable errors
+# exits 1 the first time, naming two edits vite.config.ts and a stylesheet need; re-run until 0
+npm install && npm run format     # oxfmt reformats the 2-space/no-semicolon scaffold whole
 npm run lint && npm run typecheck && npm run build
 node <skill>/scripts/check-structure.mjs    # the Vite template itself needs three fixes
 ```
 
 It never overwrites and never edits your source: existing files are skipped and `package.json` is merged
-key-by-key. One exception — a `lint` script running a **different** linter (`oxlint`, `biome`, `xo`) moves to
-`lint:legacy` so `eslint .` owns the name CI invokes; leaving it would keep the standard unenforced on a green build.
-Its config file is reported for you to delete. Measured on a clean scaffold: after `--fix`, lint, typecheck and build
-exit 0, and `check-structure` exits 1 on three defects in the template — `references/structure.md` §4.
+key-by-key. A `lint` script running a **different** linter moves to `lint:legacy` so the standard's own
+`lint` owns the name CI invokes, and its config file is reported for you to delete.
 
 **Do not use it on an existing repo.** Dropping the full config into a mature codebase produces
 hundreds of errors at once, which is how a whole rule set gets switched back off. Measure instead:
@@ -51,11 +47,9 @@ The scripts ship beside this skill, not in the audited repo, so `scripts/…` ne
 by absolute path from the install location — usually `~/.claude/skills/eq-frontend-standards/scripts/` or `~/.agents/skills/…` — abbreviated below to `scripts/<name>.mjs`.
 
 1. **Profile the stack** — `scripts/profile-repo.mjs`. Facts only, no judgement.
-2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts against the standard.
-   Run scoped (`--dir src/components`) on large repos; a full React Compiler pass over 1,500 files
-   can exceed two minutes.
-3. **Build the ladder** (§3). Rules at zero violations go straight to `error`. The rest go to
-   `error` plus a suppressions baseline.
+2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts, and the fix sequence.
+   Scope it with `--dir` on large repos: measured 18s over 2,185 files with the JS plugin bridge on.
+3. **Follow the ladder** (§3). Zero-violation rules to `error`; the rest branch on the total.
 4. **Wire the gates** (§4). Every local hook gets a CI counterpart.
 5. **Record exemptions** (§5). Read findings at source before exempting anything.
 6. **Record the version** — `node scripts/standard-check.mjs --record`, then commit the marker.
@@ -65,7 +59,7 @@ each repo holds its own status.
 
 ## Staying current
 
-`npx skills update` refreshes this skill's **text** only — no repo's ESLint config, hooks or CI move
+`npx skills update` refreshes this skill's **text** only — no repo's lint config, hooks or CI move
 with it, so a repo silently stops complying the moment the standard does. Each migrated repo records
 its version in `.eq-frontend-skills.json`:
 
@@ -74,32 +68,38 @@ node <skill>/scripts/standard-check.mjs --check    # CI gate: exit 1 if behind o
 node <skill>/scripts/standard-check.mjs --record   # after migrating
 ```
 
-`--check` belongs in CI; a marker nobody reads is a comment. When behind, it prints the named
-migration steps between the recorded version and the installed one. The design is
-[copier](https://copier.readthedocs.io/en/stable/updating/)'s: answers stored beside the version,
-named migrations per version, and no writing to a dirty worktree. Never hand-edit the marker.
+`--check` belongs in CI; a marker nobody reads is a comment. When behind, it prints the named migration
+steps between the recorded version and the installed one — [copier](https://copier.readthedocs.io/en/stable/updating/)'s
+design: answers stored beside the version, named migrations, no writing to a dirty worktree. Never hand-edit it.
 
 ## 1. Formatting and budgets — enforced
 
+**oxfmt is the formatter** — 4-space indent, single quotes, semicolons, `printWidth: 200`. oxlint holds
+no formatting rules at all, so nothing in the lint gate can contradict it, and `format:check` gates it in CI.
+
 | Rule | Value |
 |---|---|
-| `@stylistic/indent` | `4`, `SwitchCase: 1`, `flatTernaryExpressions: false` |
-| `@stylistic/quotes` | `single`, `avoidEscape: true` |
-| `@stylistic/semi` | `always` |
-| `max-len` | `200` |
 | `no-console` | error, `allow: ['error']` |
-| `@typescript-eslint/no-explicit-any` | error |
+| `typescript/no-explicit-any` | error |
 | `max-lines` | `500`, `skipBlankLines`, `skipComments` — **code** lines |
 | `max-depth` | `4` |
 | `complexity` | `15` |
 | `max-lines-per-function` | **off** — deliberate; hooks, reducers and `render*` helpers are legitimately long |
 | `no-nested-ternary` | error |
 
-No Prettier, no Biome. `@stylistic` rules are the formatter.
+Rule identifiers are oxlint's, not ESLint's: `@typescript-eslint/x` is `typescript/x`, `jsx-a11y/x` is
+`jsx_a11y/x` (underscore), and `no-unused-vars`, `no-unused-expressions` and `no-array-constructor` are
+unprefixed core rules. Verify a name with `npx oxlint -D all --print-config`; `--rules` prints nothing.
+
+Two rules were lost in the move and are now reviewer-only. `no-octal` has no oxlint equivalent, leaving
+legacy octal literals to TypeScript — which errors on them in modules — and to review. `max-len` has none
+either: `printWidth: 200` succeeds it, and a formatter wraps but cannot flag one unbreakable token past 200.
 
 Exempt from `max-lines`: test files, and CLI-generated directories such as `src/components/ui/`
 (`npx shadcn add` overwrites them). "Summed complexity per file" is a **review** guideline — no
 linter implements it, so do not describe it as enforced.
+
+`references/typescript-config.md` owns the compiler flag set behind §4's `tsc -b --noEmit --force` gate.
 
 ## 2. Correctness — non-negotiable
 
@@ -112,8 +112,8 @@ and has an unknown real count:
 
 | Requirement | Rule | Why it is off |
 |---|---|---|
-| Every promise `await`ed, `.catch()`ed, or `void`ed | `@typescript-eslint/no-floating-promises` | needs type-aware linting (`parserOptions.projectService`) |
-| `useEffect` callbacks are never `async` | `react-hooks/exhaustive-deps` | on in most repos; `no-misused-promises` cannot substitute — see `references/correctness-rules.md` §4 |
+| Every promise `await`ed, `.catch()`ed, or `void`ed | `typescript/no-floating-promises` | silently skipped unless oxlint runs with `--type-aware` |
+| `useEffect` callbacks are never `async` | `react-hooks-js/exhaustive-deps` | on in most repos; `no-misused-promises` cannot substitute — see `references/correctness-rules.md` §4 |
 | No index keys in lists that reorder, filter, or poll | `react/no-array-index-key` | exists but is not in `react/recommended` |
 
 **Genuinely reviewer-enforced** — no rule exists:
@@ -128,20 +128,20 @@ and has an unknown real count:
 
 ## 3. Migration ladder
 
-The standard is fixed. The path to it is per-repo, because violation counts differ.
+The standard is fixed. The path to it is per-repo, because violation counts differ. oxlint has **no
+suppressions file** ([oxc#10549](https://github.com/oxc-project/oxc/issues/10549)), so there is no
+baseline to write. Measure with `scripts/measure-rules.mjs`, then take one branch:
 
 - **Zero violations → `error` immediately.** Free, and prevents regression forever. Do this first.
-- **Everything else → `error` + `eslint-suppressions.json`.** New code complies; old code ratchets down.
+- **Roughly 300 or fewer remaining → one-time AI-assisted fix**, landed as one reviewable PR. The
+  number is a judgement, never a constant to look up: it stands in for a PR a human can actually
+  review and land without merge conflicts, calibrated on two repos — 167 violations migrated cleanly,
+  1,474–2,105 did not.
+- **Clearly more than that → stay on ESLint + suppressions until #10549 lands.** Deliberate: a
+  1,474-violation fix PR gets rubber-stamped, not reviewed, which is worse than debt recorded in a
+  suppressions baseline. Reasoning: `docs/adr/0002-ai-assisted-migration-instead-of-a-suppressions-baseline.md`.
 
-**Suppressions are `error`-severity only. `warn` is never suppressible** — a rule parked at `warn`
-can never be ratcheted and will sit green forever. Never stage at `warn`.
-
-```bash
-npx eslint . --fix && npx eslint . --suppress-all   # baseline the remainder
-npx eslint . --prune-suppressions                   # later: drop what has been fixed
-```
-
-Granularity is file + rule + **count**: 2 suppressed violations in a file that grows to 5 reports all 5.
+**Never stage a rule at `warn`.** A rule parked at `warn` can never be ratcheted and sits green forever.
 
 ## 4. Gates — enforced
 
@@ -150,7 +150,7 @@ gate. A hook with no CI equivalent is decoration.
 
 | | Local | CI |
 |---|---|---|
-| staged lint | `pre-commit` → `lint-staged` (`eslint --fix`) | `lint` |
+| staged lint, format | `pre-commit` → `lint-staged` (`oxfmt`, `oxlint --fix`) | `lint`, `format:check` |
 | types | `pre-push` → `typecheck --force` | `typecheck` |
 | commit message | `commit-msg` → `commitlint` | `wagoid/commitlint-github-action` |
 | tests, build | — | `test`, `build` |
@@ -163,7 +163,7 @@ constraints that cause real failures:
   beats the few seconds `--force` costs.
 - **Never `lint-staged --no-stash`** — it drops the backup stash, so a task that corrupts the working
   tree leaves nothing to recover from. **Never `--fail-on-changes`** either: it fails the commit
-  whenever a task rewrites a file, which is every run where `eslint --fix` fixes something.
+  whenever a task rewrites a file, which is every run where `oxfmt` reformats something.
 
 Node version must be pinned consistently across `.nvmrc`, `engines`, `packageManager`, and CI's
 `node-version-file`. `engines` must not admit a version the test suite cannot run on.
