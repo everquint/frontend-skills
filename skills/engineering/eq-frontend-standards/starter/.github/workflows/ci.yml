@@ -14,7 +14,7 @@ env:
   # so it is identical for one file and for 2,185 of them. Raise it when you add rules; never lower
   # it to make a red build green.
   #
-  # 213 = 193 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
+  # 214 = 194 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
   # the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute both
   # halves from a real run rather than copying the number forward — `npx oxlint --rules` prints
   # nothing in 1.77.0, so neither half is readable off the CLI without parsing:
@@ -23,7 +23,7 @@ env:
   #   npx oxlint -c .oxlintrc.strict.json --type-aware --print-config \
   #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.values(JSON.parse(s).rules).filter(v=>!["off","allow"].includes(Array.isArray(v)?v[0]:v)).length))'
   #
-  #   # 213 — rules actually loaded by the run this job asserts on
+  #   # 214 — rules actually loaded by the run this job asserts on
   #   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
   #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
   #
@@ -32,7 +32,7 @@ env:
   # a consuming repo where that script is absent, and the script runs from the skill where this
   # workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
   # .oxlintrc.strict.json moves both, and both are edited in the same commit.
-  EXPECTED_OXLINT_RULES: 213
+  EXPECTED_OXLINT_RULES: 214
 
 jobs:
   verify:

@@ -87,6 +87,10 @@
 
         "react/no-array-index-key": "error",
         "react/no-unstable-nested-components": "error",
+        // A `<button>` with no `type` defaults to `submit`. Inside a form, a "Remove attachment"
+        // handler therefore also submits: the page navigates and every other unsaved field is lost.
+        // Not in `correctness`, so it must be named. See references/correctness-rules.md §18.
+        "react/button-has-type": "error",
 
         // oxlint's native Rust react-hooks holds exactly these two of the plugin's 29 rules, and
         // they are the only hook coverage the fast loop has. The strict config switches them off

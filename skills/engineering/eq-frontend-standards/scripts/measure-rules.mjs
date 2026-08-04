@@ -30,7 +30,7 @@ const THRESHOLD = 300;
 // defensive: oxlint 1.77.0 hard-fails on a missing plugin, so a fail-soft bridge is the only way to
 // reach it. The 197 case is real and reachable today — verified by dropping the flag.
 //
-// 213 = 193 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
+// 214 = 194 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
 // the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute both halves
 // from a real run rather than copying the number forward — `npx oxlint --rules` prints nothing in
 // 1.77.0, so neither half is readable off the CLI without parsing:
@@ -39,7 +39,7 @@ const THRESHOLD = 300;
 //   npx oxlint -c .oxlintrc.strict.json --type-aware --print-config \
 //     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.values(JSON.parse(s).rules).filter(v=>!["off","allow"].includes(Array.isArray(v)?v[0]:v)).length))'
 //
-//   # 213 — rules actually loaded by the run this script asserts on
+//   # 214 — rules actually loaded by the run this script asserts on
 //   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
 //     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
 //
@@ -48,7 +48,7 @@ const THRESHOLD = 300;
 // consuming repo where this script is absent, and this script runs from the skill where that
 // workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
 // .oxlintrc.strict.json moves both, and both are edited in the same commit.
-const EXPECTED_RULES = 213;
+const EXPECTED_RULES = 214;
 const KNOWN_SHORTFALL = new Map([
     [197, '--type-aware was not passed: the 16 type-aware rules are SKIPPED, including typescript/no-floating-promises, no-misused-promises and no-duplicate-type-constituents.'],
     [193, 'the jsPlugins bridge did not load: all 20 eslint-plugin-react-hooks rules were dropped.'],
