@@ -543,6 +543,19 @@ is not executable does not run and reports nothing; and `--vendor-skills` copies
 `.claude/skills/` as **real files**, so the version in `.eq-frontend-skills.json` describes something
 a clone actually has.
 
+**An existing repo installs it by hand** — `init-greenfield.mjs` is ruled out on that path, and the
+repos migrated by an agent against a red gate are exactly the repos `guard-protected-files.sh`
+exists for. From the repo root, with `<skill>` the installed skill's directory:
+
+```bash
+cp -R "<skill>/starter/.claude/." .claude/    # merge an existing settings.json by hand, never clobber
+chmod 755 .claude/hooks/*.sh                  # cp from a tarball install drops the executable bit
+git add .claude && git commit -m 'chore: install the agent-side repo policy'
+```
+
+`standard-check.mjs` asserts all six files (and the hooks' executable bit) in both `--check` and
+`--record`, so a repo without the guard hook no longer records or reports as compliant.
+
 **Renovate over Dependabot when an org has many repos.** Dependabot config is per-repo, so a policy
 change means editing every repository. Renovate reads one shared preset — `renovate.json` is
 `{ "extends": ["local>your-org/renovate-config"] }` — so grouping, schedule and automerge rules change in one PR.
