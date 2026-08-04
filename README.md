@@ -71,6 +71,13 @@ Two more things it will not tell you. It tracks the **default branch**, so work 
 feature branch is legitimately "up to date". And it compares a per-skill folder hash, so edits
 outside a skill's own directory — this `README.md`, `scripts/`, `docs/adr/` — are not an update.
 
+**Update after a release, not mid-window.** Between a feature PR merging and its "Version Packages"
+PR merging, `main` carries new skill text with the *previous* version constant — that is where the
+version bump lives in the changesets flow. A copy installed from that window reports "up to date"
+at the old version while holding the new content, and the new migration entries are unreachable
+until the constant catches up. If `standard-check` and the skill text seem to disagree, re-run
+`npx skills update -g` after the version PR lands.
+
 That refreshes the skill **text**. It changes no repo's lint config, hooks, or CI — so a repo
 silently stops complying the moment the standard moves. Each migrated repo therefore records its
 version in `.eq-frontend-skills.json`, and CI checks it:

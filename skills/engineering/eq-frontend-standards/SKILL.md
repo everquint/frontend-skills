@@ -74,7 +74,7 @@ design: answers stored beside the version, named migrations, no writing to a dir
 
 ## 1. Formatting and budgets — enforced
 
-**oxfmt is the formatter** — 4-space indent, single quotes, semicolons, `printWidth: 120` (decided, not inherited — `docs/adr/0007`). oxlint holds
+**oxfmt is the formatter** — 4-space indent, single quotes, semicolons, `printWidth: 120` (decided, not inherited — [ADR 0007](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0007-printwidth-120-over-the-inherited-200.md)). oxlint holds
 no formatting rules at all, so nothing in the lint gate can contradict it, and `format:check` gates it in CI.
 
 | Rule | Value |
@@ -139,7 +139,7 @@ baseline to write. Measure with `scripts/measure-rules.mjs`, then take one branc
   1,474–2,105 did not.
 - **Clearly more than that → stay on ESLint + suppressions until #10549 lands.** Deliberate: a
   1,474-violation fix PR gets rubber-stamped, not reviewed, which is worse than debt recorded in a
-  suppressions baseline. Reasoning: `docs/adr/0002-ai-assisted-migration-instead-of-a-suppressions-baseline.md`.
+  suppressions baseline. Reasoning: [ADR 0002](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0002-ai-assisted-migration-instead-of-a-suppressions-baseline.md).
 
 **Never stage a rule at `warn`.** A rule parked at `warn` can never be ratcheted and sits green forever.
 
