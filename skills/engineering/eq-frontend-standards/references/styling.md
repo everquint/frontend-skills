@@ -43,6 +43,15 @@ and the boundary is the syntax — this is the file's single rule on them, cited
 | **Arbitrary property** — `[property:value]`, no utility name in front | `[grid-template-columns:repeat(auto-fill,minmax(255px,1fr))]`, `[mask-image:linear-gradient(...)]` | **Layer 3 written in the wrong place.** Tailwind has no utility for the property, so the class is a stylesheet declaration smuggled into a class attribute: unreadable, unsearchable by property name, and not reusable. Move it to the stylesheet |
 | **Arbitrary value** — a real utility with a computed value | `max-h-[calc(100vh-4rem)]`, `grid-cols-[repeat(auto-fill,minmax(255px,1fr))]`, `w-[var(--rail)]` | **Layer 2.** The utility names the property, so it greps as `max-h-`/`grid-cols-` like every other utility; the brackets carry one length no scale step names. §5.5 bounds this: a computed shape qualifies, restating a scale step (`p-[13px]`) does not |
 
+**A class string that pushes its line past the formatter's `printWidth` is extracted to a named
+module-level constant**, composed through `cn()` — or a `cva` variant map when the variants differ.
+The formatter cannot wrap inside a string, so a past-width class string is the one shape `SKILL.md`
+§1's dropped `max-len` leaves with no mechanical check at all: nothing flags it at any width, and it
+only grows. The constant's name states what the styling is *for*, which no multi-hundred-character
+literal does, and a changed class then diffs as one line under a stable name instead of a shifted
+wall of text. Reviewer-enforced. CLI-generated `src/components/ui/` is exempt, as everywhere — the
+next `add` overwrites it.
+
 ### 3. A co-located `.scss` stylesheet, for what has no direct utility
 
 Theme colors, shadows, gradients, pseudo-elements (`::before`, `::after`, `::placeholder`),

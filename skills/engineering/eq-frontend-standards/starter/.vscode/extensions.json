@@ -11,7 +11,7 @@
         "editorconfig.editorconfig"
     ],
     // All three format to Prettier's defaults — double quotes, printWidth 80 — which contradicts
-    // .oxfmtrc.json (single quotes, 200). Two formatters on one file means every save fights
+    // .oxfmtrc.json (single quotes, 120). Two formatters on one file means every save fights
     // `npm run format:check`. Marked unwanted so the recommendation prompt cannot re-add them for
     // THIS workspace; they stay installed and active for other repos, and settings.json is what
     // actually takes the ts/tsx files away from them.

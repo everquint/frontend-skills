@@ -74,7 +74,7 @@ design: answers stored beside the version, named migrations, no writing to a dir
 
 ## 1. Formatting and budgets — enforced
 
-**oxfmt is the formatter** — 4-space indent, single quotes, semicolons, `printWidth: 200`. oxlint holds
+**oxfmt is the formatter** — 4-space indent, single quotes, semicolons, `printWidth: 120` (decided, not inherited — `docs/adr/0007`). oxlint holds
 no formatting rules at all, so nothing in the lint gate can contradict it, and `format:check` gates it in CI.
 
 | Rule | Value |
@@ -93,7 +93,7 @@ unprefixed core rules. Verify a name with `npx oxlint -D all --print-config`; `-
 
 Two rules were lost in the move and are now reviewer-only. `no-octal` has no oxlint equivalent, leaving
 legacy octal literals to TypeScript — which errors on them in modules — and to review. `max-len` has none
-either: `printWidth: 200` succeeds it, and a formatter wraps but cannot flag one unbreakable token past 200.
+either: `printWidth: 120` succeeds it, and a formatter wraps but cannot flag one unbreakable token past 120 — a past-width class string is extracted to a named constant, `references/styling.md` §1.
 
 Exempt from `max-lines`: test files, and CLI-generated directories such as `src/components/ui/`
 (`npx shadcn add` overwrites them). "Summed complexity per file" is a **review** guideline — no

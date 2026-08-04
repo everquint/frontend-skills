@@ -224,6 +224,25 @@ for (const d of report.diagnostics ?? []) {
     files.get(rule).add(d.filename);
 }
 
+// A rejected tsconfig is FATAL, never one finding among many. oxlint-tsgolint refuses the whole
+// project (`baseUrl`, removed in TypeScript 6.0, is the common cause) and then SKIPS all three
+// type-aware rules — so typescript/no-floating-promises measures ZERO over any number of real
+// violations, and this script would list a correctness rule in the "zero violations — enable for
+// free" set while dozens of unhandled rejections sit in the repo. Measured on the first migrated
+// repo: 48 real no-floating-promises sites reported as a clean rule. A false zero on a correctness
+// rule is the one output this script must never print, so the run refuses to report at all.
+const tsconfigErrors = [...counts.keys()].filter((r) => r.includes('tsconfig-error'));
+if (tsconfigErrors.length) {
+    const affected = [...(files.get(tsconfigErrors[0]) ?? [])].slice(0, 3);
+    fail(`the type-aware rules did NOT run: oxlint-tsgolint rejected this repo's tsconfig (${tsconfigErrors.join(', ')} × ${tsconfigErrors.reduce((a, r) => a + counts.get(r), 0)})`, [
+        'Every type-aware count would be a FALSE ZERO: typescript/no-floating-promises,',
+        'no-misused-promises and no-duplicate-type-constituents were skipped, not clean.',
+        `Reported against: ${affected.join(', ')}${(files.get(tsconfigErrors[0])?.size ?? 0) > 3 ? ', …' : ''}`,
+        'Common cause: `baseUrl` in a tsconfig — TypeScript 6.0 removed it; use relative `paths` instead.',
+        'Fix the tsconfig, then re-run.',
+    ]);
+}
+
 const total = [...counts.values()].reduce((a, b) => a + b, 0);
 // Cheapest wins first: zero-violation rules go straight to `error` for free, then ascending count.
 const free = [...enabled].filter((r) => !counts.has(r)).sort();

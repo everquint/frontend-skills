@@ -1,17 +1,21 @@
 // oxfmt is the formatter. It replaces the @stylistic ESLint rules the standard used to format
-// with, and the output is byte-identical in intent: 4-space indent, single quotes, semicolons,
-// 200 columns.
+// with: 4-space indent, single quotes, semicolons, 120 columns.
+//
+// printWidth 120 is a DECIDED value, not the old `max-len` ceiling carried forward — docs/adr/0007.
+// `max-len` only ever FLAGGED long lines; oxfmt actively JOINS short ones, so a wide printWidth
+// rewrites hand-wrapped code up to the limit and the result is unreadable in a side-by-side diff.
 //
 // oxlint holds NO formatting rules, so nothing here can be contradicted by the linter. The old
 // `max-len` lint rule has no oxlint equivalent — printWidth below is its only successor, and a
-// formatter can only wrap, so a single unbreakable token past column 200 is now reviewer-only.
+// formatter can only wrap, so a single unbreakable token past column 120 is reviewer-only; a
+// past-width Tailwind class string is extracted to a named constant (references/styling.md §1).
 {
     "$schema": "./node_modules/oxfmt/configuration_schema.json",
 
     "tabWidth": 4,
     "singleQuote": true,
     "semi": true,
-    "printWidth": 200,
+    "printWidth": 120,
 
     // JSX attributes keep double quotes, which is what React code looks like everywhere and what
     // the @stylistic config produced (its `quotes` rule never applied to JSX attribute strings).
