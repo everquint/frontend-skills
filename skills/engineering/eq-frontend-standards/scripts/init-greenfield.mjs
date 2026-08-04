@@ -668,6 +668,52 @@ if (viteSource !== null) {
     }
 }
 
+// ── the leaf tsconfigs' checking flags — VERIFIED, never written ─────────────
+// tsconfig.app.json and tsconfig.node.json land in the copy loop, so a fresh repo is covered. A
+// PRE-EXISTING leaf config is kept by never-overwrite, and it is then the config `tsc -b` actually
+// reads: a repo whose own tsconfig.app.json lacks `strict` passes typecheck, lint, tests and build,
+// all green, while `undefined` flows through the app unchecked. That is the most invisible of the
+// verified gates — an unwired Tailwind pipeline shows in the browser within minutes; a missing
+// checking flag shows the first time a user hits the crash it would have caught. Same
+// sentinel-not-bytes approach as STANDARD_BASE_SENTINEL: the flag must be PRESENT AND TRUE after
+// line-comment stripping, so a commented-out flag and an explicit `"strict": false` both report.
+// (Block stripping stays OFF for tsconfig — the `"@/*"` mapping contains `/*`; see stripComments.)
+const LEAF_TSCONFIGS = ['tsconfig.app.json', 'tsconfig.node.json'];
+const TS_CHECKING_FLAGS = ['strict', 'noUncheckedIndexedAccess', 'noImplicitOverride'];
+const readJsonc = (file) => {
+    const raw = readTextFile(file);
+    return raw === null ? null : stripComments(raw, { lineComments: true, blockComments: false });
+};
+const flagTrue = (body, flag) => new RegExp(`"${flag}"\\s*:\\s*true`).test(body);
+
+// The ratchet path is legitimate, not a gap: an existing repo REMOVES noUncheckedIndexedAccess from
+// the leaf configs and keeps it only in tsconfig.strict.json while the error count ratchets down.
+// With that spelling live, its absence from a leaf is the documented migration, so it is not asked
+// for twice.
+const strictConfigBody = readJsonc(join(cwd, 'tsconfig.strict.json'));
+const ratchetCarriesNUIA = strictConfigBody !== null && flagTrue(strictConfigBody, 'noUncheckedIndexedAccess');
+
+const tsGaps = [];
+for (const leaf of LEAF_TSCONFIGS.filter((f) => skipped.includes(f))) {
+    const body = readJsonc(join(cwd, leaf));
+    const missing = body === null
+        ? TS_CHECKING_FLAGS
+        : TS_CHECKING_FLAGS.filter((f) => !flagTrue(body, f) && !(f === 'noUncheckedIndexedAccess' && ratchetCarriesNUIA));
+    if (!missing.length) continue;
+    tsGaps.push([
+        `${leaf} already existed and was NOT replaced — this script does not overwrite your files —`,
+        body === null
+            ? `but it could not be read, so it cannot be shown to hold the standard's checking flags.`
+            : `but it does not set ${missing.map((f) => `\`${f}\``).join(', ')} to \`true\`.`,
+        `A leaf config is what \`tsc -b\` actually reads (a flag in the solution-style root checks`,
+        `nothing), so whatever is missing here is missing from the typecheck gate: green, while the`,
+        `bug class it exists to catch ships. Add the flag(s) inside compilerOptions — the failure each`,
+        `one prevents is in references/typescript-config.md — or start from the standard's file and`,
+        `merge your own options back on top:`,
+        `      cp ${join(STARTER, leaf)} ${leaf}`,
+    ].join('\n    '));
+}
+
 if (!viteConfig) {
     console.log(`ℹ no vite.config.* here, so the bundler half of the Tailwind wiring and the \`@/\` alias`);
     console.log(`  were not checked — register Tailwind the way your bundler wants it (Next.js, Rspack and`);
@@ -762,12 +808,16 @@ if (workflowRunsChangesets) {
 // EVERY verified gate reports in ONE run and the script exits once. Discovering them serially — fix
 // Tailwind, re-run, exit 2 again for a different reason, re-run — makes a first run feel like a fight
 // and trains people to stop reading this output, which is the only place these failures are visible.
-if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
+if (lintGaps.length || tsGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
     console.log(`✗ SETUP INCOMPLETE — every file above landed, but a gate below is installed and NOT`);
     console.log(`  doing its job. These are grouped so one re-run can clear all of them:`);
     if (lintGaps.length) {
         console.log(`\n  the lint gate runs your base config, not the standard's — green, and unenforced:`);
         console.log(lintGaps.map((g) => `  ! ${g}`).join('\n'));
+    }
+    if (tsGaps.length) {
+        console.log(`\n  the typecheck gate reads your tsconfig, and it is missing checking flags:`);
+        console.log(tsGaps.map((g) => `  ! ${g}`).join('\n'));
     }
     if (aliasGaps.length) {
         console.log(`\n  the \`@/\` source alias resolves in some tools and not others:`);
@@ -822,7 +872,7 @@ if (landed(CI_WORKFLOW) && !existsSync(join(cwd, VENDORED_STANDARD))) {
     console.log('');
 }
 
-if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
+if (lintGaps.length || tsGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
     // A --dry-run must not exit non-zero, or `node … --dry-run && node …` never reaches the real run.
     process.exit(dryRun ? 0 : 2);
 }
