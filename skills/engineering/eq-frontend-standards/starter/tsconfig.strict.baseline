@@ -1,0 +1,30 @@
+# noUncheckedIndexedAccess error baseline
+#
+# The single number below is the highest error count `tsc -p tsconfig.strict.json --noEmit` is
+# allowed to report. The `typecheck-strict-ratchet` job in .github/workflows/ci.yml fails when the
+# real count EXCEEDS it. It never fails on the count merely being non-zero, so existing debt does
+# not block anyone; only a regression does.
+#
+# GREENFIELD (this starter): the value is 0, `noUncheckedIndexedAccess` is already a gate in
+# tsconfig.app.json, and the ratchet is therefore a hard gate — any new violation fails CI.
+#
+# EXISTING REPO adopting the standard: set this to the count measured on the adoption commit
+# (`npx tsc -p tsconfig.strict.json --noEmit --pretty false | grep -c ': error TS'`), remove
+# noUncheckedIndexedAccess from tsconfig.app.json, and ratchet from there.
+#
+# TO LOWER IT (the only direction it may move):
+#   1. Fix errors in one directory. Use a guard, `?.`, or a destructured default.
+#      NOT `as` and NOT `!` — both silence the diagnostic while leaving the bug, which spends the
+#      ratchet's budget on nothing.
+#   2. Re-measure:
+#        npx tsc -p tsconfig.strict.json --noEmit --pretty false | grep -c ': error TS'
+#   3. Write the new, lower number here in the same commit as the fixes, so the diff shows the
+#      count and the code that earned it together.
+#   4. At 0, move `noUncheckedIndexedAccess` into tsconfig.app.json and delete this file, the
+#      `typecheck-strict-ratchet` job, and tsconfig.strict.json.
+#
+# RAISING THIS NUMBER IS NOT A FIX. A red ratchet means the branch added an unguarded indexed
+# read; a raised baseline means it was added and the gate was disabled to let it through.
+#
+# Format: exactly one line that is a non-negative integer. `#` comments and blank lines ignored.
+0

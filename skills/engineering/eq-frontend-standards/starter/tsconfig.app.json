@@ -1,0 +1,70 @@
+/* Application code. This is a LEAF config: it has an `include`, so it actually compiles files and
+ * is therefore where every checking flag must live. `tsconfig.node.json` carries the same checking
+ * flags — a flag added to one and not the other is silent drift.
+ */
+{
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+        "target": "es2023",
+        "lib": ["ES2023", "DOM"],
+        "module": "esnext",
+        "types": ["vite/client"],
+        "allowArbitraryExtensions": true,
+        "skipLibCheck": true,
+
+        /* Bundler mode */
+        "moduleResolution": "bundler",
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "moduleDetection": "force",
+        "noEmit": true,
+        "jsx": "react-jsx",
+
+        /* Linting */
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "erasableSyntaxOnly": true,
+        "noFallthroughCasesInSwitch": true,
+
+        /* Correctness — added by this standard. The template sets none of the three. */
+
+        /* Catches a value used without a null/undefined guard (strictNullChecks), an unannotated
+         * parameter silently typed `any` which disables checking in the whole function body
+         * (noImplicitAny), a handler accepting a narrower type than its call site passes
+         * (strictFunctionTypes), and `catch (e)` typed `any` so `e.message` compiles and throws
+         * (useUnknownInCatchVariables).
+         *
+         * Written explicitly because the default is version-dependent and has already changed once:
+         * measured, `--strict` defaults false on TS 5.9.3 and true on 6.0.3. Relying on the default
+         * means a pin to TS 5.x, a monorepo hoisting an older `typescript`, or a stale CI lockfile
+         * turns strictness off with no error, no warning, and a green pipeline. */
+        "strict": true,
+
+        /* Catches an array or record read that can be `undefined`: without it `rows[0]` is typed `T`
+         * on an empty list and `COLORS[status]` is typed `V` for a key the map does not have, so
+         * `rows[0].name` type-checks and throws "Cannot read properties of undefined". This is the last
+         * remaining path by which `undefined` reaches runtime with the compiler's approval.
+         *
+         * A gate from commit one HERE because a new repo has no debt. On an existing repo it measures
+         * 906 errors / 193 files, which is why `tsconfig.strict.json` exists as the migration artifact
+         * — see that file. Fix violations with a guard, `?.`, or a destructured default, never `as`,
+         * which reproduces the exact hole the flag closes. */
+        "noUncheckedIndexedAccess": true,
+
+        /* Catches a class member that replaces a base-class member without the `override` keyword. The
+         * failure it prevents: an error boundary declaring `componentDidCath` — one transposed letter —
+         * is a valid new method React never calls, so the boundary renders its fallback but never
+         * reports and every error inside it vanishes with no log. Measured cost on an existing repo:
+         * 4 errors / 2 files, all TS4114. */
+        "noImplicitOverride": true,
+
+        /* `@/` is this standard's source alias (see `internalPattern` in .oxfmtrc.json). It belongs in
+         * this leaf config, not the root, for the same reason the checking flags do. Keep it in step
+         * with `resolve.alias` in vite.config.ts — tsc and Vite resolve independently, so an alias in
+         * only one of the two type-checks and fails to bundle, or bundles and fails to type-check. */
+        "paths": {
+            "@/*": ["./src/*"]
+        }
+    },
+    "include": ["src"]
+}

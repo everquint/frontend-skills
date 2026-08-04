@@ -1,0 +1,37 @@
+/* THE MIGRATION ARTIFACT — for an EXISTING repo adopting this standard. Not a second gate.
+ *
+ * Read this first, because otherwise the file looks redundant:
+ *
+ *   - In THIS starter (greenfield) `noUncheckedIndexedAccess` is already a hard gate in
+ *     `tsconfig.app.json`. A new repo has no debt, so the flag costs nothing at commit one and
+ *     every violation is caught as it is written. Here this file is a no-op that reports 0 errors,
+ *     and the CI ratchet below is consequently already a hard gate. That is the intended end state.
+ *
+ *   - In an EXISTING repo the flag measures 906 errors across 193 files, and a rule set that lands
+ *     hundreds of errors at once is the rule set that gets switched back off. So such a repo REMOVES
+ *     `noUncheckedIndexedAccess` from `tsconfig.app.json`, leaves it enabled only here, and drives
+ *     the count down directory by directory under the `typecheck-strict-ratchet` job in
+ *     .github/workflows/ci.yml. When the count reaches 0, the flag moves into `tsconfig.app.json`
+ *     and this file — with its baseline and its CI job — is deleted.
+ *
+ * So exactly one of the two spellings is live in any given repo. If you are editing this file
+ * because it "does nothing", you are in a greenfield repo and the answer is to delete nothing.
+ *
+ * This IS a leaf config: it inherits `include: ["src"]` through `extends`, so it compiles real
+ * files. Do not restate the flag in the root `tsconfig.json` — see the warning there.
+ *
+ * Not listed in the root config's `references`, so `tsc -b` never picks it up. It is run explicitly:
+ *   tsc -p tsconfig.strict.json --noEmit
+ */
+{
+    "extends": "./tsconfig.app.json",
+    "compilerOptions": {
+        /* Its own build-info path. Sharing tsconfig.app.json's would let a ratchet run and a
+         * `npm run typecheck` run invalidate each other's cache under a different flag set. */
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.strict.tsbuildinfo",
+
+        /* The one flag this config exists for. Inherited from tsconfig.app.json in a greenfield repo;
+         * restated here so the file is self-contained after an existing repo removes it from there. */
+        "noUncheckedIndexedAccess": true
+    }
+}
