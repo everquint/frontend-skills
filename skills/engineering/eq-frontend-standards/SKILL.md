@@ -18,9 +18,8 @@ One standard. Repos migrate to it once, then maintain it.
 | monorepo layout, which directories exist | git hooks, commit conventions, CI |
 | **violation counts** — these set the migration path | naming, styling layers, test placement |
 
-Deriving standards from existing code launders bad habits into policy. A repo with 16 index-key
-sites and `no-array-index-key` disabled has a bug, not a convention. Detection tells you the
-*migration cost*, never the *target*.
+Deriving standards from existing code launders bad habits into policy. A repo with 16 index-key sites and
+`no-array-index-key` disabled has a bug, not a convention. Detection tells you the *migration cost*, never the *target*.
 
 ## New repo? Skip the measuring
 
@@ -29,26 +28,27 @@ first commit. `measure-rules.mjs` refuses to run anyway — the Vite template sh
 
 ```bash
 node <skill>/scripts/init-greenfield.mjs [--dry-run]   # --dry-run prints the file plan first
+# exits 1 the first time, naming the two lines Tailwind needs in vite.config.ts and a
+# stylesheet. Make those edits, re-run until it exits 0 — files are written either way.
 npm install
 npx eslint . --fix      # required: a 2-space/no-semicolon scaffold yields ~130 fixable errors
-npx eslint . && npm run typecheck && npm run build
+npm run lint && npm run typecheck && npm run build
 node <skill>/scripts/check-structure.mjs    # the Vite template itself needs three fixes
 ```
 
-It never overwrites and never edits your source: existing files are skipped, `package.json` is merged
-key-by-key, a script you already chose is kept and printed. Measured on a clean `npm create vite
---template react-ts` scaffold: after `--fix`, `eslint`, typecheck and build exit 0, and
-`check-structure` exits 1 on three defects in the template itself — `references/structure.md` §4.
+It never overwrites and never edits your source: existing files are skipped and `package.json` is merged
+key-by-key. One exception — a `lint` script running a **different** linter (`oxlint`, `biome`, `xo`) moves to
+`lint:legacy` so `eslint .` owns the name CI invokes; leaving it would keep the standard unenforced on a green build.
+Its config file is reported for you to delete. Measured on a clean scaffold: after `--fix`, lint, typecheck and build
+exit 0, and `check-structure` exits 1 on three defects in the template — `references/structure.md` §4.
 
 **Do not use it on an existing repo.** Dropping the full config into a mature codebase produces
 hundreds of errors at once, which is how a whole rule set gets switched back off. Measure instead:
 
 ## Procedure — existing repo
 
-The scripts ship beside this skill, not in the audited repo, so `scripts/…` never resolves against
-that repo's cwd. Invoke by absolute path from the install location — usually
-`~/.claude/skills/eq-frontend-standards/scripts/`, or `~/.agents/skills/…` — abbreviated below to
-`scripts/<name>.mjs`.
+The scripts ship beside this skill, not in the audited repo, so `scripts/…` never resolves against that repo's cwd. Invoke
+by absolute path from the install location — usually `~/.claude/skills/eq-frontend-standards/scripts/` or `~/.agents/skills/…` — abbreviated below to `scripts/<name>.mjs`.
 
 1. **Profile the stack** — `scripts/profile-repo.mjs`. Facts only, no judgement.
 2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts against the standard.
@@ -93,22 +93,19 @@ named migrations per version, and no writing to a dirty worktree. Never hand-edi
 | `max-depth` | `4` |
 | `complexity` | `15` |
 | `max-lines-per-function` | **off** — deliberate; hooks, reducers and `render*` helpers are legitimately long |
+| `no-nested-ternary` | error |
 
 No Prettier, no Biome. `@stylistic` rules are the formatter.
 
 Exempt from `max-lines`: test files, and CLI-generated directories such as `src/components/ui/`
-(`npx shadcn add` overwrites them).
-
-"Summed complexity per file" is a **review** guideline. No linter implements it — do not describe
-it as enforced.
+(`npx shadcn add` overwrites them). "Summed complexity per file" is a **review** guideline — no
+linter implements it, so do not describe it as enforced.
 
 ## 2. Correctness — non-negotiable
 
-True in every component-based frontend regardless of local habit. See `references/correctness-rules.md` for each rule
-with its concrete failure scenario, and `references/react-hooks-v7.md` for the full 29-rule
-classification — **which rules are real, and which report compiler limitations rather than defects
-in your code.** Read that file before enabling anything from `eslint-plugin-react-hooks`; three of
-its rules produce large volumes of noise that are not bugs.
+True in every component-based frontend regardless of local habit. `references/correctness-rules.md` gives each rule with its
+concrete failure scenario; `references/react-hooks-v7.md` gives the full 29-rule classification — **which rules are real, and
+which report compiler limitations rather than defects in your code.** Read it before enabling anything from `eslint-plugin-react-hooks`: three of its rules produce large volumes of noise that are not bugs.
 
 **Gated, but off by default — turn these on.** A repo that never enabled them reports zero violations
 and has an unknown real count:
@@ -144,8 +141,7 @@ npx eslint . --fix && npx eslint . --suppress-all   # baseline the remainder
 npx eslint . --prune-suppressions                   # later: drop what has been fixed
 ```
 
-Granularity is file + rule + **count**: a file with 2 suppressed violations that grows to 5 reports
-all 5.
+Granularity is file + rule + **count**: 2 suppressed violations in a file that grows to 5 reports all 5.
 
 ## 4. Gates — enforced
 
@@ -165,10 +161,9 @@ constraints that cause real failures:
 - **`tsc -b` must use `--force`.** Its `.tsbuildinfo` goes stale and produces phantom errors *and*
   false passes. A hook that emits false failures gets bypassed with `--no-verify`, so correctness
   beats the few seconds `--force` costs.
-- **Never `lint-staged --no-stash`** — it removes the backup stash, so a task that corrupts the
-  working tree leaves nothing to recover from. **Never `--fail-on-changes`** either, for a different
-  reason: it fails the commit whenever a task rewrites a file, which is every run where
-  `eslint --fix` fixes something.
+- **Never `lint-staged --no-stash`** — it drops the backup stash, so a task that corrupts the working
+  tree leaves nothing to recover from. **Never `--fail-on-changes`** either: it fails the commit
+  whenever a task rewrites a file, which is every run where `eslint --fix` fixes something.
 
 Node version must be pinned consistently across `.nvmrc`, `engines`, `packageManager`, and CI's
 `node-version-file`. `engines` must not admit a version the test suite cannot run on.
@@ -178,19 +173,24 @@ Node version must be pinned consistently across `.nvmrc`, `engines`, `packageMan
 Explicit, dated, argued — in the repo, not in this skill. An exemption needs a reason a cold reader
 can check, and it exempts a **pattern**, never the code that uses it.
 
-**Verify at source before exempting.** Two known false-positive shapes: `static-components` fires on
-icon-by-variable (`const Icon = iconFor(ext); <Icon />` — the component is a stable module-level
-import, only the selection varies), and `hooks` fires on libraries that invoke a passed function as a
-hook. But do not assume a finding is a false positive because it resembles one. Optional-chained hook
-calls — `slots?.useSidePanel?.()` — look like a library seam and are a **real** hazard: hook order
-breaks the moment the object is passed conditionally.
+**Verify at source before exempting.** Two known false-positive shapes: `static-components` fires on icon-by-variable
+(`const Icon = iconFor(ext); <Icon />` — the component is a stable module-level import, only the selection varies), and
+`hooks` fires on libraries that invoke a passed function as a hook. But do not assume a finding is a false positive because it
+resembles one. Optional-chained hook calls — `slots?.useSidePanel?.()` — look like a library seam and are a **real** hazard: hook order breaks the moment the object is passed conditionally.
 
-## 6. Structure and duplication
+## 6. Conventions — enforced, but not by a linter
 
-Neither is a runtime failure, so neither belongs in `references/correctness-rules.md` — that file's exclusion list names structure explicitly, and duplication is out of scope there for the same reason. Both are enforced here.
+None of these is a runtime failure, so none belongs in `references/correctness-rules.md`. That does not make them optional. Each is enforced by the conventions review, and by `check-structure.mjs` where a filesystem walk can decide it:
 
-- **Naming, component folders, placement, style-selector collisions** — `references/structure.md`, checked by `scripts/check-structure.mjs`; promotion needs a second consumer counted, so it stays reviewer-enforced.
+- **Naming *casing*, component folders, placement, style-selector collisions** — `references/structure.md`, checked by `scripts/check-structure.mjs`; promotion needs a second consumer counted, so it stays reviewer-enforced.
 - **Which duplication is a defect and which is not** — `references/duplication.md`, reviewer-enforced. `jscpd` is a lead to read, never a gate.
+- **Which styling layer to reach for** — `references/styling.md`. The four-layer order, and why two layers on one property is the defect.
+- **Comments, identifier *semantics*, and how much belongs in one file** — `references/code-quality.md`. Owns the summed-complexity budget and the per-helper complexity classes that §1's numbers do not decide.
+
+**A branch that produces more than one element is a named local `render*` helper**, called as `{renderEmptyState()}` —
+not an inline ternary or `&&` chain. Inline, the reader parses JSX and control flow at once, and the diff of a changed
+condition is indistinguishable from a changed element; the name states the intent. A single-element
+`cond ? <A /> : <B />` stays inline, and §1's `no-nested-ternary` gates only the worst shape. Mounting the helper as `<RenderEmptyState />` is a remount bug — `references/correctness-rules.md` §1.
 
 ## 7. Documentation rule
 

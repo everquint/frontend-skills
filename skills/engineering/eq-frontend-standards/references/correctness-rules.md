@@ -6,7 +6,7 @@ earns a place here only if you can write that scenario down.
 
 | # | Rule | Gate |
 |---|---|---|
-| 1 | No components defined inside another component's body | `react/no-unstable-nested-components` + `react-hooks/static-components` |
+| 1 | No components defined inside another component's body — a `render*` helper is **called**, never mounted | `react-hooks/static-components`; `no-unstable-nested-components` partly; prop-passed shape **reviewer** |
 | 2 | No index keys in lists that reorder, filter, or poll | `react/no-array-index-key` (**off by default**) |
 | 3 | No state-writing effect keyed on an unstable identity | `exhaustive-deps` partly; identity half **reviewer** |
 | 4 | `useEffect` callbacks are never `async` | `react-hooks/exhaustive-deps` |
@@ -36,6 +36,38 @@ every render**. React cannot match it to the previous tree, so it unmounts the o
 destroys the input's DOM node: focus is lost, the caret jumps to position 0, and uncontrolled child state
 (scroll offset, `<details>` open, video position) resets. Extract to module scope and pass props; calling
 it as a function — `{renderForm()}` — is also correct, since that creates no new component type.
+
+### `render*` helpers are called, never mounted
+
+A local `render*` helper — the standard's answer to a multi-element branch, `SKILL.md` §1 — returns JSX,
+which puts it one keystroke from this bug. The two spellings are not interchangeable:
+
+```tsx
+const renderHeader = () => <input value={draft} onChange={onChange} />;
+
+{renderHeader()}       // right: a function call. Its elements are inlined into the parent's tree.
+<RenderHeader />       // wrong: a new component type every render. React remounts the subtree.
+```
+
+The call produces no component identity, so there is nothing for React to mismatch. The mount declares a
+type whose function reference is fresh on every parent render, so React's reconciler treats it as a
+*different* type each time and takes the unmount-and-remount path: the DOM node is destroyed, its state
+and focus go with it, and every effect inside re-runs on every parent render — including the fetches and
+subscriptions those effects own.
+
+Lint coverage, measured by running the starter config (both rules at `error`) over three shapes:
+
+| Shape | `no-unstable-nested-components` | `static-components` |
+|---|---|---|
+| `const RenderForm = () => …` mounted as `<RenderForm />` | fires | fires |
+| `const renderHeader = …; const Header = renderHeader;` mounted as `<Header />` | silent | fires |
+| `const renderBody = …` passed to another component that mounts it | silent | silent |
+
+`react/no-unstable-nested-components` keys off the declaration, so it misses a helper renamed into a
+capitalised binding before it is mounted. `react-hooks/static-components` keys off the mount site and
+catches both in-file spellings. **The third shape — a locally-defined `render*` helper handed to another
+component as a prop and mounted there — is reviewer-only**: neither rule crosses the component boundary,
+and it carries the identical remount failure. Neither rule fires on `{renderHeader()}`.
 
 ## 2. Index keys in lists that reorder, filter, or poll
 

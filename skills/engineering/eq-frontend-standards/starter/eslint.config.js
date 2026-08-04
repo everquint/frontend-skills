@@ -52,6 +52,11 @@ export default defineConfig([
             'max-len': ['error', 200],
             'no-console': ['error', { allow: ['error'] }],
             '@typescript-eslint/no-explicit-any': 'error',
+            // A nested ternary is the shape §1's render* helper rule replaces: two conditions and
+            // two outcomes on one expression, where a changed condition diffs like a changed value.
+            // no-unneeded-ternary is deliberately absent — @stylistic owns formatting, and
+            // `a ? a : b` is rewritten by hand to `a ?? b`, which is a different value for `''`/0.
+            'no-nested-ternary': 'error',
 
             // ── §1 budgets. No function-length limit: hooks, reducers and render* helpers
             // are legitimately long.

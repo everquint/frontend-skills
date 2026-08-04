@@ -21,6 +21,10 @@ no `.ts/.tsx/.scss/.css` all used to print `0 violation(s) … clean`. Under `--
 These do not vary by framework, bundler, or router. The checker reads filenames, so the two
 identifier rows and the positive form of the test row are reviewer-enforced — see the closing table.
 
+**This section owns *casing*, for filenames and identifiers alike.** Whether a name states its intent,
+lies about the shape it holds, or draws a distinction that means nothing is `references/code-quality.md`
+§2, which owns identifier *semantics*.
+
 | Thing | Form |
 |---|---|
 | every file and every directory | `kebab-case` |
@@ -190,6 +194,8 @@ Rules:
   the modifier**. Measure the computed value before sizing the work.
 - **A co-located stylesheet is named exactly after its component**: `user-card.tsx` →
   `user-card.scss`. Owning one promotes the component to a folder (§2).
+
+**Which styling layer owns a given property** — the decision procedure this section presupposes — is `references/styling.md`.
 
 ## 8. File size
 

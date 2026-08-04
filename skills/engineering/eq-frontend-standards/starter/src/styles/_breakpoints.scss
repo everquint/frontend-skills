@@ -1,0 +1,55 @@
+// The layer-3 half of one breakpoint source of truth (references/styling.md §4).
+//
+// These five values MIRROR Tailwind v4's default `--breakpoint-*` theme values, verbatim from
+// node_modules/tailwindcss/theme.css. The duplication is real and is not removable: Tailwind v4
+// declares its theme in CSS, Sass runs BEFORE Tailwind in the bundler's pipeline, and CSS forbids
+// `var()` inside a media query — so no Sass mixin can read Tailwind's numbers. Tailwind's own
+// `theme(--breakpoint-lg)` escape hatch resolves only inside the stylesheet that holds
+// `@import 'tailwindcss'`; in a component .scss it reaches the minifier unresolved and fails the
+// build on the prescribed Vite 8 / lightningcss stack — on Vite 7, whose default minifier is
+// esbuild, it exits 0 and ships the unresolved query into production CSS instead. So: if a repo
+// overrides a breakpoint in its `@theme` block, it changes this map in the SAME commit. Nothing
+// mechanical checks that pairing.
+//
+// rem, not px, because Tailwind's values are rem. A hand-written `@media (min-width: 1024px)`
+// beside a `lg:` utility on the same element disagrees with it for every reader who has changed
+// their browser's default font size — which is the drift nobody reproduces.
+//
+// Usage, per stylesheet — there is no global injection to inherit. The `../` count follows the
+// stylesheet's own depth under src/; from the canonical src/components/user-card/user-card.scss it
+// is two, and no loadPaths ships to shorten it:
+//   @use '../../styles/breakpoints' as *;
+//   .thing { @include above('lg') { … } }
+
+@use 'sass:map';
+
+$breakpoints: (
+    'sm': 40rem,
+    'md': 48rem,
+    'lg': 64rem,
+    'xl': 80rem,
+    '2xl': 96rem,
+);
+
+@function breakpoint($name) {
+    @if not map.has-key($breakpoints, $name) {
+        @error 'Unknown breakpoint "#{$name}". Known: #{map.keys($breakpoints)}.';
+    }
+    @return map.get($breakpoints, $name);
+}
+
+// `above` emits the byte-identical query Tailwind's `lg:` prefix emits, which is what makes the
+// mirroring above checkable by grep. They stay TWO @media blocks in the built CSS: Tailwind's sits
+// inside `@layer utilities`, this one is unlayered, and no minifier merges across a layer boundary.
+// `below` is `<`, not `<=`, so above/below partition the axis with no one-pixel band where both apply.
+@mixin above($name) {
+    @media (width >= breakpoint($name)) { @content; }
+}
+
+@mixin below($name) {
+    @media (width < breakpoint($name)) { @content; }
+}
+
+@mixin between($from, $to) {
+    @media (breakpoint($from) <= width < breakpoint($to)) { @content; }
+}

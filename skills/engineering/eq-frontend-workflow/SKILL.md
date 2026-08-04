@@ -1,6 +1,6 @@
 ---
 name: eq-frontend-workflow
-description: The delivery workflow for a frontend TypeScript codebase — branching, commits, PRs, review, merge, release, and rollback. Load this when starting a feature or fix, choosing between a branch and a git worktree (including for parallel agents), naming a branch, writing a commit message, opening or filling in a pull request, running the pre-push gate, reviewing someone else's change, deciding whether a change is mergeable, cutting a release or writing a changeset, or reverting shipped work. It states the rule for each step and which rules are mechanically enforced versus reviewer-enforced.
+description: The delivery workflow for a frontend TypeScript codebase — branching, commits, PRs, review, merge, release, and rollback. Load this when starting a feature or fix, choosing between a branch and a git worktree (including for parallel agents), naming a branch, splitting work between a primary agent and subagents or briefing one, writing a commit message, opening or filling in a pull request, running the pre-push gate, reviewing someone else's change, deciding whether a change is mergeable, cutting a release or writing a changeset, or reverting shipped work. It states the rule for each step and which rules are mechanically enforced versus reviewer-enforced.
 ---
 
 # Frontend Delivery Workflow
@@ -23,6 +23,26 @@ A **git worktree** is a second checkout of the same repository on its own branch
 Claude Code subagents accept `isolation: "worktree"` natively — the agent gets its own worktree and it is cleaned up automatically if nothing changed. Use it for parallel agent fan-out, not for a single sequential task.
 
 Remove a finished worktree with `git worktree remove <path>`. List what exists with `git worktree list`; preview what would be cleaned up with `git worktree prune --dry-run -v`. Bare `git worktree prune` removes stale entries and prints nothing.
+
+## Execution model
+
+The primary agent **orients, plans, decides the approach, and holds the thread**. Subagents execute. The primary agent is not the one making most of the edits.
+
+| Rule | What it means |
+|---|---|
+| The brief is self-contained | A subagent starts with no context — nothing carries over. Name the files to touch, the intended change, the reference docs that apply *by filename* (`structure.md`, `styling.md`, `correctness-rules.md`), and the commands to run. A brief that omits the conventions produces work that fails review. |
+| Parallel by default | Independent subagents run in parallel in a single message. Sequence only where one step's output is genuinely the next step's input. Each concurrent agent gets its own worktree — see the table above. |
+| Model per task class, not per habit | Scaffolds, renames, mechanical test edits and doc updates go to a smaller model. Design-sensitive work, tricky runtime logic and reviews go to the strongest available. |
+| No upward escalation from a subagent | A subagent must not call a stronger-model advisory tool. Doing so re-sends a large transcript to re-derive context the subagent was already briefed on: real cost, no new information. State the prohibition in the brief — a subagent that inherits such a tool reaches for it otherwise. |
+| A subagent finishes, then reports | It runs the gate steps below for the files it touched and states what each returned. Its report is evidence, not a conclusion. |
+
+**Reviews belong to the top-level agent, never a subagent.** A subagent sees only its own slice, so its review is scoped wrong and duplicates what the orchestrator must run over the whole change anyway. The two-review gate in the Review section below runs once, by the agent that owns the full change, against its final state.
+
+**The primary agent stays responsible for the result.** Read what a subagent returns, verify its claims against the actual diff, and never relay an unverified summary as fact.
+
+The primary agent edits directly in exactly three cases: a one-line or trivially mechanical fix, documentation, and anything the user asks to be done inline.
+
+Every rule in this section is reviewer-enforced; no tool checks them.
 
 ## Branch naming
 
@@ -114,7 +134,7 @@ Every change gets **two reviews, run in parallel, both required**:
 
 | Review | Looks for |
 |---|---|
-| Conventions | Placement, naming, file size, styling split, comment policy, structure rules |
+| Conventions | Placement and naming (`structure.md`), the styling layer order (`styling.md`), comments, identifier semantics and per-file budgets (`code-quality.md`), duplication (`duplication.md`) |
 | Correctness | Runtime bugs: state and effect loops, stale closures, hook-order and remount hazards, unvalidated external data, optimistic-update rollback, index remaps that drop or duplicate items, missing tests |
 
 A conventions pass is **not** a bug hunt, and a bug hunt is not a conventions pass. Running one and calling the change reviewed leaves half the surface unread.
