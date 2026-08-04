@@ -16,7 +16,7 @@ second copy of it here is the thing this repo calls sediment.
 nothing else wearing them for layout.
 
 - **Failure without `<main>`:** a screen-reader user's first move on a new page is the jump-to-main
-  shortcut (`D`/`M` in NVDA, rotor landmark in VoiceOver). With no `<main>`, that jump does nothing,
+  shortcut (a landmark jump in every major screen reader). With no `<main>`, that jump does nothing,
   so every page visit starts by arrowing through the sidebar and the top bar again — on a data table
   behind 40 nav links, that is 40 keystrokes per navigation.
 - **Failure with two `<main>` elements:** the shortcut cycles between them and the user cannot tell
@@ -122,8 +122,9 @@ button.
 
 - **Failure:** `<button>` defaults to `type="submit"`. A "Add another row" button inside a `<form>`
   therefore submits the half-filled form, and the user loses their entry. The same default makes
-  `Enter` anywhere in the form fire whichever untyped button comes first in the DOM. No rule in the
-  pinned lint set catches this — see §9.
+  `Enter` anywhere in the form fire whichever untyped button comes first in the DOM. Gated by
+  `react/button-has-type` — see §9, and `../eq-frontend-standards/references/correctness-rules.md`
+  §18 for the same rule as a correctness gate.
 
 **A `div` that must be interactive follows §4's keyboard contract.** That path is permitted, never
 preferred: the contract is `role`, `tabIndex`, `Enter` and `Space` handlers, and a focus indicator,
@@ -191,13 +192,13 @@ checked against; no coverage is claimed that is not a named rule in that file.
 | §4 `aria-invalid` + `aria-describedby` present on an invalid field | No | `aria-props`, `aria-proptypes` and `role-supports-aria-props` validate an attribute you **wrote** — its name, its value type, and whether the element's role accepts it. None detect an absent one. Reviewer-only |
 | §5 `<table>` with `<th scope>` | **Partly** | `jsx_a11y/scope` rejects `scope` on a non-`<th>` element. It does not require `scope` on a `<th>`, and no rule sees a table rebuilt from `div`s. Reviewer-only for both |
 | §6 `<a>` for navigation only | **Partly** | `jsx_a11y/anchor-is-valid` rejects a missing `href`, `href="#"`, and `href="javascript:void(0)"`; `anchor-has-content` rejects an empty one. An anchor with a real `href` that also mutates on click passes |
-| §6 `type="button"` inside a form | **No** | Not in the 31, and `react/button-has-type` is **not** enabled in that config — verified by grep. Reviewer-only |
+| §6 `type="button"` inside a form | **Yes** | `react/button-has-type`, named in `.oxlintrc.json` at `error`. Not one of the 31 and not in oxlint's `correctness` category, so it runs only because the config names it |
 | §6 interactive `div` follows §4's contract | **Yes, largely** | `click-events-have-key-events`, `no-static-element-interactions`, `no-noninteractive-element-interactions`, `interactive-supports-focus`, `no-noninteractive-tabindex`, `tabindex-no-positive`, `mouse-events-have-key-events`. This is the best-covered rule in the file |
 | §7 no redundant role | **Yes** | `jsx_a11y/no-redundant-roles`. `aria-role` rejects an invalid role name; the two `no-*-element-to-*-role` rules reject a role that contradicts the element |
 | §7 `aria-hidden` on decorative icons | No | Presence is not checkable from markup — the linter cannot know an icon is decorative. Reviewer-only |
 | §7 `aria-label` on an icon-only control | No | `alt-text` covers `<img>`, `<area>` and `<input type="image">` only. A `<button>` whose only child is an SVG passes every one of the 31. Reviewer-only |
 | §8 live region, `aria-busy`, register-before-fill | No | Nothing static can see that a region was mounted with its content, or that a result arrives with no announcement. Reviewer-only, and the highest-value review item in this file |
 
-Nine of the fourteen rules above are reviewer-only, and they include every rule whose failure a user
+Eight of the fourteen rules above are reviewer-only, and they include every rule whose failure a user
 actually reports. A clean lint run says the markup is well-formed; `../SKILL.md` §4 already states
 the same thing about a clean axe run.
