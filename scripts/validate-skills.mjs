@@ -6,8 +6,26 @@ import { join, dirname, basename } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..', 'skills');
 const MAX_LINES = 200;
-const MAX_DESCRIPTION = 1536;
+// Mirrors the stricter of the published Agent Skills limits, so a skill that passes here is
+// installable. The `skills` CLI's registry-index validator rejects a description over 1024 chars
+// and a name that is empty, over 64 chars, not `[a-z0-9-]`, hyphen-terminated, or doubly-hyphenated.
+// Whether the git-clone install path runs the same checks is unconfirmed — these hold us to the
+// documented limit either way rather than to whatever one code path happens to enforce.
+const MAX_DESCRIPTION = 1024;
+const MAX_NAME = 64;
 const HEDGES = /\b(consider|generally|where possible|as appropriate|try to)\b/i;
+
+// Path-like mentions in a SKILL.md body that must resolve to a real file. Three shapes, all of
+// which appear in the current bodies:
+//   references/<file>.md            — beside the skill
+//   scripts/<file>.mjs              — beside the skill
+//   ../<other-skill>/references/…   — cross-skill link; assumes skills install flat as siblings
+// `<skill>/` is the bodies' placeholder for the install location and is stripped before resolving.
+// A concrete lowercase-hyphen basename plus extension is required, which is what keeps prose and
+// abbreviations out: bare `scripts/`, `~/.claude/skills/<name>/scripts/`, the literal
+// `scripts/<name>.mjs` abbreviation, and directory-less filenames like `check-structure.mjs` or
+// `structure.md` all fail to match. See the `hasOwnDir` gate below for the remaining trap.
+const PATH_MENTION = /(?:<skill>\/)?((?:\.\.\/[a-z0-9-]+\/)?(?:references|scripts)\/[a-z0-9-]+\.(?:md|mjs))/g;
 
 const find = (dir) => readdirSync(dir).flatMap((e) => {
     const p = join(dir, e);
@@ -69,6 +87,9 @@ for (const file of skills) {
     if (!name) errors.push(`${rel}: frontmatter missing required 'name'`);
     if (!desc) errors.push(`${rel}: frontmatter missing required 'description'`);
     if (name && !/^[a-z0-9-]+$/.test(name)) errors.push(`${rel}: name '${name}' must be lowercase with hyphens`);
+    if (name && name.length > MAX_NAME) errors.push(`${rel}: name ${name.length} chars exceeds ${MAX_NAME}`);
+    if (name && (name.startsWith('-') || name.endsWith('-'))) errors.push(`${rel}: name '${name}' must not start or end with a hyphen`);
+    if (name && name.includes('--')) errors.push(`${rel}: name '${name}' must not contain a doubled hyphen`);
     if (name && name !== basename(dirname(file))) errors.push(`${rel}: name '${name}' does not match its directory`);
     if (desc && desc.length > MAX_DESCRIPTION) errors.push(`${rel}: description ${desc.length} chars exceeds ${MAX_DESCRIPTION}`);
 
@@ -85,6 +106,25 @@ for (const file of skills) {
             errors.push(`${rel}:${frontmatterLines + i + 1}: hedging phrase — state the rule instead: ${line.trim().slice(0, 60)}`);
         }
     });
+
+    // Progressive disclosure is the repo's core asset: procedure in SKILL.md, detail in
+    // references/, executables in scripts/. A renamed target breaks the chain with no error at
+    // load time, so every mentioned path is stat'd here.
+    const skillDir = dirname(file);
+    // A skill with no scripts/ (or references/) folder of its own cannot be naming its own file —
+    // eq-frontend-quality-bar discusses the *standards* skill's `scripts/check-structure.mjs` in
+    // prose. Without this gate that sentence is a false positive, and a validator that cries wolf
+    // gets switched off.
+    const hasOwnDir = (kind) => existsSync(join(skillDir, kind));
+    const seen = new Set();
+    for (const [, rel] of body.matchAll(PATH_MENTION)) {
+        if (seen.has(rel)) continue;
+        seen.add(rel);
+        if (!rel.startsWith('../') && !hasOwnDir(rel.split('/')[0])) continue;
+        if (!statSync(join(skillDir, rel), { throwIfNoEntry: false })) {
+            errors.push(`${basename(skillDir)}/SKILL.md: references missing file '${rel}'`);
+        }
+    }
 }
 
 // standard-check.mjs embeds its version as a constant so it survives being copied by
