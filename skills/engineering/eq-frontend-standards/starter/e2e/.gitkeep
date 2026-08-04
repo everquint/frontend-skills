@@ -1,0 +1,2 @@
+# E2E specs live here: <journey>.test.ts, one file per journey.
+# This placeholder keeps the directory in git until the first spec lands, at which point delete it.

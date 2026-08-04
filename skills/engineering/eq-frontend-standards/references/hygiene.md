@@ -54,8 +54,11 @@ npm run typecheck
 ```
 
 The scripts they call, in `package.json`: `"prepare": "husky"`, `"typecheck": "tsc -b --noEmit --force"`,
-`"lint": "oxlint -c .oxlintrc.strict.json --type-aware"`, `"lint:fast": "oxlint"`,
-`"lint:fix": "oxfmt && oxlint --fix"`, `"format": "oxfmt"`, `"format:check": "oxfmt --check"`.
+`"lint": "oxlint -c .oxlintrc.strict.json --type-aware --ignore-pattern .claude/skills"`,
+`"lint:fast": "oxlint"`, `"lint:fix": "oxfmt && oxlint --fix"`, `"format": "oxfmt"`,
+`"format:check": "oxfmt --check"`. The `--ignore-pattern` is not decoration: oxlint does not inherit
+`ignorePatterns` through `extends`, so the strict config lints the vendored skills the base config
+excludes — see §6.
 `commitlint.config.js` is one line —
 `export default { extends: ['@commitlint/config-conventional'] };`
 
@@ -142,8 +145,9 @@ jobs:
 
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build
+      - run: node "$EQ_STANDARD/scripts/check-structure.mjs" --dir .
 
   commit-messages:
     runs-on: ubuntu-latest
@@ -153,7 +157,17 @@ jobs:
         with:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v6
+
+  branch-name:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    # ...asserts github.head_ref against one documented BRANCH_NAME_PATTERN
 ```
+
+The shape only. `starter/.github/workflows/ci.yml` is the file that ships, and it is longer than this
+because three of its steps assert that the tool they run is enforcing anything at all — the rule count
+oxlint loaded, that oxfmt's Tailwind sorter resolved its stylesheet, and that a `tsc` that could not
+run is never read as zero errors. Read it there; the reasoning is in its comments.
 
 - Step order is cheapest-first: types fail in seconds, build takes minutes.
 - `npm ci` not `npm install` — `ci` fails on a lockfile that disagrees with `package.json` instead of
@@ -162,6 +176,104 @@ jobs:
 - `cancel-in-progress` kills superseded runs; without it a branch pushed three times runs three
   pipelines and the first two results are noise.
 - Mark `verify` required in branch protection. A workflow that is not required is a report, not a gate.
+
+### The three gates that had machinery and no caller
+
+Each of these was documented, shipped a mechanism, and was invoked by nothing.
+
+**Coverage runs `test:coverage`, never `test`.** `npm test` is `vitest run`, which measures no
+coverage at all, so a job running it leaves the coverage row of the §1 table unenforced while looking
+tested. `test:coverage` is `vitest run --coverage`, and the floors live in `starter/vitest.config.ts`
+under `thresholds.autoUpdate: true` — `autoUpdate` rewrites the config file, so it needs that file to
+exist and throws without one. Measured on a scaffolded consumer repo: a full run at 42.85% lines
+rewrote the floors from `0` to the measured numbers and exited 0; adding one untested module dropped
+lines to 30% and the same command exited 1 without lowering the recorded floor; a filtered run
+(`vitest run --coverage <one file>`) also exited 1 and left the floors untouched, which is why only
+the unfiltered command belongs in CI. `coverage.include` covers all of `src/`, because a config scoped
+to one directory locks in a flattering number for a slice and never moves when untested code lands
+outside it.
+
+CI prints a `::notice::` when `autoUpdate` raised the floors, since the runner's working tree is
+discarded — the gain is only locked in once `vitest.config.ts` is committed. It is a notice and not a
+failure: a PR must not be blocked for having improved coverage.
+
+**The structure gate requires the standard vendored into the repo.** `scripts/check-structure.mjs`
+ships with the skill, not with the consumer repo, so the step resolves three locations in the same
+order as `.claude/commands/pre-pr.md` step 0 — `.claude/skills/`, `$HOME/.claude/skills/`,
+`$HOME/.agents/skills/` — and **fails, loudly, when none resolves**, naming the command that fixes
+it. On a runner only the first can exist; nothing installs into a runner's home directory. A step that
+skipped when the script was absent would report green while enforcing none of the naming, hooks-folder,
+barrel, test-placement or style-collision rules, which is the exact anti-pattern the rest of this file
+is built against.
+
+Vendoring rather than `npx skills add everquint/frontend-skills -g --all` inside CI, which does run
+non-interactively: that installs whatever `main` currently holds, so CI would enforce a different
+version of the standard than the repo recorded in `.eq-frontend-skills.json`, with nobody able to see
+the disagreement. Where it lands and whether it lands as a symlink or a copy are also decided by that
+CLI's flags and its agent auto-detection, so a third-party release could turn the gate off.
+
+Two consequences of vendoring, both measured on `oxlint 1.77.0` and `oxfmt 0.62.0`, and both already
+handled in what ships:
+
+- **`ignorePatterns` is not inherited through `extends`.** `.oxlintrc.json` ignores `.claude/skills`;
+  `.oxlintrc.strict.json` extends it and does not, so `npm run lint` — the strict config — reported
+  124 `no-console` errors against the vendored skills' own Node scripts. `scripts.lint` therefore
+  passes `--ignore-pattern .claude/skills`. Verified: exit 0, `number_of_rules` still 214, and a
+  planted `console.log` under `src/` is still reported.
+- **oxfmt formats the vendored Markdown.** It honours `.gitignore`, and `.claude/skills` is
+  deliberately committed rather than ignored, so `format:check` fails on a fresh vendor until
+  `npm run format` has run once over it. Run it and commit in the same commit as the vendoring; a
+  later skill update reruns the pair.
+
+**`e2e/` is scanned because `--dir .` is passed.** Autodetection picks `src/`, which puts `e2e/` in the
+script's own "not scanned" list — and the `.spec.*` ban applies at every level, E2E included. Measured:
+with the default root an `e2e/sign-in.spec.ts` reports 0 violations; with `--dir .` it reports the
+rename. `node_modules`, `dist`, `coverage`, `public` and `.claude` are skipped by the script, so the
+wider root costs nothing.
+
+**A fresh Vite `react-ts` scaffold fails the structure gate on two counts**, both real: `App.tsx` and
+`App.css` are PascalCase (rule 1), and `.counter` is declared at column 0 in both `src/app.css` and
+`src/index.css` (rule 5) — two declarations that merge by load order, so editing one does nothing.
+Rename the files and delete the dead declaration in the setup commit, alongside the `npm run lint:fix`
+that `init-greenfield.mjs` already asks for.
+
+**No E2E job ships, and that is a recorded decision rather than an oversight.** `playwright.config.ts`
+and `e2e/` ship so the first spec has somewhere to land, but both `test:e2e` scripts pass
+`--pass-with-no-tests` — so a CI job wired to them on a repo with zero specs is a green check that
+asserts nothing, while its `webServer` pays for a full production build on every PR. The job arrives
+with the first spec, and it runs `test:e2e:smoke`: the smoke set gates a PR, the full set runs on merge
+to the default branch. Until then `test:e2e:smoke` has no caller, which is stated here so it is not
+mistaken for a gate.
+
+**Branch naming is asserted from `github.head_ref`.** It was the one rule in the standard with neither
+a mechanism nor a recorded decision to leave it unenforced; commitlint next door gates the commit
+messages and nothing gated the branch. `head_ref` is the PR's source branch, and it is the only
+correct source: `actions/checkout` on a `pull_request` leaves a detached HEAD at the merge commit, so
+`git rev-parse --abbrev-ref HEAD` prints `HEAD` and `github.ref` is `refs/pull/<n>/merge`. The job is
+gated `if: github.event_name == 'pull_request'` because a push carries no `head_ref`.
+
+The whole pattern lives in one `env: BRANCH_NAME_PATTERN`, so a repo on a different tracker edits one
+line instead of workflow logic — `AB-1420` is this standard's example, not a universal shape. The type
+set is character-for-character the commit types in `eq-frontend-workflow`; a different set there and
+the branch prefix stops matching the commit prefix. The failure message names the expected shape, the
+pattern in force, and the rename commands, because a gate whose message does not say how to comply
+gets bypassed instead of satisfied.
+
+`head_ref` is read through `env:` and never interpolated into the `run:` body. A branch name is
+attacker-controlled text on a fork PR and `${{ … }}` inside `run:` is textual substitution, so a
+crafted name would execute. Verified: `feat/AB-1420-a;rm -rf x` exits 1 and creates nothing.
+
+| Branch | Result |
+|---|---|
+| `feat/AB-1420-inline-citations` | pass |
+| `chore/AB-1601-bump-vite` | pass |
+| `fix/AB-1533-stale-composer-focus` | pass |
+| `main` | fail — no type, no ticket |
+| `feature/AB-1-x` | fail — `feature` is not a commit type |
+| `feat/inline-citations` | fail — no ticket |
+| `feat/AB-1420-Inline-Citations` | fail — slug is not kebab-case |
+| `feat/AB-1420` | fail — no slug |
+| empty `head_ref` | fail — the name is unknown, so nothing was checked |
 
 ### `.github/workflows/release.yml`
 
@@ -354,6 +466,9 @@ it; Markdown keeps trailing whitespace because two trailing spaces is a hard lin
 | `renovate.json` | dependency updates from a shared org preset |
 | `.env.example` | every variable the app reads, with dummy values |
 | `.claude/` | the shared agent config — settings, hooks, reviewer agents, commands, vendored skills |
+| `vitest.config.ts` | the coverage ratchet has nowhere to write its floors without a real config file |
+| `playwright.config.ts` | `testDir`, `forbidOnly` in CI, and a `webServer` on the production build |
+| `e2e/` | the one directory E2E specs live in; ships with a `.gitkeep` so the path exists on day one |
 
 **`.claude/` is repo policy, and it is committed.** The tree ships in `starter/.claude/` and
 `init-greenfield.mjs` lands it — settings, two hooks, the `code-reviewer` and `conventions-reviewer`
@@ -385,6 +500,12 @@ looks compliant while nothing is enforced. Commit **all of it**, skills included
 .agents
 skills-lock.json
 ```
+
+The rest of `starter/.gitignore.fragment` is test-run output — `coverage`, `test-results`,
+`playwright-report`, `blob-report`, `playwright/.cache`, `oxlint-report.json` — which is the opposite
+case and must be ignored. oxfmt honours `.gitignore` (measured: a gitignored `dist/` is never visited),
+so an unignored generated report makes `format:check` fail on a machine-written file. A committed
+`coverage/` is worse than noise: it is a floor nobody measured sitting next to the ratchet that reads it.
 
 `.claude/skills` is **not** on that list, and its absence is the decision: skills are vendored as real
 copied files by `init-greenfield.mjs --vendor-skills`, so the standard a clone gets is the one

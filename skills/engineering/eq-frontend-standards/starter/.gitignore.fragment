@@ -14,3 +14,19 @@
 .claude/*.local.*
 .agents
 skills-lock.json
+
+# Test-run output. `npm run test:coverage` and `playwright test` write these on every run, and oxfmt
+# HONOURS .gitignore — measured: a gitignored `dist/` is never visited, while a tracked
+# `coverage/coverage-summary.json` is, so an unignored coverage report makes `format:check` fail on a
+# machine-generated file. `coverage/` also feeds the vitest.config.ts ratchet and must never be
+# committed: a stale report in the tree is a floor nobody measured.
+coverage
+test-results
+playwright-report
+blob-report
+playwright/.cache
+
+# The JSON report .github/workflows/ci.yml's lint step writes into the working tree. On a runner the
+# format:check step runs before it, so CI never sees it; a local run of the same steps in order does,
+# and `format:check` then fails on a generated file.
+oxlint-report.json

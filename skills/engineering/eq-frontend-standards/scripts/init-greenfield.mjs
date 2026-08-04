@@ -423,9 +423,12 @@ if (staleLinterConfigs.length) {
 }
 if (!vendorSkills) {
     console.log(`  node <skill>/scripts/init-greenfield.mjs --vendor-skills`);
-    console.log(`                          # copies the skills into .claude/skills as REAL files, so a`);
-    console.log(`                          # clone inherits the exact standard. Commit .claude/ — it is`);
-    console.log(`                          # repo policy, not personal config.`);
+    console.log(`                          # REQUIRED, not optional: copies the skills into`);
+    console.log(`                          # .claude/skills as REAL files, so a clone inherits the exact`);
+    console.log(`                          # standard. ci.yml's structure gate runs check-structure.mjs`);
+    console.log(`                          # from there and FAILS when it is absent, because a check that`);
+    console.log(`                          # skips reports green while enforcing nothing. Commit`);
+    console.log(`                          # .claude/ — it is repo policy, not personal config.`);
 }
 console.log(`  npx husky init          # only if .husky/_ is missing; it wires core.hooksPath`);
 console.log(`  npm run lint:fix        # REQUIRED FIRST: \`oxfmt && oxlint --fix\`. A scaffold written`);
@@ -770,6 +773,32 @@ if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.lengt
 if (releaseNotes.length) {
     console.log(`ℹ the release setup is incomplete, but nothing reports a release it did not make:`);
     console.log(releaseNotes.map((g) => `  · ${g}`).join('\n'));
+    console.log('');
+}
+
+// ── the CI structure gate reads a script that is not in this repo ────────────
+// .github/workflows/ci.yml runs scripts/check-structure.mjs, and that script ships with the SKILL
+// rather than with the consumer repo. The workflow resolves three locations — .claude/skills/, then
+// $HOME/.claude/skills/, then $HOME/.agents/skills/ — and on a CI runner only the first can exist,
+// because nothing installs anything into a runner's home directory. So the gate needs the skill
+// VENDORED and committed.
+//
+// No exit code, unlike the blocks above. The failure here is a RED CI step with an error message
+// naming this exact command, not a green one hiding an unenforced rule — the same distinction the
+// release notes above are separated on. Reported after the report, so a repo run without
+// --vendor-skills sees it whether or not anything else is wrong.
+const CI_WORKFLOW = join('.github', 'workflows', 'ci.yml');
+const VENDORED_STANDARD = join('.claude', 'skills', 'eq-frontend-standards');
+if (landed(CI_WORKFLOW) && !existsSync(join(cwd, VENDORED_STANDARD))) {
+    console.log(`ℹ ${CI_WORKFLOW}'s structure gate will FAIL until the standard is vendored:`);
+    console.log(`  · that step runs scripts/check-structure.mjs, which ships with the skill and not with`);
+    console.log(`    this repo. A CI runner has no $HOME install to fall back on, and the step fails`);
+    console.log(`    rather than skipping — a skipped structure check reports green while enforcing`);
+    console.log(`    nothing. Fix it by re-running this script with the flag, then committing the copy:`);
+    // Absolute, not relative to cwd: a relative path out of the repo to a $HOME install is a wall of
+    // `../` that nobody can copy with confidence.
+    console.log(`          node ${import.meta.filename} --vendor-skills`);
+    console.log(`          git add .claude/skills && git commit -m 'ci: vendor the standard'`);
     console.log('');
 }
 
