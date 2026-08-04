@@ -30,6 +30,12 @@ For maintainers of this repo, `npm run link` symlinks every skill into `~/.claud
 | `eq-frontend-standards` | writing or reviewing code; setting up lint; auditing a repo against the standard; judging whether a finding is a real defect |
 | `eq-frontend-workflow` | starting a feature; choosing branch vs worktree; writing commits; opening a PR; merging; releasing; reverting |
 | `eq-frontend-quality-bar` | writing tests; wiring coverage gates; adding error reporting; setting bundle budgets; verifying accessibility; reviewing code that renders untrusted HTML |
+| `eq-create-issue` | filing a Linear issue for work about to start, or for work already shipped that has no ticket; writing acceptance criteria |
+| `eq-take-issue` | picking up a Linear issue — reading it against the codebase, settling the approach with a human, then building it |
+
+The last two close the loop: a ticket's ID is what `eq-frontend-workflow` names the branch after, and
+implementing one finishes by filing the deferred work back as new tickets. `docs/adr/0005-*` records
+why Linear is named rather than abstracted.
 
 ## Repo layout
 
@@ -51,9 +57,19 @@ works only because skills install flat — so a rename breaks CI instead of brea
 ## Updating
 
 ```bash
-npx skills update                    # refresh all installed skills
-npx skills update eq-frontend-standards # just one
+npx skills update -g                    # refresh the GLOBAL install — what `skills add … -g` wrote
+npx skills update -g eq-frontend-standards # just one
+npx skills update                       # PROJECT-local skills only (./.claude/skills)
 ```
+
+**`-g` is not optional if the install was global**, and its absence is silent. Bare `npx skills
+update` scans only `./.claude/skills`; with nothing there it prints `No project skills to update` and
+exits **0**, which reads as "checked, already current". Verified on `skills@1.5.21`, where the global
+lock lives at `~/.agents/.skill-lock.json`.
+
+Two more things it will not tell you. It tracks the **default branch**, so work sitting on a
+feature branch is legitimately "up to date". And it compares a per-skill folder hash, so edits
+outside a skill's own directory — this `README.md`, `scripts/`, `docs/adr/` — are not an update.
 
 That refreshes the skill **text**. It changes no repo's lint config, hooks, or CI — so a repo
 silently stops complying the moment the standard moves. Each migrated repo therefore records its

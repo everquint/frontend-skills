@@ -121,7 +121,15 @@ for (const file of skills) {
         if (seen.has(rel)) continue;
         seen.add(rel);
         if (!rel.startsWith('../') && !hasOwnDir(rel.split('/')[0])) continue;
-        if (!statSync(join(skillDir, rel), { throwIfNoEntry: false })) {
+        // A `../<skill>/…` link is written for the *installed* layout, where every skill is a flat
+        // sibling. In this repo they are nested under category folders, so resolving it literally
+        // against skillDir only works when both skills happen to share a category — it broke the
+        // moment the first skill moved out of `engineering/`. Resolve the sibling by name instead;
+        // the duplicate-name check below is what makes that lookup unambiguous.
+        const sibling = rel.match(/^\.\.\/([a-z0-9-]+)\/(.+)$/);
+        const siblingDir = sibling && skills.map(dirname).find((d) => basename(d) === sibling[1]);
+        const target = sibling ? (siblingDir && join(siblingDir, sibling[2])) : join(skillDir, rel);
+        if (!target || !statSync(target, { throwIfNoEntry: false })) {
             errors.push(`${basename(skillDir)}/SKILL.md: references missing file '${rel}'`);
         }
     }
