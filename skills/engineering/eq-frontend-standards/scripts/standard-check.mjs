@@ -62,6 +62,9 @@ const MIGRATIONS = {
     // re-pulled. Keep repo-local values: the coverage floors autoUpdate wrote are the repo's own.
     '1.1.2': [
         'Re-pull starter/vitest.config.ts from the installed skill, then restore your recorded coverage floors (lines/functions/branches/statements) — only the config-calling code above `export default` changed.',
+        'Re-pull starter/src/test/setup.ts — it now registers `afterEach(cleanup)`, without which a second `render()` in one test file reports "found multiple elements".',
+        "Adopt the scoped format commands from starter/package.fragment.json — `format`, `format:check`, `lint:fix` and both `lint-staged` entries now exclude `.claude/skills` and `.agents`, so the formatter never rewrites the vendored standard.",
+        'If the vendored tree was already reformatted, restore it: delete `.claude/skills` and re-run `init-greenfield.mjs --vendor-skills`.',
         'Verify: `npm run typecheck` passes and `npm run test:coverage` still enforces your floors.',
     ],
 };

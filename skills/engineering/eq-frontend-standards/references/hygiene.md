@@ -55,10 +55,13 @@ npm run typecheck
 
 The scripts they call, in `package.json`: `"prepare": "husky"`, `"typecheck": "tsc -b --noEmit --force"`,
 `"lint": "oxlint -c .oxlintrc.strict.json --type-aware --ignore-pattern .claude/skills"`,
-`"lint:fast": "oxlint"`, `"lint:fix": "oxfmt && oxlint --fix"`, `"format": "oxfmt"`,
-`"format:check": "oxfmt --check"`. The `--ignore-pattern` is not decoration: oxlint does not inherit
+`"lint:fast": "oxlint"`, `"lint:fix": "oxfmt . '!.claude/skills/**' '!.agents/**' && oxlint --fix"`,
+`"format": "oxfmt . '!.claude/skills/**' '!.agents/**'"`, `"format:check"` the same with `--check`.
+The exclusions are not decoration, and both tools need their own: oxlint does not inherit
 `ignorePatterns` through `extends`, so the strict config lints the vendored skills the base config
-excludes — see §6.
+excludes (see §6) — and oxfmt honours `.gitignore` but `.claude/skills` is deliberately committed, so
+without the negated globs the formatter rewrites every vendored file on the first commit, and the
+vendored copy silently stops being byte-identical to the standard it records.
 `commitlint.config.js` is one line —
 `export default { extends: ['@commitlint/config-conventional'] };`
 
@@ -83,14 +86,17 @@ In `package.json`:
 
 ```json
 "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt", "oxlint --fix"],
-    "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt"]
+    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'", "oxlint --fix --no-error-on-unmatched-pattern"],
+    "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'"]
 }
 ```
 
 The formatter runs before the linter, because `oxlint --fix` rewrites code and oxfmt owns the final
 layout. The second glob exists because oxfmt formats stylesheets, JSON, Markdown and YAML while oxlint
-reads none of them — those file types are formatted on commit and never linted.
+reads none of them — those file types are formatted on commit and never linted. The negated globs keep
+staged vendored-skill files out of the formatter (§3 says why), and `--no-error-on-unmatched-pattern`
+keeps the hook green when the negation eats every staged path — a commit that touches only vendored
+files must not fail because the formatter was correctly given nothing to do.
 
 Two flags to never use:
 
@@ -237,10 +243,14 @@ handled in what ships:
   124 `no-console` errors against the vendored skills' own Node scripts. `scripts.lint` therefore
   passes `--ignore-pattern .claude/skills`. Verified: exit 0, `number_of_rules` still 214, and a
   planted `console.log` under `src/` is still reported.
-- **oxfmt formats the vendored Markdown.** It honours `.gitignore`, and `.claude/skills` is
-  deliberately committed rather than ignored, so `format:check` fails on a fresh vendor until
-  `npm run format` has run once over it. Run it and commit in the same commit as the vendoring; a
-  later skill update reruns the pair.
+- **oxfmt would format the vendored tree, so every format command excludes it.** oxfmt honours
+  `.gitignore`, and `.claude/skills` is deliberately committed rather than ignored — so without the
+  `'!.claude/skills/**'` glob on `format`, `format:check`, `lint:fix` and both lint-staged commands,
+  the first commit reformats all of the vendored files. That is worse than noise: a reformatted
+  vendored copy still satisfies the vendor sentinel (`SKILL.md` present), so a re-run of
+  `--vendor-skills` reports "left alone" while the copy is no longer byte-identical to the standard
+  the version marker records. The vendored tree is read, never written — the same treatment the lint
+  gate already gives it.
 
 **`e2e/` is scanned because `--dir .` is passed.** Autodetection picks `src/`, which puts `e2e/` in the
 script's own "not scanned" list — and the `.spec.*` ban applies at every level, E2E included. Measured:
