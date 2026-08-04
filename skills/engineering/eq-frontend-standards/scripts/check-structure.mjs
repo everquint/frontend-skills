@@ -22,7 +22,7 @@
 //   * placement — "one consumer or two" needs an import graph, not a directory listing
 //   * whether an HTTP call sits inline in a component
 //   * whether a helper belongs in utils/ or beside its caller
-//   * file size and complexity — ESLint already owns those (SKILL.md §1)
+//   * file size and complexity — oxlint's max-lines and complexity own those (SKILL.md §1)
 // Those stay reviewer-enforced. A script that guessed at them would produce noise, and a noisy
 // structure gate is the kind that gets deleted.
 //

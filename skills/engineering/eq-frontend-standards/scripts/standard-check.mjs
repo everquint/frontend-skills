@@ -2,7 +2,7 @@
 // Records which version of the standard a repo was migrated to, and detects when it falls behind.
 //
 // The problem this solves: `npx skills update` refreshes the skill TEXT, but nothing updates a
-// repo's eslint config, hooks, or CI. So a repo silently stops complying the moment the standard
+// repo's lint config, hooks, or CI. So a repo silently stops complying the moment the standard
 // moves. A version marker nobody reads is a comment, so `--check` exits non-zero for CI.
 //
 // The design is copier's (https://copier.readthedocs.io/en/stable/updating/), reduced to what a
@@ -18,7 +18,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 
 const MARKER = '.eq-frontend-skills.json';
 const cwd = process.cwd();
@@ -37,10 +37,19 @@ const standardVersion = STANDARD_VERSION;
 
 // Each entry names what a consumer must DO to move between versions. A version bump that changes
 // enforcement without an entry here is a bug — the consumer has no way to know what to change.
+// The 1.0.0 lint step BRANCHES on how much debt the repo has, because oxlint has no suppressions
+// mechanism yet (oxc-project/oxc#10549). Measure with scripts/measure-rules.mjs first, then take
+// exactly one branch — they are alternatives, not steps:
+//   * at or under ~300 violations: adopt oxlint now and clear the violations in one AI-assisted pass.
+//     There is nothing to baseline, so nothing gets permanently grandfathered in.
+//   * above ~300: STAY on ESLint with a suppressions baseline until #10549 lands. This is the
+//     deliberate fallback, not a legacy path — a repo that adopts oxlint with 2,000 violations has to
+//     turn rules off to get green, and a rule turned off to get green never comes back on.
 const MIGRATIONS = {
     '1.0.0': [
         'Enable every react-hooks rule that measures zero violations, at `error`.',
-        'Baseline the rest: `npx eslint . --fix && npx eslint . --suppress-all`.',
+        'Then ONE of: (a) ≤ ~300 violations — move to oxlint + oxfmt and fix them in one pass;',
+        '  (b) > ~300 — stay on ESLint and baseline: `npx eslint . --fix && npx eslint . --suppress-all`.',
         'Wire pre-commit (lint-staged), commit-msg (commitlint), pre-push (typecheck --force).',
         'Mirror every hook in CI. A repo with hooks and no CI has no gate.',
         'Pin node consistently: .nvmrc + engines + packageManager + CI node-version-file.',
@@ -117,8 +126,11 @@ if (has('--record')) {
             fileLineLimit: 500,
             complexity: 15,
             maxDepth: 4,
-            formatter: 'none — @stylistic ESLint rules',
+            formatter: 'oxfmt',
             mergeStrategy: 'merge-commit',
+            // Which branch of the 1.0.0 lint step this repo took. True means it is on the ESLint +
+            // suppressions fallback and is WAITING for oxc-project/oxc#10549 — so an update must not
+            // assume an .oxlintrc*.json is what governs it.
             suppressionsBaseline: existsSync(join(cwd, 'eslint-suppressions.json')),
         },
     };

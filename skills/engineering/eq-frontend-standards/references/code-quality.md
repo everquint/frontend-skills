@@ -179,28 +179,54 @@ never describe this number as gated.
 ### Reading the numbers
 
 With `complexity` set to a maximum of `0`, the rule reports **every** function's complexity instead of
-only the ones over budget — no extra dependency:
+only the ones over budget — no extra dependency. **oxlint has no `--rule` flag**, so the override cannot
+be passed on the command line; it goes in a throwaway config, which is also what silences every other
+rule so the output is complexity and nothing else:
 
-```
-$ npx eslint src/invoice-row.ts --rule '{"complexity":["warn",0]}'
-
-src/invoice-row.ts
-   1:41   warning  Arrow function has a complexity of 1. Maximum allowed is 0   complexity
-   3:42   warning  Arrow function has a complexity of 1. Maximum allowed is 0   complexity
-   5:40   warning  Arrow function has a complexity of 4. Maximum allowed is 0   complexity
-  12:109  warning  Arrow function has a complexity of 10. Maximum allowed is 0  complexity
-
-✖ 4 problems (0 errors, 4 warnings)
+```json
+// cx.json — throwaway, never committed
+{
+    "categories": { "correctness": "off" },
+    "rules": { "complexity": ["warn", 0] }
+}
 ```
 
-Real output against a four-function fixture; ESLint prints the absolute path, abbreviated here. Sum the
-numbers for the file total. `--rule` overrides the configured maximum for this run only, writing nothing.
+```
+$ npx oxlint -c cx.json src/invoice-row.ts
+
+src/invoice-row.ts:1:29: warning eslint(complexity): function has a complexity of 1. Maximum allowed is 0.
+src/invoice-row.ts:3:23: warning eslint(complexity): function has a complexity of 1. Maximum allowed is 0.
+src/invoice-row.ts:5:22: warning eslint(complexity): function has a complexity of 4. Maximum allowed is 0.
+src/invoice-row.ts:12:25: warning eslint(complexity): function has a complexity of 10. Maximum allowed is 0.
+```
+
+Real output from oxlint 1.77.0 against a four-function fixture. The `eslint(complexity)` code is oxlint's
+own naming for a rule it ported from ESLint's core set, not a second linter running. `categories` is the
+load-bearing line:
+without it the run also reports `no-unused-vars` and `no-debugger` from the default `correctness`
+category, and the numbers you want are buried. Warnings do not set the exit code, so the run exits 0.
+
+Sum for the file total:
+
+```bash
+npx oxlint -c cx.json src/invoice-row.ts 2>&1 | grep -oE 'complexity of [0-9]+' | awk '{ s += $3 } END { print s + 0 }'
+# 16
+```
+
+`grep` and `awk` rather than `ripgrep`: this pipeline runs on whatever machine the reviewer is on,
+and `rg` is not part of a Node toolchain — the same reason `.claude/hooks/lint-fix.sh` parses its
+input with `node` instead of `jq`. `print s + 0` keeps the output a number when nothing matched,
+so a config that failed to enable `complexity` reports `0` rather than an empty line.
+
+`-f json` emits the same numbers inside each diagnostic's `message`, for a script that needs to walk
+more than one file. There is no reporter field holding the complexity as a number — it exists only in
+the message text, so any total is parsed out of prose either way.
 
 ### Over budget is fixed by extraction
 
 Into the folder shapes `structure.md` defines — subcomponents into `components/` and hooks into
 `hooks/use-*` (§2), pure helpers into `utils/` as named modules (§5). It is **not** fixed by inlining
-helpers to bring a count down, by merging two branchy functions into one, or by an `eslint-disable`.
+helpers to bring a count down, by merging two branchy functions into one, or by an `oxlint-disable`.
 Each of those keeps the concerns in the file and hides the measurement.
 
 ### The limit of the metric

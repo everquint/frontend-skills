@@ -1,0 +1,52 @@
+// oxfmt is the formatter. It replaces the @stylistic ESLint rules the standard used to format
+// with, and the output is byte-identical in intent: 4-space indent, single quotes, semicolons,
+// 200 columns.
+//
+// oxlint holds NO formatting rules, so nothing here can be contradicted by the linter. The old
+// `max-len` lint rule has no oxlint equivalent — printWidth below is its only successor, and a
+// formatter can only wrap, so a single unbreakable token past column 200 is now reviewer-only.
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+
+    "tabWidth": 4,
+    "singleQuote": true,
+    "semi": true,
+    "printWidth": 200,
+
+    // JSX attributes keep double quotes, which is what React code looks like everywhere and what
+    // the @stylistic config produced (its `quotes` rule never applied to JSX attribute strings).
+    "jsxSingleQuote": false,
+
+    "sortImports": {
+        // Set explicitly. The default group order is not a contract, and import grouping is the
+        // kind of thing that silently rewrites every file in the repo when an upstream default
+        // changes.
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"],
+        // `@/` is this standard's source alias, so alias imports group as internal rather than
+        // falling through to `unknown`.
+        "internalPattern": ["~/", "@/", "#"]
+    },
+
+    // Tailwind v4 keeps its theme in CSS, not a `tailwind.config.js`, so the sorter has to be
+    // pointed at the stylesheet that holds `@import 'tailwindcss'`. If it cannot resolve this path
+    // it sorts NOTHING and still exits 0 — a silent no-op, not an error. A repo that renames or
+    // moves its entry stylesheet MUST update this path, and should confirm sorting still happens
+    // by reordering two classes and running `npm run format`.
+    "sortTailwindcss": {
+        "stylesheet": "src/index.css",
+        // The helpers whose arguments hold class strings. Without these, classes passed through
+        // `cn(...)` are left unsorted while classes in a bare `className="..."` are sorted, which
+        // reads as the sorter being broken.
+        "functions": ["cn", "clsx", "cva", "twMerge"]
+    },
+
+    "overrides": [
+        {
+            // `singleQuote` is not JS-only: it also applies to CSS, Less and SCSS, where it
+            // rewrites `url("…")` and `@import "…"` to single quotes. That is legal CSS but is not
+            // what any stylesheet in the ecosystem looks like, so stylesheets keep double quotes.
+            "files": ["**/*.css", "**/*.scss", "**/*.less"],
+            "options": { "singleQuote": false }
+        }
+    ]
+}

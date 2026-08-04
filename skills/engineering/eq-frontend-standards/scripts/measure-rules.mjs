@@ -1,213 +1,260 @@
 #!/usr/bin/env node
-// Measures a repo against the standard's rules WITHOUT modifying its ESLint config.
+// Measures a repo against the standard's oxlint rule set and SEQUENCES THE FIX.
 //
-// Copies nothing permanent: writes a temporary probe config that imports the repo's own
-// config, appends the rules being measured, runs ESLint against the copy, then deletes it.
-// Never edit a live config to measure it — a crashed run leaves the repo altered.
+// It no longer sizes a suppressions baseline: oxlint has no suppressions file
+// (oxc-project/oxc#10549), so SKILL.md §3 branches on the measured total instead. This script
+// prints which branch applies and orders the work cheapest-first.
+//
+// READ-ONLY on the audited repo. The probe config and its node_modules symlink are written to a
+// temp dir, never into the repo, so a crashed run cannot leave the repo altered.
 //
 // Usage, from the root of the repo being measured:
-//   node <path>/measure-rules.mjs [--dir src] [--set react-hooks|budgets|all] [--json]
+//   node <path>/measure-rules.mjs [--dir src] [--tooling <dir>] [--json]
 //
-// Scope with --dir on large repos: a full react-hooks pass invokes the React Compiler on
-// every file and can exceed two minutes on ~1,500 files.
+// Exit 0 clean, 1 violations found, 2 the measurement could not be trusted.
 
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
+import { readFileSync, existsSync, statSync, mkdtempSync, rmSync, copyFileSync, symlinkSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 
-const arg = (flag, fallback) => {
-    const i = process.argv.indexOf(flag);
-    return i === -1 ? fallback : process.argv[i + 1];
+const SKILL_DIR = join(import.meta.dirname, '..');
+const STARTER = join(SKILL_DIR, 'starter');
+
+// SKILL.md §3. A judgement calibrated on two measurements, not a derived constant — a proxy for a
+// PR a human can review and land. docs/adr/0002 owns the reasoning.
+const THRESHOLD = 300;
+
+// Measured on the starter config. A LOWER count than EXPECTED means rules were silently dropped
+// and the run enforces less than it claims, while still exiting 0 on a clean repo. The 193 case is
+// defensive: oxlint 1.77.0 hard-fails on a missing plugin, so a fail-soft bridge is the only way to
+// reach it. The 197 case is real and reachable today — verified by dropping the flag.
+//
+// 213 = 193 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
+// the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute both halves
+// from a real run rather than copying the number forward — `npx oxlint --rules` prints nothing in
+// 1.77.0, so neither half is readable off the CLI without parsing:
+//
+//   # 193 — enabled rules in the resolved config
+//   npx oxlint -c .oxlintrc.strict.json --type-aware --print-config \
+//     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.values(JSON.parse(s).rules).filter(v=>!["off","allow"].includes(Array.isArray(v)?v[0]:v)).length))'
+//
+//   # 213 — rules actually loaded by the run this script asserts on
+//   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
+//     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
+//
+// THIS NUMBER IS DUPLICATED. Its second copy is `EXPECTED_OXLINT_RULES` in the `env:` block of
+// starter/.github/workflows/ci.yml. Nothing links them and nothing can: that workflow ships into a
+// consuming repo where this script is absent, and this script runs from the skill where that
+// workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
+// .oxlintrc.strict.json moves both, and both are edited in the same commit.
+const EXPECTED_RULES = 213;
+const KNOWN_SHORTFALL = new Map([
+    [197, '--type-aware was not passed: the 16 type-aware rules are SKIPPED, including typescript/no-floating-promises, no-misused-promises and no-duplicate-type-constituents.'],
+    [193, 'the jsPlugins bridge did not load: all 20 eslint-plugin-react-hooks rules were dropped.'],
+    [166, 'the fast config (.oxlintrc.json) ran instead of .oxlintrc.strict.json.'],
+]);
+
+// oxlint's diagnostic `code` is `plugin(rule)` using each plugin's DISPLAY name; its config and
+// --print-config use the plugin's CONFIG prefix. The two differ for exactly these, so the mapping
+// is a table rather than a string transform.
+const CONFIG_PREFIX = { eslint: '', 'jsx-a11y': 'jsx_a11y/' };
+
+const argv = process.argv.slice(2);
+const has = (f) => argv.includes(f);
+const json = has('--json');
+
+// A failure must not look like a clean run. In --json mode stdout still carries parseable JSON so a
+// consumer cannot mistake an argument error for a zero-violation report.
+const fail = (message, detail = []) => {
+    if (json) console.log(JSON.stringify({ error: message, detail }, null, 2));
+    else {
+        console.error(`\n✗ ${message}`);
+        for (const line of detail) console.error(`  ${line}`);
+        console.error('');
+    }
+    process.exit(2);
 };
-const has = (flag) => process.argv.includes(flag);
 
-const dir = arg('--dir', 'src');
-const set = arg('--set', 'all');
+const HELP = `
+measure-rules.mjs — measures a repo against the standard's oxlint rules and sequences the fix.
+
+  --dir <path>       source root to lint (default: src). Scope it on large repos.
+  --tooling <dir>    directory whose node_modules holds oxlint, oxlint-tsgolint and
+                     eslint-plugin-react-hooks. Default: the audited repo, then this skill.
+  --json             machine-readable output on stdout, including {"error": …} on failure
+  --help, -h         this text
+
+Read-only. Exit 0 clean, 1 violations found, 2 the measurement could not be trusted.
+`.trim();
+
+if (has('--help') || has('-h')) { console.log(HELP); process.exit(0); }
+
+const VALUE_FLAGS = new Set(['--dir', '--tooling']);
+const BOOLEAN_FLAGS = new Set(['--json', '--help', '-h']);
+const opts = { '--dir': 'src', '--tooling': null };
+for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (VALUE_FLAGS.has(token)) {
+        const value = argv[++i];
+        // `--dir` with no value silently audited the default root while the caller believed the run
+        // was scoped, and a typo swallowed everything after it.
+        if (!value || value.startsWith('-')) fail(`${token} needs a value`);
+        opts[token] = value;
+    } else if (!BOOLEAN_FLAGS.has(token)) {
+        fail(`unknown argument '${token}'`, ['run with --help for the accepted flags']);
+    }
+}
+
 const cwd = process.cwd();
+const dir = opts['--dir'];
+const dirPath = resolve(cwd, dir);
+if (!statSync(dirPath, { throwIfNoEntry: false })?.isDirectory()) fail(`--dir '${dir}' is not a readable directory under ${cwd}`);
 
-// Rules that report React Compiler limitations rather than defects in your code.
-// See references/react-hooks-v7.md. Measured for information, never recommended.
-const COMPILER_DIAGNOSTICS = new Set(['todo', 'invariant', 'incompatible-library']);
-const INFRA_ONLY = new Set(['syntax', 'unsupported-syntax', 'config', 'gating', 'rule-suppression', 'fbt']);
-
-const BUDGETS = {
-    complexity: ['error', 15],
-    'max-depth': ['error', 4],
-    'max-lines': ['error', { max: 500, skipBlankLines: true, skipComments: true }],
-};
-
-const configFile = ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts']
-    .find((f) => existsSync(join(cwd, f)));
-
-if (!configFile) {
-    console.error('No flat ESLint config found (eslint.config.{js,mjs,ts}). Run this from the repo root.');
-    process.exit(1);
+const BASE_CONFIG = join(STARTER, '.oxlintrc.json');
+const STRICT_CONFIG = join(STARTER, '.oxlintrc.strict.json');
+for (const f of [BASE_CONFIG, STRICT_CONFIG]) {
+    if (!existsSync(f)) fail(`the standard's config is missing: ${f}`, ['re-install the skill; the configs ship beside it in starter/']);
 }
 
-const probe = join(cwd, `.probe.eslint.config.${Date.now()}.mjs`);
-const wantHooks = set === 'all' || set === 'react-hooks';
-const wantBudgets = set === 'all' || set === 'budgets';
+// The three packages the full gate needs. oxlint resolves a jsPlugins specifier relative to the
+// config file that declares it, which is why the configs are COPIED next to a node_modules
+// symlink rather than passed in place from starter/.
+const platformBin = `${process.platform}-${process.arch}/tsgolint${process.platform === 'win32' ? '.exe' : ''}`;
+const toolingParts = (root) => ({
+    oxlint: join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'oxlint.cmd' : 'oxlint'),
+    tsgolint: join(root, 'node_modules', '@oxlint-tsgolint', platformBin),
+    plugin: join(root, 'node_modules', 'eslint-plugin-react-hooks'),
+});
+const candidates = [opts['--tooling'] && resolve(cwd, opts['--tooling']), cwd, SKILL_DIR].filter(Boolean);
+const toolingRoot = candidates.find((root) => Object.values(toolingParts(root)).every((p) => existsSync(p)));
+if (!toolingRoot) {
+    fail('could not find oxlint, oxlint-tsgolint and eslint-plugin-react-hooks together in one node_modules', [
+        `looked in: ${candidates.join(', ')}`,
+        'install them in the repo:',
+        '  npm i -D oxlint@^1.77.0 oxlint-tsgolint@^7.0.2001 eslint-plugin-react-hooks@^7.1.1',
+        'or point at an existing install with --tooling <dir>.',
+    ]);
+}
+const tools = toolingParts(toolingRoot);
 
-// A `finally` block does not run when the process is signalled, and a measurement pass over a
-// large repo takes long enough that Ctrl-C during it is normal. Without these handlers an
-// interrupted run leaves a probe config in someone else's repository — the worst outcome this
-// script has. Registered before the file is created so there is no unguarded window.
-const cleanup = () => { try { if (existsSync(probe)) unlinkSync(probe); } catch { /* nothing left to do */ } };
+const probe = mkdtempSync(join(tmpdir(), 'eq-measure-'));
+// A `finally` block does not run when the process is signalled, and a pass over a large repo takes
+// long enough that Ctrl-C during it is normal.
+const cleanup = () => { try { rmSync(probe, { recursive: true, force: true }); } catch { /* nothing left to do */ } };
 process.on('exit', cleanup);
-for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-    process.on(signal, () => { cleanup(); process.exit(130); });
-}
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => { cleanup(); process.exit(130); });
 process.on('uncaughtException', (err) => { cleanup(); console.error(err); process.exit(1); });
 
-writeFileSync(probe, `
-import base from './${configFile}';
-${wantHooks ? "import reactHooks from 'eslint-plugin-react-hooks';" : ''}
+copyFileSync(BASE_CONFIG, join(probe, '.oxlintrc.json'));
+copyFileSync(STRICT_CONFIG, join(probe, '.oxlintrc.strict.json'));
+symlinkSync(join(toolingRoot, 'node_modules'), join(probe, 'node_modules'), 'dir');
 
-const rules = {};
-${wantHooks ? `for (const r of Object.keys(reactHooks.rules)) rules['react-hooks/' + r] = 'error';` : ''}
-${wantBudgets ? `Object.assign(rules, ${JSON.stringify(BUDGETS)});` : ''}
-
-export default [
-    ...base,
-    {
-        files: ['${dir}/**/*.{ts,tsx,js,jsx}'],
-        ${wantHooks ? "plugins: { 'react-hooks': reactHooks }," : ''}
-        rules,
-    },
-];
-`);
-
-let out = '';
-let errOut = '';
-try {
-    out = execFileSync('npx', ['eslint', '--no-config-lookup', '-c', probe, dir, '--format', 'json'],
-        { cwd, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
-} catch (err) {
-    // ESLint exits non-zero whenever it reports anything; stdout is still the report.
-    out = err.stdout ?? '';
-    errOut = err.stderr ?? '';
-    if (!out) {
-        // Discarding stderr here misdiagnoses every config-loading failure as "eslint missing".
-        // A base config that exports an object rather than an array fails at the spread in the
-        // probe, which has nothing to do with installation.
-        console.error('ESLint produced no report. Its own error follows:\n');
-        console.error(errOut.trim() || '(no stderr — try a smaller --dir, or check that eslint is installed)');
-        process.exit(1);
+const probeConfig = join(probe, '.oxlintrc.strict.json');
+const env = { ...process.env, OXLINT_TSGOLINT_PATH: tools.tsgolint };
+const runOxlint = (args, what) => {
+    let out = '';
+    try {
+        out = execFileSync(tools.oxlint, args, { cwd, env, encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+        // oxlint exits 1 whenever it reports a diagnostic; stdout is still the report. Any other
+        // failure puts its own message on stdout, not stderr, so both are surfaced.
+        out = err.stdout || err.stderr || String(err.message);
     }
-}
+    // oxlint prefixes the JSON report with a plain-text notice in some cases ("No files found to
+    // lint"), so the report is located rather than assumed to start at byte 0.
+    const start = out.indexOf('{');
+    try { return JSON.parse(out.slice(start === -1 ? 0 : start)); } catch { /* fall through — not a report */ }
+    return fail(`oxlint could not ${what}`, out.trim().split('\n').slice(0, 12));
+};
 
-const results = JSON.parse(out);
+// The declared rule set, read from the standard's own configs. oxlint reads JSONC, Node does not.
+const stripComments = (text) => {
+    let out = '';
+    for (let i = 0, inString = false; i < text.length; i++) {
+        if (inString) {
+            if (text[i] === '\\') { out += text[i] + (text[i + 1] ?? ''); i++; continue; }
+            if (text[i] === '"') inString = false;
+            out += text[i];
+            continue;
+        }
+        if (text[i] === '"') { inString = true; out += text[i]; continue; }
+        if (text[i] === '/' && text[i + 1] === '/') { while (i < text.length && text[i] !== '\n') i++; out += '\n'; continue; }
+        if (text[i] === '/' && text[i + 1] === '*') { i += 2; while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++; i++; continue; }
+        out += text[i];
+    }
+    return out;
+};
+const readConfig = (file) => {
+    try { return JSON.parse(stripComments(readFileSync(file, 'utf8'))); } catch (err) { return fail(`could not parse ${file}: ${err.message}`); }
+};
+const severityOf = (value) => (Array.isArray(value) ? value[0] : value);
+const isOn = (value) => !['off', 'allow'].includes(severityOf(value));
+
+const declared = { ...readConfig(BASE_CONFIG).rules, ...readConfig(STRICT_CONFIG).rules };
+const printed = runOxlint(['-c', probeConfig, '--type-aware', '--print-config'], 'print its resolved config').rules ?? {};
+const enabled = new Set([
+    ...Object.entries(printed).filter(([, v]) => isOn(v)).map(([k]) => k),
+    ...Object.entries(declared).filter(([, v]) => isOn(v)).map(([k]) => k),
+]);
+
+const report = runOxlint(['-c', probeConfig, '--type-aware', '-f', 'json', dir], `lint ${dir}/`);
+const loaded = report.number_of_rules;
+const scanned = report.number_of_files;
+
+// Both silent-failure modes below exit 0 on a clean repo while enforcing less than the standard.
+// `enabled` is derived from the same configs oxlint just read, so the two counts must agree.
+if (typeof loaded !== 'number') fail('oxlint reported no `number_of_rules`, so the loaded rule set cannot be verified');
+if (loaded < EXPECTED_RULES || loaded !== enabled.size) {
+    fail(`${loaded} rules loaded, expected ${EXPECTED_RULES} (${enabled.size} enabled by the standard's configs)`, [
+        KNOWN_SHORTFALL.get(loaded) ?? 'a rule the standard declares was not registered.',
+        'A run with fewer rules exits 0 while enforcing less than it claims. Refusing to report counts from it.',
+    ]);
+}
+// Never report clean for a run that examined nothing.
+if (!scanned) fail(`oxlint examined 0 files under ${dir}/`, ['check the path, and the config\'s ignorePatterns.']);
+
 const counts = new Map();
 const files = new Map();
-
-// A fatal parse error arrives as a message with `ruleId: null`. Silently skipping those reports a
-// repo with an unparseable file as "fully compliant" — the user then enables rules at `error` on
-// that evidence and their CI goes red. Refusing to report is the only safe behaviour.
-const unparseable = results.filter((f) => f.messages.some((m) => m.fatal || (m.ruleId === null && m.severity === 2)));
-if (unparseable.length) {
-    console.error(`\n✗ ${unparseable.length} file(s) could not be parsed, so the measurement is incomplete.`);
-    console.error(`  Reporting counts now would understate them. Fix the parse errors first.\n`);
-    for (const f of unparseable.slice(0, 10)) {
-        const m = f.messages.find((x) => x.fatal || x.ruleId === null);
-        console.error(`  ${f.filePath.replace(cwd + '/', '')}:${m?.line ?? '?'}  ${m?.message ?? ''}`);
-    }
-    if (unparseable.length > 10) console.error(`  … and ${unparseable.length - 10} more`);
-    console.error(`\n  Most often the base config has no parser configured for these files,`);
-    console.error(`  or --dir points outside the config's own \`files\` scope.\n`);
-    process.exit(1);
-}
-
-if (results.length === 0) {
-    console.error(`\n✗ ESLint scanned 0 files under ${dir}/. Nothing was measured.`);
-    console.error(`  Check that the path exists and is not excluded by the base config's ignores.\n`);
-    process.exit(1);
-}
-
-for (const file of results) {
-    for (const msg of file.messages) {
-        const id = msg.ruleId;
-        if (!id) continue;
-        const measured = id.startsWith('react-hooks/') || id in BUDGETS;
-        if (!measured) continue;
-        counts.set(id, (counts.get(id) ?? 0) + 1);
-        if (!files.has(id)) files.set(id, new Set());
-        files.get(id).add(file.filePath);
-    }
-}
-
-const bare = (id) => id.replace('react-hooks/', '');
-const classify = (id) => {
-    const n = bare(id);
-    if (COMPILER_DIAGNOSTICS.has(n)) return 'compiler-diagnostic';
-    if (INFRA_ONLY.has(n)) return 'infra-only';
-    return 'real';
-};
-
-// Resolve the plugin the way Node does, from the target repo. A hand-built
-// `cwd/node_modules/...` path misses a hoisted monorepo install and Yarn PnP entirely — and it
-// would throw AFTER a measurement that can take minutes, discarding the whole result.
-const loadHookRuleIds = async () => {
-    try {
-        const require = createRequire(join(cwd, 'package.json'));
-        const entry = require.resolve('eslint-plugin-react-hooks');
-        const mod = await import(pathToFileURL(entry).href);
-        const rules = (mod.default ?? mod).rules;
-        if (!rules || !Object.keys(rules).length) throw new Error('plugin exports no rules');
-        return Object.keys(rules).map((r) => `react-hooks/${r}`);
-    } catch (err) {
-        console.error(`\n✗ Could not load eslint-plugin-react-hooks from ${cwd}: ${err.message}`);
-        console.error(`  It is required for --set react-hooks. Install it, or use --set budgets.\n`);
-        process.exit(1);
-    }
-};
-
-const allRuleIds = [
-    ...(wantHooks ? await loadHookRuleIds() : []),
-    ...(wantBudgets ? Object.keys(BUDGETS) : []),
-];
-
-const real = allRuleIds.filter((id) => classify(id) === 'real');
-const clean = real.filter((id) => !counts.has(id));
-const dirty = real.filter((id) => counts.has(id)).sort((a, b) => counts.get(b) - counts.get(a));
-const excluded = allRuleIds.filter((id) => classify(id) !== 'real' && counts.has(id));
-
-if (has('--json')) {
-    console.log(JSON.stringify({
-        measuredAt: new Date().toISOString().slice(0, 10),
-        dir,
-        freeToEnable: clean.map(bare),
-        needsMigration: dirty.map((id) => ({ rule: bare(id), count: counts.get(id), files: files.get(id).size })),
-        neverEnable: excluded.map((id) => ({ rule: bare(id), count: counts.get(id), why: classify(id) })),
-    }, null, 2));
-    process.exit(0);
+for (const d of report.diagnostics ?? []) {
+    const parsed = /^([a-z0-9_-]+)\(([^)]+)\)$/.exec(d.code ?? '');
+    const rule = parsed ? `${CONFIG_PREFIX[parsed[1]] ?? `${parsed[1]}/`}${parsed[2]}` : (d.code ?? 'unknown');
+    counts.set(rule, (counts.get(rule) ?? 0) + 1);
+    if (!files.has(rule)) files.set(rule, new Set());
+    files.get(rule).add(d.filename);
 }
 
 const total = [...counts.values()].reduce((a, b) => a + b, 0);
-console.log(`\nMeasured ${dir}/ — ${total} violations across ${results.length} files scanned\n`);
+// Cheapest wins first: zero-violation rules go straight to `error` for free, then ascending count.
+const free = [...enabled].filter((r) => !counts.has(r)).sort();
+const sequence = [...counts.keys()].sort((a, b) => counts.get(a) - counts.get(b) || a.localeCompare(b));
+const branch = total <= THRESHOLD ? 'ai-assisted-fix' : 'stay-on-eslint';
+const BRANCH_TEXT = {
+    'ai-assisted-fix': `${total} violations is at or below ~${THRESHOLD} — one-time AI-assisted fix, landed as ONE reviewable PR (SKILL.md §3).`,
+    'stay-on-eslint': `${total} violations is above ~${THRESHOLD} — stay on ESLint + suppressions until oxc-project/oxc#10549 lands (SKILL.md §3).`,
+};
 
-console.log(`FREE TO ENABLE NOW at 'error' — ${clean.length} rule(s), zero violations:`);
-console.log(clean.length ? clean.map(bare).map((r) => `  ✓ ${r}`).join('\n') : '  (none)');
+if (json) {
+    console.log(JSON.stringify({
+        measuredAt: new Date().toISOString().slice(0, 10),
+        dir, filesScanned: scanned, rulesLoaded: loaded, total, threshold: THRESHOLD, branch,
+        freeToEnable: free,
+        fixSequence: sequence.map((rule) => ({ rule, count: counts.get(rule), files: files.get(rule).size })),
+    }, null, 2));
+    process.exit(total ? 1 : 0);
+}
 
-console.log(`\nNEEDS MIGRATION — 'error' + suppressions baseline:`);
-if (dirty.length) {
-    console.log(`  ${'rule'.padEnd(34)}${'count'.padStart(7)}${'files'.padStart(7)}`);
-    for (const id of dirty) {
-        console.log(`  ${bare(id).padEnd(34)}${String(counts.get(id)).padStart(7)}${String(files.get(id).size).padStart(7)}`);
-    }
+console.log(`\nMEASURED ${dir}/ — ${total} violation(s) across ${scanned} files, ${loaded} rules loaded\n`);
+console.log(`§3 BRANCH: ${BRANCH_TEXT[branch]}\n`);
+console.log(`FIX SEQUENCE — cheapest first.\n`);
+console.log(`  1. FREE — ${free.length} rule(s) at zero violations. Set these to 'error' now; they can only regress from here.`);
+for (const rule of free) console.log(`       ✓ ${rule}`);
+if (sequence.length) {
+    console.log(`\n  2. THEN, ascending by count — ${sequence.length} rule(s):`);
+    console.log(`       ${'rule'.padEnd(46)}${'count'.padStart(7)}${'files'.padStart(7)}`);
+    for (const rule of sequence) console.log(`       ${rule.padEnd(46)}${String(counts.get(rule)).padStart(7)}${String(files.get(rule).size).padStart(7)}`);
 } else {
-    console.log('  (none — this repo is fully compliant)');
+    console.log(`\n  2. Nothing to fix — this repo already satisfies every rule in the standard.`);
 }
-
-if (excluded.length) {
-    console.log(`\nDO NOT ENABLE — reports tool limitations, not defects in your code:`);
-    for (const id of excluded) {
-        console.log(`  ✗ ${bare(id).padEnd(24)} ${String(counts.get(id)).padStart(5)} findings  (${classify(id)})`);
-    }
-}
-
-console.log(`\nNext: enable the free rules at 'error', then for the rest:`);
-console.log(`  npx eslint . --fix && npx eslint . --suppress-all`);
-console.log(`Verify a rule is actually live (a typo fails silently):`);
-console.log(`  npx eslint --print-config <a-real-file> | grep <rule-name>\n`);
+console.log('');
+process.exit(total ? 1 : 0);

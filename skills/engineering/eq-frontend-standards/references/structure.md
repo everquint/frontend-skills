@@ -124,8 +124,8 @@ Skipped everywhere: `node_modules`, `.git`, `coverage`, build output (`dist`, `b
 class in a compiled or vendored stylesheet recurs as an unfixable §7 collision after every build.
 
 **The Vite `react-ts` template starts with three violations.** Measured on a clean
-`npm create vite@latest -- --template react-ts`: `eslint`, typecheck and build all exit 0 after
-`eslint . --fix`, and `check-structure` exits 1 on these. `init-greenfield.mjs` does not fix them —
+`npm create vite@latest -- --template react-ts`: `lint`, typecheck and build all exit 0 after
+`npm run lint:fix`, and `check-structure` exits 1 on these. `init-greenfield.mjs` does not fix them —
 it never edits your source — so fix them by hand in the first commit:
 
 | Violation | Fix |
@@ -240,7 +240,7 @@ Reviewer-enforced, because no filesystem walk can decide them:
   except the helper-landed-in-`hooks/` case, which rule 2 does catch.
 - **No inline `fetch` (§6).**
 - **The media-query specificity rule and the naming half of §7.**
-- **File size (§8)** — ESLint owns it.
+- **File size (§8)** — oxlint's `max-lines` owns it.
 
 Rules 1 and 3 skip a CLI-generated `components/ui/`. Rule 5 does not: a class collision with a file
 the CLI overwrites is worse, because the next `add` restores the losing declaration and the bug

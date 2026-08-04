@@ -56,13 +56,36 @@ From the repo root:
 
 ```bash
 node .claude/skills/eq-frontend-standards/scripts/check-structure.mjs
-npx eslint <changed files>
-npx eslint <changed file> --rule '{"complexity":["warn",0]}'
+npx oxlint -c .oxlintrc.strict.json --type-aware <changed files>
 ```
 
-Anything the first two report is settled — cite it, do not re-argue it. The third prints every
-function's complexity, which is how you total a file against the `code-quality.md` §3 budget; no
-linter sums it, so the verdict is yours. Spend your reading on what none of them can decide: whether
+Anything those two report is settled — cite it, do not re-argue it.
+
+To read complexity, know that **oxlint has no `--rule` flag**: rule *options* cannot be set on the
+command line (`-D`/`-A`/`-W` only switch a rule or category on and off, at whatever max the config
+says), and `oxlint --rules` prints nothing. So the equivalent is a throwaway config with the max set
+to 0, which turns `complexity` from a pass/fail check into a report of every function's number:
+
+```bash
+echo '{ "categories": { "correctness": "off" }, "rules": { "complexity": ["error", 0] } }' > /tmp/cx.json
+npx oxlint -c /tmp/cx.json <changed file>
+#   src/f.ts:1:23: error eslint(complexity): function has a complexity of 1. Maximum allowed is 0.
+#   src/f.ts:2:24: error eslint(complexity): function has a complexity of 8. Maximum allowed is 0.
+```
+
+The `categories` line is load-bearing. Without it the same run also reports `no-unused-vars`,
+`no-debugger` and the rest of the default `correctness` category, and the numbers you came for are
+buried in findings the real lint run already reported — `code-quality.md` §3 covers it.
+
+Nothing sums those for you, and the §3 budget is a per-file total, so add them up — with `-f json`
+if the file is long enough that reading them off is error-prone:
+
+```bash
+npx oxlint -c /tmp/cx.json -f json <changed file> \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const n=JSON.parse(s).diagnostics.filter(x=>x.code==="eslint(complexity)").map(x=>+x.message.match(/complexity of (\d+)/)[1]);console.log("per-function:",n.join(", "),"\ntotal:",n.reduce((a,b)=>a+b,0),"of 80");})'
+```
+
+The number bounds the argument; the verdict is still yours. Spend your reading on what none of them can decide: whether
 a component has the second consumer that promotion requires, whether a helper belongs beside its
 caller or in `utils/`, whether an HTTP call sits inline in a component, whether a file exports one
 unit of behaviour or three, which styling layer a declaration belongs to, and whether a duplication

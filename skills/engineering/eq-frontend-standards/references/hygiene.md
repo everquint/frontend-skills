@@ -10,12 +10,22 @@ and no CI has no gate at all.
 
 | | Local (fast, bypassable) | CI (authoritative) |
 |---|---|---|
-| staged lint | `pre-commit` → `lint-staged` | `npm run lint` (whole repo) |
-| types | `pre-push` → `tsc -b --force` | `npm run typecheck` |
+| staged lint | `pre-commit` → `lint-staged` → `oxfmt` + `oxlint --fix` on staged files | `npm run lint` — the strict config, `--type-aware`, whole repo |
+| whole-repo lint, local | `npm run lint:fast` — the base config, native rules only | same job, `npm run lint` |
+| types | `pre-push` → `tsc -b --noEmit --force` | `npm run typecheck` |
 | commit message | `commit-msg` → `commitlint` | `wagoid/commitlint-github-action` |
 | tests, build | — (too slow to gate a commit) | `npm test`, `npm run build` |
+| release | — (a release is a merge event, not a local one) | `.github/workflows/release.yml` → `changesets/action` — bumps versions, regenerates `CHANGELOG.md`, tags |
+
+**The release row inverts the principle above and is CI-only by construction.** A release reads the merged state of the default branch to write the version, `CHANGELOG.md` and the tag; a local hook cannot observe that state, so a local counterpart would tag one developer's checkout and push a version nobody merged.
 
 Local hooks shorten the feedback loop. Branch protection requiring the CI job is the gate.
+
+**The two lint rows are the same rule set at two speeds, and the split is deliberate.** Measured on a
+2,185-file repo: the base config, native Rust rules only, runs in **0.70–0.82s**; the strict config with
+`jsPlugins` and `--type-aware` takes **18.6s**. An 18-second pre-commit hook gets answered with
+`--no-verify` and then the hook enforces nothing, so the commit path runs the fast half and CI runs the
+whole thing. Nothing is dropped — only deferred to the gate that cannot be bypassed.
 
 ## 2. husky v9
 
@@ -43,8 +53,10 @@ npx commitlint --edit "$1"
 npm run typecheck
 ```
 
-The scripts they call, in `package.json`: `"prepare": "husky"`, `"typecheck": "tsc -b --force"`,
-`"lint": "eslint ."`, `"lint:fix": "eslint . --fix"`. `commitlint.config.js` is one line —
+The scripts they call, in `package.json`: `"prepare": "husky"`, `"typecheck": "tsc -b --noEmit --force"`,
+`"lint": "oxlint -c .oxlintrc.strict.json --type-aware"`, `"lint:fast": "oxlint"`,
+`"lint:fix": "oxfmt && oxlint --fix"`, `"format": "oxfmt"`, `"format:check": "oxfmt --check"`.
+`commitlint.config.js` is one line —
 `export default { extends: ['@commitlint/config-conventional'] };`
 
 ## 4. Why `tsc -b --force`
@@ -64,11 +76,24 @@ case that actually matters. `--force` costs seconds and buys a hook people trust
 
 ## 5. lint-staged
 
-In `package.json`: `"lint-staged": { "*.{ts,tsx,js,jsx}": "eslint --fix" }`. Two flags to never use:
+In `package.json`:
+
+```json
+"lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt", "oxlint --fix"],
+    "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt"]
+}
+```
+
+The formatter runs before the linter, because `oxlint --fix` rewrites code and oxfmt owns the final
+layout. The second glob exists because oxfmt formats stylesheets, JSON, Markdown and YAML while oxlint
+reads none of them — those file types are formatted on commit and never linted.
+
+Two flags to never use:
 
 | Flag | Why not |
 |---|---|
-| `--fail-on-changes` | fails the commit whenever a task rewrote a file — the normal case when `eslint --fix` is the task, so the hook fires on successful runs and teams respond by disabling it. No data-loss path; the objection is that it makes the gate useless. |
+| `--fail-on-changes` | fails the commit whenever a task rewrote a file — the normal case when `oxfmt` and `oxlint --fix` are the tasks, so the hook fires on successful runs and teams respond by disabling it. No data-loss path; the objection is that it makes the gate useless. |
 | `--no-stash` | removes the backup stash, the only thing that restores your work when a task corrupts the working tree mid-run. **This is the data-loss flag**: with it there is nothing to recover from. |
 
 If a run is interrupted, recover from `git stash list`; lint-staged leaves its backup stash behind on
@@ -150,8 +175,8 @@ version the suite is verified on, and make CI use that exact version via `.nvmrc
 
 ## 8. `.editorconfig`
 
-Without it the editor inserts 2 spaces while the lint rule demands 4, so the linter fights the author
-on the first keystroke and every file arrives with a reformat diff. It mirrors the lint config exactly.
+Without it the editor inserts 2 spaces while the formatter emits 4, so every file arrives with a
+reformat diff that hides the real change. It mirrors `.oxfmtrc.json` exactly.
 
 ```ini
 root = true
@@ -173,9 +198,12 @@ indent_size = 2
 trim_trailing_whitespace = false
 ```
 
-`indent_size` matches `@stylistic/indent: 4`, `quote_type` matches `quotes: single`, `max_line_length`
-matches `max-len: 200`. YAML overrides to 2 because most YAML tooling assumes it; Markdown keeps
-trailing whitespace because two trailing spaces is a hard line break.
+`indent_size` matches oxfmt's `tabWidth: 4`, `quote_type` matches `singleQuote: true`, and
+`max_line_length` matches `printWidth: 200`. That last pair is the one to read carefully: `printWidth`
+is a wrap target, not a bound, so oxfmt will emit a line past 200 columns when there is nothing in it to
+break, and the editor guide is then stricter than the formatter. No lint rule backs it — `max-len` has
+no oxlint equivalent and the standard dropped it. YAML overrides to 2 because most YAML tooling assumes
+it; Markdown keeps trailing whitespace because two trailing spaces is a hard line break.
 
 ## 9. Files every repo needs
 
@@ -235,16 +263,18 @@ where they were written.
 ## Installing these skills changes what your linter sees
 
 Skill folders — `.agents/skills/` from a personal install, `.claude/skills/` once vendored — hold the
-skills' own Node scripts. A flat-config `ignores` list that does not exclude them lints those scripts
-as if they were your source. Measured on a real repo: installing produced **90 spurious `no-undef`
-errors** against the skills' `.mjs` files, taking a repo from 2 lint errors to 92 and making it look
-as though enabling new rules had broken the build. Vendoring makes that permanent rather than local
+skills' own Node scripts. An `ignorePatterns` list that does not exclude them lints those scripts as if
+they were your source. Measured by running the starter's base config against a vendored copy of this
+skill with those two entries deleted: **108 findings across 6 files** — 91 `no-console`, 15
+`no-nested-ternary`, one `no-unused-vars`, one `prefer-const` — none of them about the repo's own code,
+and every one of them looking like a rule the team just enabled breaking the build. With the entries
+present the same run reports `No files found to lint`. Vendoring makes that permanent rather than local
 to one machine, so these entries are mandatory, not a measurement-time workaround:
 
-```js
-globalIgnores(['dist', 'build', 'coverage', '.agents', '.claude/skills']);
+```json
+"ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"]
 ```
 
 `.claude/skills` and not `.claude` — the rest of the tree is small, hand-written, and worth linting.
 Lint-ignored and git-ignored point opposite ways here: `.claude/skills` is **excluded from linting
-and committed to git** (§10). Missing that distinction is what produces the 90-error jump.
+and committed to git** (§10). Missing that distinction is what produces the 108-finding jump.

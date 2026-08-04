@@ -1,4 +1,4 @@
-# Matches eslint.config.js. Without this the editor fights the linter on the first keystroke.
+# Matches .oxfmtrc.json. Without this the editor fights the formatter on the first keystroke.
 root = true
 
 [*]

@@ -6,12 +6,12 @@ earns a place here only if you can write that scenario down.
 
 | # | Rule | Gate |
 |---|---|---|
-| 1 | No components defined inside another component's body — a `render*` helper is **called**, never mounted | `react-hooks/static-components`; `no-unstable-nested-components` partly; prop-passed shape **reviewer** |
-| 2 | No index keys in lists that reorder, filter, or poll | `react/no-array-index-key` (**off by default**) |
+| 1 | No components defined inside another component's body — a `render*` helper is **called**, never mounted | `react-hooks-js/static-components`; `react/no-unstable-nested-components` partly; prop-passed shape **reviewer** |
+| 2 | No index keys in lists that reorder, filter, or poll | `react/no-array-index-key` (**not in oxlint's `correctness` category** — pinned by name in the starter, and silent in any repo that has not) |
 | 3 | No state-writing effect keyed on an unstable identity | `exhaustive-deps` partly; identity half **reviewer** |
-| 4 | `useEffect` callbacks are never `async` | `react-hooks/exhaustive-deps` |
-| 5 | Every promise awaited, caught, or explicitly `void`ed | `@typescript-eslint/no-floating-promises` (type-aware) |
-| 6 | No `setState` synchronously in an effect body | `react-hooks/set-state-in-effect` |
+| 4 | `useEffect` callbacks are never `async` | `react-hooks-js/exhaustive-deps` |
+| 5 | Every promise awaited, caught, or explicitly `void`ed | `typescript/no-floating-promises` (needs `--type-aware`) |
+| 6 | No `setState` synchronously in an effect body | `react-hooks-js/set-state-in-effect` |
 | 7 | Never index into an unfiltered array with a filtered index | **reviewer** |
 | 8 | Every id-keyed fetch has an abort or a stale-response guard | **reviewer** |
 | 9 | No `setState` after `await` without a cancelled guard | **reviewer** |
@@ -20,8 +20,8 @@ earns a place here only if you can write that scenario down.
 | 12 | External data parsed at the boundary, never cast | **reviewer** |
 | 13 | Cache keys include every input the query depends on | **reviewer** |
 | 14 | Debounced work is flushed on unmount, not cancelled | **reviewer** |
-| 15 | Hooks never called conditionally, including via `?.` | `rules-of-hooks` + `react-hooks/hooks` |
-| 16 | No in-place mutation of state | `react-hooks/immutability` partly; **reviewer** |
+| 15 | Hooks never called conditionally, including via `?.` | `react-hooks-js/rules-of-hooks` + `react-hooks-js/hooks` |
+| 16 | No in-place mutation of state | `react-hooks-js/immutability` partly; **reviewer** |
 | 17 | No module-level mutable defaults shared across instances | **reviewer** |
 
 ---
@@ -57,14 +57,14 @@ subscriptions those effects own.
 
 Lint coverage, measured by running the starter config (both rules at `error`) over three shapes:
 
-| Shape | `no-unstable-nested-components` | `static-components` |
+| Shape | `react/no-unstable-nested-components` | `static-components` |
 |---|---|---|
 | `const RenderForm = () => …` mounted as `<RenderForm />` | fires | fires |
 | `const renderHeader = …; const Header = renderHeader;` mounted as `<Header />` | silent | fires |
 | `const renderBody = …` passed to another component that mounts it | silent | silent |
 
 `react/no-unstable-nested-components` keys off the declaration, so it misses a helper renamed into a
-capitalised binding before it is mounted. `react-hooks/static-components` keys off the mount site and
+capitalised binding before it is mounted. `react-hooks-js/static-components` keys off the mount site and
 catches both in-file spellings. **The third shape — a locally-defined `render*` helper handed to another
 component as a prop and mounted there — is reviewer-only**: neither rule crosses the component boundary,
 and it carries the identical remount failure. Neither rule fires on `{renderHeader()}`.
@@ -101,9 +101,9 @@ React stores a promise where it expects a function and never calls it.
 clears a timer, never unsubscribes; every id change leaks a live request. Declare the async function
 inside and call it: `useEffect(() => { void run(); return cleanup; })`.
 
-The gate is `react-hooks/exhaustive-deps` — measured by running all 29 `react-hooks` rules against
+The gate is `react-hooks-js/exhaustive-deps` — measured by running all 29 `react-hooks` rules against
 `useEffect(async () => { await Promise.resolve(); }, [])`, where it was the only rule that fired.
-`@typescript-eslint/no-misused-promises` with `checksVoidReturn.arguments` **cannot** catch it:
+`typescript/no-misused-promises` with `checksVoidReturn.arguments` **cannot** catch it:
 `@types/react` declares `type EffectCallback = () => void | Destructor`, a union rather than plain
 `void`, so the void-return check never engages on the argument.
 
@@ -113,8 +113,10 @@ A promise with no `await`, no `.catch()`, and no `void` becomes an unhandled rej
 console the user never opens, invisible in the UI. **Failure:** `deleteItem(id); closeDialog();` and
 the delete rejects with a 403. The dialog has closed,
 the row is gone from the optimistic list, and the user believes the delete succeeded; on next load the
-row is back and nobody knows why. `no-floating-promises` needs type-aware linting
-(`parserOptions.projectService`), which is why it is silently absent on the cheaper non-typed config.
+row is back and nobody knows why. `no-floating-promises` is type-aware: it runs only under
+`oxlint --type-aware` with the `oxlint-tsgolint` package installed, which is why it is silently absent
+from the fast config the editor and the pre-commit hook use. Omitting the flag reports zero findings
+and exits 0 — the rule does not warn that it did not run.
 
 ## 6. `setState` synchronously in an effect body
 

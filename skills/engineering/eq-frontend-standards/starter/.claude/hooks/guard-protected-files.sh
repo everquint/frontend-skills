@@ -39,7 +39,7 @@ case "$file_path" in
 esac
 
 # Scoped to this repo. A same-named file elsewhere on disk — a personal ~/.nvmrc, another
-# checkout's eslint.config.js — is none of this hook's business.
+# checkout's .oxlintrc.json — is none of this hook's business.
 case "$file_path" in
     "$project_dir"/*) ;;
     *) exit 0 ;;
@@ -59,8 +59,20 @@ EOF
 }
 
 case "$rel" in
-    eslint.config.js|eslint.config.mjs|eslint.config.ts)
+    # Both lint configs, because they are one gate: .oxlintrc.strict.json is what `npm run lint` and CI
+    # run, and it extends .oxlintrc.json, so weakening either weakens the gate.
+    .oxlintrc.json|.oxlintrc.strict.json)
         deny 'the lint rule set' ;;
+    .oxfmtrc.json)
+        deny 'the formatting rules every file in the repo is written to' ;;
+    # All three tsconfigs, because they are one gate: the leaf configs carry the checking flags and
+    # the root is what `tsc -b` enters through. Nothing in CI asserts that `strict` is effective, so
+    # unlike the lint gate there is no rule-count assertion to catch a weakened one.
+    tsconfig.json|tsconfig.app.json|tsconfig.node.json)
+        deny 'the TypeScript checking flag set — drop strict from any of the three and typecheck, lint, tests and build all stay green while undefined flows through the app unchecked' ;;
+    # The ratchet is the pair: the project tsc measures, and the number it is measured against.
+    tsconfig.strict.json|tsconfig.strict.baseline)
+        deny 'the noUncheckedIndexedAccess ratchet — raising the baseline number turns it into a rubber stamp that passes with no CI signal at all, since a count at or under the baseline is exactly what green means' ;;
     .husky/*)
         deny 'a git hook' ;;
     .github/workflows/*)

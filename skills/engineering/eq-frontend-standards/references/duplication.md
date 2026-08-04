@@ -129,18 +129,20 @@ extractions — and the pressure is strongest on the highest-percentage files, w
 merging is most harmful.
 
 **Partly machine-enforced — two rules with no judgement in them.** Neither can mistake incidental
-shape for a duplicated decision, so neither needs a reviewer. Both are set to `error` in
-`starter/eslint.config.js`; neither is on in any preset the starter spreads, so a repo that has not
-set them explicitly is not running them and its violation count is unknown.
+shape for a duplicated decision, so neither needs a reviewer. Both are set to `error` in the starter's
+oxlint config; **neither is in oxlint's `correctness` category**, so a repo that has not named them
+explicitly is not running them and its violation count is unknown. Verified: a fixture holding both
+defects exits 0 under a bare `npx oxlint`.
 
 | Rule | Catches | Status |
 |---|---|---|
-| `import/no-duplicates` | two `import` statements from the same module specifier | `eslint-plugin-import@2.32.0`, which the starter lists as a devDependency and registers as the `import` plugin. Not in `js.configs.recommended` or `tseslint.configs.recommended` — the plugin must be installed and the rule named to run at all |
-| `@typescript-eslint/no-duplicate-type-constituents` | a repeated member in a union or intersection (`A \| B \| A`) | `@typescript-eslint/eslint-plugin@8.65.0`; `requiresTypeChecking: true`, so it needs `parserOptions.projectService` — the same prerequisite as `no-floating-promises` (`../SKILL.md` §2). The starter already sets `projectService` for that rule, so this one rides it. It is `false` in `tseslint.configs.recommended` and only enabled by `recommendedTypeChecked`, which the starter does not spread |
+| `import/no-duplicates` | two `import` statements from the same module specifier | Native to oxlint under the `import` plugin — no `eslint-plugin-import` dependency, and the plugin is in the base config's `plugins` list. Named in `.oxlintrc.json`, so it runs in the fast path and in the editor |
+| `typescript/no-duplicate-type-constituents` | a repeated member in a union or intersection (`A \| B \| A`) | Type-aware, so it lives in `.oxlintrc.strict.json` and needs `--type-aware` plus the `oxlint-tsgolint` package — the same prerequisite as `no-floating-promises` (`../SKILL.md` §2). Without the flag it is skipped in silence: verified, the same fixture reports the duplicate import and says nothing about the duplicate union member |
 
-Both were verified by execution against a fixture on the starter's config: two `react` imports report
-`import/no-duplicates` twice, `string | number | string` reports
-`@typescript-eslint/no-duplicate-type-constituents`, and a file with neither exits 0.
+Both were verified by execution against a fixture on the starter's rule names. Two `react` imports
+report `import(no-duplicates)` **once** for the file, not once per import; `string | number | string`
+reports `typescript(no-duplicate-type-constituents)` when `--type-aware` is passed; and a file with
+neither exits 0.
 
 ## 7. Wording a duplication finding
 

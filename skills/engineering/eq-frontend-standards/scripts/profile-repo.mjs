@@ -156,9 +156,12 @@ const profile = {
         : dep('swr') ? fact('swr', 'dependency') : unknown('none detected'),
     clientState: [dep('@reduxjs/toolkit') && 'redux-toolkit', dep('zustand') && 'zustand',
         dep('jotai') && 'jotai', dep('@tanstack/react-store') && 'tanstack-store'].filter(Boolean),
-    formatter: dep('prettier') ? fact('prettier', 'dependency')
+    // Detection only. The old fallback here read 'none — @stylistic ESLint rules are the formatter',
+    // which stated the standard's own choice as though it were a fact about the audited repo.
+    formatter: dep('oxfmt') ? fact('oxfmt', 'dependency')
+        : dep('prettier') ? fact('prettier', 'dependency')
         : dep('@biomejs/biome') ? fact('biome', 'dependency')
-        : fact('none — @stylistic ESLint rules are the formatter', 'no formatter dependency'),
+        : unknown('no formatter dependency'),
     styling,
     tests: {
         runner, suffix, networkSeam,
