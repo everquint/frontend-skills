@@ -162,9 +162,20 @@ if (vendorSkills) {
     for (const name of VENDORED_SKILLS) {
         const rel = join('.claude', 'skills', name);
         const target = join(cwd, rel);
-        if (existsSync(target)) { skipped.push(rel); continue; }
+        // Presence of the DIRECTORY is not presence of the skill. Editors, agent tooling and a
+        // partially-completed earlier run all create an empty .claude/skills/<name>/, and skipping on
+        // that husk reports "left alone (already present)" while vendoring nothing — after which
+        // ci.yml resolves the empty directory FIRST in its candidate list and the structure gate dies
+        // on MODULE_NOT_FOUND instead of failing with its own instructions. Vendored is a statement
+        // about CONTENT: SKILL.md for every skill, plus the script the CI gate actually executes for
+        // the standard itself. Same sentinel-not-bytes approach as STANDARD_BASE_SENTINEL above.
+        const sentinels = [join(target, 'SKILL.md')];
+        if (name === 'eq-frontend-standards') sentinels.push(join(target, 'scripts', 'check-structure.mjs'));
+        if (sentinels.every((s) => existsSync(s))) { skipped.push(rel); continue; }
         // dereference: the source may itself be a symlinked install; the copy must be real files.
-        if (!dryRun) cpSync(join(SKILLS_SRC, name), target, { recursive: true, dereference: true });
+        // force: false fills a husk or completes a partial copy without replacing any file that does
+        // exist — the same never-overwrite contract as the plain copy loop above.
+        if (!dryRun) cpSync(join(SKILLS_SRC, name), target, { recursive: true, dereference: true, force: false });
         created.push(`${rel}/ (vendored)`);
     }
 }
