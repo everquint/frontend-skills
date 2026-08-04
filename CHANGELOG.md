@@ -1,5 +1,15 @@
 # frontend-skills
 
+## 1.1.1
+
+### Patch Changes
+
+- [#5](https://github.com/everquint/frontend-skills/pull/5) [`1e88b6e`](https://github.com/everquint/frontend-skills/commit/1e88b6ea88f23e64f11fb396eae5dd5b71c6f500) Thanks [@gokulsgr](https://github.com/gokulsgr)! - The release workflow now reads `${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}`, so a repo whose org
+  disables "Allow GitHub Actions to create and approve pull requests" can release by adding a fine-grained
+  PAT rather than editing the workflow. `hygiene.md` §6 names both first-release failures — the
+  non-conventional `Version Packages` commit and the refused PR creation — with the fix for each; ADR 0006
+  records why a hand-rolled version phase was rejected.
+
 ## 1.1.0
 
 ### Minor Changes
