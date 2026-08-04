@@ -530,6 +530,7 @@ it; Markdown keeps trailing whitespace because two trailing spaces is a hard lin
 | `renovate.json` | dependency updates from a shared org preset |
 | `.env.example` | every variable the app reads, with dummy values |
 | `.claude/` | the shared agent config — settings, hooks, reviewer agents, commands, vendored skills |
+| `.vscode/extensions.json` + `.vscode/settings.json` | the two editor files a clone inherits (the rest of `.vscode/*` is gitignored): recommend oxc + EditorConfig, mark the Prettier extensions unwanted, and route ts/tsx saves to oxfmt via per-language blocks — a workspace-level default loses to a user-level `[language]` block, so the per-language spelling is required to win. The editor's type-aware lint opt-in is a commented block in settings.json |
 | `vitest.config.ts` | the coverage ratchet has nowhere to write its floors without a real config file |
 | `playwright.config.ts` | `testDir`, `forbidOnly` in CI, and a `webServer` on the production build |
 | `e2e/` | the one directory E2E specs live in; ships with a `.gitkeep` so the path exists on day one |
