@@ -9,6 +9,8 @@
  */
 import { defineConfig, mergeConfig } from 'vitest/config';
 
+import type { UserConfigFn } from 'vite';
+
 /* The `.ts` extension is required, not decorative: Vite's `configLoader: 'native'` — planned to become
  * the default — warns on an extensionless relative import of a TS config and will not resolve it. */
 import viteConfig from './vite.config.ts';
@@ -22,7 +24,17 @@ import viteConfig from './vite.config.ts';
  * A vite.config.ts exporting a FUNCTION is called; one exporting a Promise makes `mergeConfig` throw
  * on a Promise, which is the loud failure and not the silent one.
  */
-const base = typeof viteConfig === 'function' ? viteConfig({ command: 'serve', mode: 'test' }) : viteConfig;
+
+/* Narrowing on `typeof … === 'function'` leaves a union of vite's THREE function config types
+ * (UserConfigFnObject | UserConfigFnPromise | UserConfigFn), and TS cannot call a union of
+ * signatures whose return types differ — TS2349, which surfaces only once this file is inside a
+ * tsconfig `include`. UserConfigFn is the widest of the three, so passing through a parameter of
+ * that type is a sound widening and NOT an `as`: a cast here would also suppress a genuinely wrong
+ * config shape. Calling via a helper keeps the narrowing on both branches, so the else branch stays
+ * non-function and a Promise export still reaches `mergeConfig` and throws loudly. */
+const callConfigFn = (fn: UserConfigFn) => fn({ command: 'serve', mode: 'test' });
+
+const base = typeof viteConfig === 'function' ? callConfigFn(viteConfig) : viteConfig;
 
 export default mergeConfig(
     base,

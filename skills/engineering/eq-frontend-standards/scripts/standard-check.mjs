@@ -56,6 +56,14 @@ const MIGRATIONS = {
         'Add .editorconfig matching the lint config indent and quote style.',
         'Set vitest coverage thresholds with autoUpdate: true to lock in the current floor.',
     ],
+    // v1.1.1 shipped a starter/vitest.config.ts that fails `tsc -b` once tsconfig.node.json includes
+    // it (TS2349: calling a union of vite's three function-config signatures). Repos migrated on
+    // 1.1.1 copied the broken file, so a version bump alone cannot fix them — the file must be
+    // re-pulled. Keep repo-local values: the coverage floors autoUpdate wrote are the repo's own.
+    '1.1.2': [
+        'Re-pull starter/vitest.config.ts from the installed skill, then restore your recorded coverage floors (lines/functions/branches/statements) — only the config-calling code above `export default` changed.',
+        'Verify: `npm run typecheck` passes and `npm run test:coverage` still enforces your floors.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
