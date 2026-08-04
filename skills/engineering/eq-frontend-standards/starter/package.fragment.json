@@ -6,9 +6,9 @@
     "typecheck": "tsc -b --noEmit --force",
     "lint": "oxlint -c .oxlintrc.strict.json --type-aware --ignore-pattern .claude/skills",
     "lint:fast": "oxlint",
-    "lint:fix": "oxfmt && oxlint --fix",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
+    "lint:fix": "oxfmt . '!.claude/skills/**' '!.agents/**' && oxlint --fix",
+    "format": "oxfmt . '!.claude/skills/**' '!.agents/**'",
+    "format:check": "oxfmt --check . '!.claude/skills/**' '!.agents/**'",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --pass-with-no-tests",
@@ -18,8 +18,8 @@
     "release": "changeset tag"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt", "oxlint --fix"],
-    "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt"]
+    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'", "oxlint --fix --no-error-on-unmatched-pattern"],
+    "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'"]
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",
