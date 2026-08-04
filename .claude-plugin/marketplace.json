@@ -13,7 +13,8 @@
       "keywords": [
         "frontend",
         "typescript",
-        "eslint",
+        "oxlint",
+        "oxfmt",
         "tdd",
         "code-review",
         "conventions"
