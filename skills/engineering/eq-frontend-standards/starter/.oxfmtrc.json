@@ -47,6 +47,15 @@
             // what any stylesheet in the ecosystem looks like, so stylesheets keep double quotes.
             "files": ["**/*.css", "**/*.scss", "**/*.less"],
             "options": { "singleQuote": false }
+        },
+        {
+            // YAML is 2-space everywhere in the ecosystem, and `.editorconfig` already says so for
+            // these extensions. Without this override oxfmt reindents every workflow to 4 and
+            // `format:check` then enforces it, so the two tools disagree on the same file and
+            // `.editorconfig` is the one that loses — an editor indenting new lines at 2 while the
+            // gate demands 4. Measured on oxfmt 0.62.0: it reformats YAML, so this is not inert.
+            "files": ["**/*.yml", "**/*.yaml"],
+            "options": { "tabWidth": 2 }
         }
     ]
 }
