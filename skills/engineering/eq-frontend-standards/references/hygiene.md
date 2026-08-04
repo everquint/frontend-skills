@@ -177,6 +177,23 @@ run is never read as zero errors. Read it there; the reasoning is in its comment
   pipelines and the first two results are noise.
 - Mark `verify` required in branch protection. A workflow that is not required is a report, not a gate.
 
+### Branch protection, and the approval requirement that has to wait
+
+Name the **job** as a required status check — the job name, not the workflow name — and turn on
+**strict** (branches must be up to date before merging), so a check that passed against stale `main`
+cannot merge. Leave `required_linear_history` **off**: it forbids merge commits, and this standard
+merges rather than squashes.
+
+**Do not require a pull-request approval while the repo has one maintainer.** GitHub does not count an
+author's approval of their own PR, so the requirement makes every PR unmergeable without an
+admin override — and a rule whose normal operation is bypassing it trains exactly the `--no-verify`
+reflex the rest of this document exists to prevent. It is a real gap, not a good state: a single
+maintainer's work reaches `main` unreviewed by another human. **Turn the approval requirement on as
+soon as a second maintainer exists**, and treat that as the condition rather than a preference.
+
+For the same reason `enforce_admins` starts off. Turn it on together with the approval requirement;
+before then it locks the only maintainer out of their own default branch.
+
 ### The three gates that had machinery and no caller
 
 Each of these was documented, shipped a mechanism, and was invoked by nothing.
