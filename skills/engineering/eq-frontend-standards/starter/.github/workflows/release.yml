@@ -86,4 +86,21 @@ jobs:
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # RELEASE_TOKEN, WITH A FALLBACK, AND YOU PROBABLY NEED THE SECRET.
+          #
+          # The action opens the version PR itself, which requires the org/repo setting "Allow GitHub
+          # Actions to create and approve pull requests". That setting is commonly enforced org-wide,
+          # so an individual repo cannot turn it on. With it off, the default GITHUB_TOKEN gets all the
+          # way through versioning, committing and pushing the branch and THEN fails on the API call:
+          #   HttpError: GitHub Actions is not permitted to create or approve pull requests.
+          # Measured. The fix is either that org setting, or this secret.
+          #
+          # RELEASE_TOKEN is a fine-grained PAT scoped to this one repo, permissions contents: write
+          # and pull-requests: write only, with an expiry. It buys a second thing worth having: a PR
+          # opened with the default GITHUB_TOKEN triggers NO downstream workflows, so the version PR
+          # would arrive with no CI on a diff that rewrites package.json and CHANGELOG.md.
+          #
+          # The fallback keeps the tag-only path working without the secret, since that path opens no
+          # PR. When the PAT expires the version path fails loudly at PR creation — visible red, not a
+          # silent skip — so record the expiry date somewhere a human will read it.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

@@ -58,6 +58,40 @@ The failure has one property worth noting: it appears **only on the first releas
 pending.** A release with none pending skips the version phase entirely and never makes a commit, so a
 repo can release successfully several times before hitting this.
 
+## The version PR needs a token the default one cannot replace
+
+`changesets/action` opens the version PR itself, which requires the repository or organisation setting
+**"Allow GitHub Actions to create and approve pull requests."** It is commonly enforced org-wide, so an
+individual repo often cannot turn it on. With it off, the default `GITHUB_TOKEN` gets all the way through
+versioning, committing and pushing the branch, and then fails on the very last call:
+
+```
+HttpError: GitHub Actions is not permitted to create or approve pull requests.
+```
+
+Two fixes, in order of preference:
+
+1. **Enable the setting**, if you have access to it.
+2. **A fine-grained PAT as `RELEASE_TOKEN`** — scoped to the single repo, permissions `contents: write`
+   and `pull-requests: write` only, with an expiry set. Pass it as the action's `GITHUB_TOKEN`.
+
+The PAT fixes a second problem worth having fixed: **a PR opened with the default `GITHUB_TOKEN` triggers
+no downstream workflows.** So even where PR creation is permitted, the version PR arrives with no CI on a
+diff that rewrites `package.json` and `CHANGELOG.md`. A PAT-created PR runs the normal checks.
+
+Its cost is an expiry date. When the PAT lapses the version path fails at PR creation — a visible red
+rather than a silent skip, which is the acceptable failure mode, but **record the expiry where a human
+will read it.**
+
+### Rejected: hand-rolling the version phase
+
+Splitting the two phases by hand — a shell step that runs `changeset version`, commits, force-pushes
+`changeset-release/<branch>` and prints the compare URL for a human to open — works with no secret at
+all. It was built and rejected, because it fails the standard's own **adopt-don't-rebuild** rule almost
+verbatim: thirty lines of shell shadowing a maintained action is custom tooling, and every piece of
+custom tooling is maintenance inherited forever while the ecosystem outlives it. A PAT is the ordinary
+escape hatch; a reimplementation is not.
+
 ## Don't hand-write what the job generates
 
 `CHANGELOG.md` is a build output. A hand-written entry disagrees with the changesets that actually

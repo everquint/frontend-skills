@@ -47,4 +47,18 @@ jobs:
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # RELEASE_TOKEN is a fine-grained PAT scoped to this repo (contents: write,
+          # pull-requests: write). It exists because this org disables "Allow GitHub Actions to create
+          # and approve pull requests", so with the default GITHUB_TOKEN the action versions, commits,
+          # pushes the branch, and then dies on the last call:
+          #   HttpError: GitHub Actions is not permitted to create or approve pull requests.
+          # Measured on run 30903247932. See references/release-tooling.md in eq-frontend-workflow.
+          #
+          # It also fixes a second thing: a PR opened with the default GITHUB_TOKEN triggers no
+          # downstream workflows, so the version PR would arrive with no CI at all on a diff that
+          # rewrites package.json and CHANGELOG.md. A PAT-created PR runs validate and commitlint.
+          #
+          # The fallback keeps the tag-only path working when the secret is absent or expired — that
+          # path never creates a PR, so it does not need the PAT. The version path still fails loudly
+          # at PR creation, which is the intended failure: visible red, never a silent skip.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

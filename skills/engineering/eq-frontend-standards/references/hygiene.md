@@ -314,6 +314,26 @@ crafted name would execute. Verified: `feat/AB-1420-a;rm -rf x` exits 1 and crea
 The release row of the §1 table. Three pieces ship in the starter and `init-greenfield.mjs` lands all
 three: `.changeset/config.json`, the `changeset` / `version` / `release` scripts, and this workflow.
 
+**Read this before your first release, because two failures are waiting there and both were hit for
+real.** Neither appears on an ordinary push: the release job only versions when a changeset is pending,
+so a repo can run this workflow green several times and still meet both on the day it first releases.
+
+| The failure | What you see | Fix |
+|---|---|---|
+| The action's commit is not conventional | `Version Packages` → `✖ type may not be empty`, `husky - commit-msg script failed`, job fails at `git commit` **after** rewriting `package.json` and `CHANGELOG.md` | Already fixed in the shipped workflow: `commit:` and `title:` are both `chore: version packages`. Do not remove them. |
+| Actions may not create PRs | `HttpError: GitHub Actions is not permitted to create or approve pull requests` — **the version PR is never created, and the job fails at the very last step, after having already committed and pushed `changeset-release/<branch>`** | Enable "Allow GitHub Actions to create and approve pull requests", **or** add a `RELEASE_TOKEN` secret (fine-grained PAT, this repo only, `contents: write` + `pull-requests: write`, with an expiry) |
+
+The second one is the one that will cost a consumer an afternoon, because the job's own log looks like it
+worked right up to the final line, and the pushed branch is sitting there correct. That setting is
+frequently enforced **org-wide**, in which case the repo cannot turn it on and the PAT is the only route.
+The shipped workflow already reads `${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}`, so adding the
+secret is the whole fix and no workflow edit is needed.
+
+**If you hit it before adding the secret, you have not lost the release.** The version branch is already
+pushed and correct — open that PR by hand and merge it, and the tag phase runs normally. `eq-frontend-workflow`'s
+`references/release-tooling.md` has the full account, including why hand-rolling the version phase to
+avoid the token was rejected.
+
 ```json
 // .changeset/config.json
 {
