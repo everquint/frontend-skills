@@ -501,22 +501,22 @@ indent_style = space
 indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
-max_line_length = 200
-quote_type = single
-
-[*.{yml,yaml}]
-indent_size = 2
+max_line_length = 120
 
 [*.md]
 trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2
 ```
 
-`indent_size` matches oxfmt's `tabWidth: 4`, `quote_type` matches `singleQuote: true`, and
-`max_line_length` matches `printWidth: 200`. That last pair is the one to read carefully: `printWidth`
-is a wrap target, not a bound, so oxfmt will emit a line past 200 columns when there is nothing in it to
-break, and the editor guide is then stricter than the formatter. No lint rule backs it — `max-len` has
-no oxlint equivalent and the standard dropped it. YAML overrides to 2 because most YAML tooling assumes
-it; Markdown keeps trailing whitespace because two trailing spaces is a hard line break.
+`indent_size` matches oxfmt's `tabWidth: 4`, and `max_line_length` matches `printWidth: 120`
+(decided over the inherited 200 — `docs/adr/0007`). That pair is the one to read carefully:
+`printWidth` is a wrap target, not a bound, so oxfmt will emit a line past 120 columns when there is
+nothing in it to break, and the editor guide is then stricter than the formatter. No lint rule backs
+it — `max-len` has no oxlint equivalent and the standard dropped it. YAML overrides to 2 because most
+YAML tooling assumes it; Markdown keeps trailing whitespace because two trailing spaces is a hard
+line break.
 
 ## 9. Files every repo needs
 

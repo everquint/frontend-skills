@@ -32,9 +32,9 @@
     "ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"],
 
     "rules": {
-        // ── §1 hygiene. eslint's `max-len` has NO oxlint equivalent. oxfmt's printWidth 200 is its
+        // ── §1 hygiene. eslint's `max-len` has NO oxlint equivalent. oxfmt's printWidth 120 is its
         // only successor, and a formatter can only wrap — it cannot flag a single unbreakable token
-        // (a long URL, a base64 literal) sitting past column 200. That case is now reviewer-only.
+        // (a long URL, a base64 literal) sitting past column 120. That case is now reviewer-only.
         "no-console": ["error", { "allow": ["error"] }],
         "typescript/no-explicit-any": "error",
 

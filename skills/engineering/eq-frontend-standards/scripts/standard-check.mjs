@@ -67,6 +67,13 @@ const MIGRATIONS = {
         'If the vendored tree was already reformatted, restore it: delete `.claude/skills` and re-run `init-greenfield.mjs --vendor-skills`.',
         'Verify: `npm run typecheck` passes and `npm run test:coverage` still enforces your floors.',
     ],
+    // printWidth moved 200 → 120 (docs/adr/0007): 200 was the old `max-len` ceiling carried
+    // forward, and oxfmt JOINS lines up to the target where `max-len` only flagged past it.
+    '1.2.0': [
+        'Set `printWidth: 120` in .oxfmtrc.json and `max_line_length = 120` in .editorconfig (or re-pull both from the starter).',
+        'Run `npm run format`, commit the rewrap as its own mechanical commit, and list that commit in `.git-blame-ignore-revs`.',
+        'Class strings the formatter cannot wrap under 120: extract to a named constant or `cva` map — `references/styling.md` §1. Generated `src/components/ui/` stays as generated.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
