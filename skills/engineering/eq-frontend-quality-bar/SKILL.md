@@ -1,6 +1,6 @@
 ---
 name: eq-frontend-quality-bar
-description: Enforces the non-lintable half of frontend quality — test-driven development and coverage ratchets, error reporting and observability, performance budgets, accessibility verification, and client-side security. Use when adding a feature or fixing a bug (tests come first), setting up or auditing a repo's test strategy, deciding what must be tested, wiring coverage gates, adding error reporting, setting bundle budgets, verifying accessibility, or reviewing code that renders untrusted HTML or handles secrets.
+description: The non-lintable half of frontend quality — tests and coverage ratchets, error reporting, performance budgets, accessibility, client-side security. Use when writing tests, wiring a coverage gate, adding error reporting, setting a bundle budget, verifying accessibility, or reviewing untrusted HTML or secret handling.
 ---
 
 # Frontend Quality Bar

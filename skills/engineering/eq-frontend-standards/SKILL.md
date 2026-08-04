@@ -1,6 +1,6 @@
 ---
 name: eq-frontend-standards
-description: Applies one canonical frontend TypeScript engineering standard to a repository — lint rules, correctness gates, file budgets, git hooks, commit conventions and CI. Use when setting up quality tooling in a React repo, auditing a repo against the standard, planning a migration to it, reviewing code for compliance, or deciding whether a lint finding is a real defect. Detects the repo's stack but never derives its standards from existing code.
+description: One canonical frontend TypeScript standard — lint rules, correctness gates, file budgets, structure, naming, git hooks, commit conventions, CI. Use when setting up or auditing quality tooling, migrating a repo to the standard, or judging whether a lint finding is a real defect.
 ---
 
 # Frontend TypeScript Standard

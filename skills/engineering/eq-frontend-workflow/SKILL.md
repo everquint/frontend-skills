@@ -1,6 +1,6 @@
 ---
 name: eq-frontend-workflow
-description: The delivery workflow for a frontend TypeScript codebase — branching, commits, PRs, review, merge, release, and rollback. Load this when starting a feature or fix, choosing between a branch and a git worktree (including for parallel agents), naming a branch, splitting work between a primary agent and subagents or briefing one, writing a commit message, opening or filling in a pull request, running the pre-push gate, reviewing someone else's change, deciding whether a change is mergeable, cutting a release or writing a changeset, or reverting shipped work. It states the rule for each step and which rules are mechanically enforced versus reviewer-enforced.
+description: Delivery workflow — branch or worktree, commits, PRs, review, merge, release, rollback, and how to split work between a primary agent and subagents. Use when starting work, briefing a subagent, writing a commit message, opening a PR, running the pre-push gate, deciding whether a change is mergeable, or reverting.
 ---
 
 # Frontend Delivery Workflow
