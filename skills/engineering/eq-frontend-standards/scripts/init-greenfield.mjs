@@ -26,6 +26,9 @@
 //     and vite 7 resolve it. Both files are ones this script must not edit.
 //   * the styling pipeline. tailwindcss ships in package.fragment.json, but Tailwind is inert until
 //     two SOURCE files say so, and this script never edits source.
+//   * the release job. .changeset/config.json and .github/workflows/release.yml are written here, but
+//     a pre-existing changesets config with `privatePackages.tag` unset tags nothing while exiting 0,
+//     and release.yml runs whatever `scripts.version` and `scripts.release` already contained.
 // All are reported in ONE run, with the exact change to make, and fail until those changes exist. See
 // the blocks they live in for why a printed reminder is not sufficient.
 //
@@ -40,8 +43,10 @@
 //   1  the run did not happen: wrong directory, an incomplete skill install, --vendor-skills with
 //      the sibling skills missing, or an unexpected throw. Nothing was written.
 //   2  files landed, but a verified gate is not enforcing: a pre-existing .oxlintrc.json is the base
-//      of the lint gate, and/or the styling pipeline is unwired. Make the printed change(s) and
-//      re-run; nothing else in the install is affected.
+//      of the lint gate, the styling pipeline is unwired, and/or the release job would report a
+//      release it did not make. Make the printed change(s) and re-run; nothing else in the install is
+//      affected. The two release items printed under `ℹ` are deliberately NOT part of this: they stop
+//      a release from happening at all, which is visible rather than falsely green.
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, statSync, realpathSync, chmodSync, cpSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
@@ -647,10 +652,94 @@ if (!viteConfig) {
     console.log(`  match), and declare the \`@\` → src alias in the same place.\n`);
 }
 
+// ── the release job — written, then VERIFIED ─────────────────────────────────
+// starter/.changeset/config.json and starter/.github/workflows/release.yml land in the copy loop, so
+// a repo with neither is fully set up by this script and has nothing to report here. What is checked
+// is the two ways the machinery lands and still releases nothing:
+//
+//   1. A pre-existing .changeset/config.json. Never-overwrite keeps it, and a consumer repo is a
+//      PRIVATE application, so `privatePackages.tag` decides everything: changesets defaults a
+//      private package to `{ version: true, tag: false }`, and with `tag: false` `changeset tag`
+//      filters the package out, creates no tag, prints nothing and exits 0. changesets/action then
+//      finds no `New tag:` line to parse and pushes nothing either. The release job is green and
+//      there is no tag and no CHANGELOG.md — the same false-green shape as a scaffold's base config
+//      holding the lint gate, so it carries the same exit 2.
+//   2. `scripts.version` / `scripts.release` that are not the standard's. release.yml passes those
+//      two script NAMES to changesets/action as `version:` and `publish:`, so whatever sits there is
+//      what a merge to the default branch executes. A repo whose `release` script is `npm publish`
+//      or a deploy gets that command run by the workflow this script just installed, on a private
+//      package, triggered by a PR merge. Blocking, and the loudest of the two.
+//
+// The baseBranch and the foreign-workflow cases are reported without an exit code: they stop a
+// release from ever happening, which is visible the first time someone looks for a tag, rather than
+// producing a green job that claims to have released.
+const CHANGESET_CONFIG = join('.changeset', 'config.json');
+const RELEASE_WORKFLOW = join('.github', 'workflows', 'release.yml');
+const landed = (rel) => created.includes(rel) || skipped.includes(rel);
+// ci.yml's `on: push: branches` — changesets diffs against baseBranch to find changed packages, so a
+// baseBranch the CI workflow does not gate means the two disagree about what the default branch is.
+const CI_DEFAULT_BRANCH = 'main';
+
+const releaseGaps = [];
+const releaseNotes = [];
+
+if (skipped.includes(CHANGESET_CONFIG)) {
+    const body = readTextFile(join(cwd, CHANGESET_CONFIG));
+    let config = null;
+    try { config = body === null ? null : JSON.parse(body); } catch { config = null; }
+    if (config === null || config.privatePackages?.tag !== true) {
+        const why = config === null
+            ? `could not be read as JSON, so it cannot be shown to enable tagging`
+            : `sets privatePackages.tag to ${JSON.stringify(config.privatePackages?.tag)}, not true`;
+        releaseGaps.push([
+            `${CHANGESET_CONFIG} already existed and was NOT replaced — this script does not overwrite`,
+            `your files — but it ${why}.`,
+            `This repo is a private package, and changesets SKIPS private packages when tagging unless`,
+            `that key is true: \`changeset tag\` then prints nothing, creates no tag, and exits 0, so`,
+            `the release job succeeds having produced no version tag and no CHANGELOG.md entry.`,
+            `Add it, keeping the rest of your config:`,
+            `      "privatePackages": { "version": true, "tag": true }`,
+        ].join('\n    '));
+    } else if (config.baseBranch !== CI_DEFAULT_BRANCH) {
+        releaseNotes.push([
+            `${CHANGESET_CONFIG} sets baseBranch to ${JSON.stringify(config.baseBranch)}, while`,
+            `${join('.github', 'workflows', 'ci.yml')} and ${RELEASE_WORKFLOW} run on \`${CI_DEFAULT_BRANCH}\`. changesets diffs against`,
+            `baseBranch to decide which packages changed, so set both to your real default branch.`,
+        ].join('\n    '));
+    }
+}
+
+// `scripts.version` and `scripts.release` only decide anything while a workflow passes them to
+// changesets/action. A repo that kept its OWN release.yml runs neither, so reporting them there would
+// name the wrong file and demand a change that fixes nothing — that repo gets the note below instead.
+const workflowRunsChangesets = landed(RELEASE_WORKFLOW) && (readTextFile(join(cwd, RELEASE_WORKFLOW)) ?? '').includes('changesets/action');
+
+if (workflowRunsChangesets) {
+    for (const key of ['version', 'release']) {
+        const mine = pkg.scripts?.[key];
+        if (mine === fragment.scripts[key]) continue;
+        releaseGaps.push([
+            `package.json scripts.${key} is ${JSON.stringify(mine ?? null)}, not ${JSON.stringify(fragment.scripts[key])}.`,
+            `${RELEASE_WORKFLOW} passes the script NAMES \`npm run version\` and \`npm run release\` to`,
+            `changesets/action, so that command is what a merge to \`${CI_DEFAULT_BRANCH}\` executes. Yours runs`,
+            `instead of changesets — and if it publishes or deploys, a merged "Version Packages" PR runs it.`,
+            `Set it by hand, then re-run:`,
+            `      npm pkg set scripts.${key}=${JSON.stringify(fragment.scripts[key])}`,
+        ].join('\n    '));
+    }
+} else if (landed(RELEASE_WORKFLOW)) {
+    releaseNotes.push([
+        `${RELEASE_WORKFLOW} already existed and does not run \`changesets/action\` (or could not be`,
+        `read). Nothing bumps the version or regenerates CHANGELOG.md, so the release row of the`,
+        `standard's gate table is unenforced, and scripts.version / scripts.release were not checked`,
+        `because your workflow does not call them. Compare yours against ${join(STARTER, RELEASE_WORKFLOW)}.`,
+    ].join('\n    '));
+}
+
 // EVERY verified gate reports in ONE run and the script exits once. Discovering them serially — fix
 // Tailwind, re-run, exit 2 again for a different reason, re-run — makes a first run feel like a fight
 // and trains people to stop reading this output, which is the only place these failures are visible.
-if (lintGaps.length || aliasGaps.length || styleGaps.length) {
+if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
     console.log(`✗ SETUP INCOMPLETE — every file above landed, but a gate below is installed and NOT`);
     console.log(`  doing its job. These are grouped so one re-run can clear all of them:`);
     if (lintGaps.length) {
@@ -665,9 +754,26 @@ if (lintGaps.length || aliasGaps.length || styleGaps.length) {
         console.log(`\n  tailwindcss is installed but produces no CSS, so every utility class is inert:`);
         console.log(styleGaps.map((g) => `  ! ${g}`).join('\n'));
     }
+    if (releaseGaps.length) {
+        console.log(`\n  the release job would run and report success while producing no version bump, no`);
+        console.log(`  CHANGELOG.md entry and no tag:`);
+        console.log(releaseGaps.map((g) => `  ! ${g}`).join('\n'));
+    }
     console.log(`\n  Make the change(s) above, then re-run this script. It exits 0 once they all hold.`);
     console.log(`  Nothing else here is affected — every file listed above was still ${dryRun ? 'reported' : 'written'}.\n`);
     console.log(dryRun ? `  Exit 0: a dry run wrote nothing, so there is nothing to fail.\n` : `  Exit code 2 (files landed, a gate is not enforcing) — distinct from 1, which means the run never started.\n`);
+}
+
+// Printed in the SAME run as the block above, and after it so the blocking items are read first.
+// These two do not carry an exit code: they leave a repo that never releases, which is visible the
+// first time someone looks for a tag — not a green job reporting a release that did not happen.
+if (releaseNotes.length) {
+    console.log(`ℹ the release setup is incomplete, but nothing reports a release it did not make:`);
+    console.log(releaseNotes.map((g) => `  · ${g}`).join('\n'));
+    console.log('');
+}
+
+if (lintGaps.length || aliasGaps.length || styleGaps.length || releaseGaps.length) {
     // A --dry-run must not exit non-zero, or `node … --dry-run && node …` never reaches the real run.
     process.exit(dryRun ? 0 : 2);
 }

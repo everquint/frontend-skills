@@ -99,7 +99,7 @@ Two flags to never use:
 If a run is interrupted, recover from `git stash list`; lint-staged leaves its backup stash behind on
 failure.
 
-## 6. CI workflow
+## 6. CI workflows
 
 `.github/workflows/ci.yml`
 
@@ -150,6 +150,131 @@ jobs:
 - `cancel-in-progress` kills superseded runs; without it a branch pushed three times runs three
   pipelines and the first two results are noise.
 - Mark `verify` required in branch protection. A workflow that is not required is a report, not a gate.
+
+### `.github/workflows/release.yml`
+
+The release row of the §1 table. Three pieces ship in the starter and `init-greenfield.mjs` lands all
+three: `.changeset/config.json`, the `changeset` / `version` / `release` scripts, and this workflow.
+
+```json
+// .changeset/config.json
+{
+    "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+    "changelog": "@changesets/cli/changelog",
+    "commit": false,
+    "access": "restricted",
+    "baseBranch": "main",
+    "privatePackages": {
+        "version": true,
+        "tag": true
+    }
+}
+```
+
+```json
+// package.json
+"scripts": {
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset tag"
+},
+"devDependencies": { "@changesets/cli": "^2.31.1" }
+```
+
+```yaml
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Assert private-package tagging is enabled
+        run: |
+          set -euo pipefail
+          node -e '
+            const config = require("./.changeset/config.json");
+            if (config.privatePackages?.tag !== true) {
+              console.error(`privatePackages.tag is ${JSON.stringify(config.privatePackages?.tag)}, not true`);
+              process.exit(1);
+            }
+          ' || {
+            echo "::error::.changeset/config.json does not set privatePackages.tag to true. This repo is private, so \`changeset tag\` would filter it out, tag nothing, and exit 0 — a green release that released nothing."
+            exit 1
+          }
+          echo "privatePackages.tag is true, so a version bump produces a tag."
+
+      - uses: changesets/action@v1.9.0
+        with:
+          version: npm run version
+          publish: npm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+- **There is no npm publish step, and `privatePackages.tag: true` is what makes the job do anything.**
+  A consumer repo is a private application: a release here is a version bump, a regenerated
+  `CHANGELOG.md`, and a `v<version>` tag. Changesets defaults a private package to
+  `{ version: true, tag: false }`, and with `tag: false` `changeset tag` filters the package out,
+  creates no tag, prints nothing and exits 0 — so `changesets/action`, which decides what to push by
+  parsing `New tag:` out of that command's stdout, pushes nothing either. Measured on a scaffolded
+  consumer repo: with `tag: true`, `npm run release` prints `New tag: v0.1.0` and `git tag` lists it;
+  with the key removed, the same command prints nothing, `git tag` is empty, and both runs exit 0.
+  That is why the assert step exists and why `init-greenfield.mjs` exits 2 on a pre-existing
+  changesets config that leaves the key unset.
+- Two phases, and an ordinary push releases nothing. With changesets pending the action opens or
+  updates the "Version Packages" PR carrying the bump and the changelog entry; with none pending —
+  the state a merge of that PR produces — `publish` runs and tags the new version.
+- `fetch-depth: 0` is required: `changeset tag` decides what to tag by reading the tags that already
+  exist, and a shallow clone has none to compare against.
+- `cancel-in-progress: false`, the opposite of `ci.yml`. Cancelling a run between `changeset version`
+  and `changeset tag` leaves a bumped version with no tag, which the next run cannot detect.
+- `baseBranch` must name the branch `on: push:` gates in both workflows. Changesets diffs against it
+  to find changed packages.
+- The default changelog generator needs no configuration. Swap it for
+  `["@changesets/changelog-github", { "repo": "your-org/your-repo" }]` — and add that package — to get
+  entries that link back to their PR and author.
+- `scripts.version` and `scripts.release` are the workflow's two inputs, so whatever sits under those
+  names is what a merge to the default branch executes. `init-greenfield.mjs` exits 2 rather than let
+  a repo's own `release` script — `npm publish`, a deploy — be run by the workflow it just installed.
+
+### `CHANGELOG.md` is a build output, and the starter ships no copy of it
+
+The file appears at the **first release**, written by `changeset version`. A new repo has no releases,
+so there is nothing to put in one; a hand-written placeholder would be the first version of a file
+whose whole contract is that it is generated. What the standard requires of a new repo is the
+mechanism — `.changeset/config.json`, the three scripts, and `release.yml` — plus the rule that the
+generated file is never hand-edited. An edit to `CHANGELOG.md` is overwritten by the next
+`changeset version`; the text belongs in a `.changeset/*.md` file, which is where the generator reads
+it from.
+
+Authoring one, per change that users can observe:
+
+```bash
+npx changeset            # writes .changeset/<name>.md — commit it with the change
+```
 
 ## 7. Node pinning
 
