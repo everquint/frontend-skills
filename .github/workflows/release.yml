@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # changeset tag reads existing tags to decide what is untagged, and
+          # @changesets/changelog-github resolves each changeset back to its commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      - name: Validate skills
+        run: npm run validate
+
+      # Two-phase, and it releases nothing on an ordinary push. With changesets
+      # pending it opens or updates the "Version Packages" PR; with none pending it
+      # runs the release script, which tags only a version that is not tagged yet.
+      - uses: changesets/action@v1.9.0
+        with:
+          version: npm run version
+          publish: npm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
