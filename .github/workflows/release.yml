@@ -38,5 +38,13 @@ jobs:
         with:
           version: npm run version
           publish: npm run release
+          # The action's default commit message and PR title are both `Version Packages`, which is
+          # NOT conventional — and `npm ci` above ran `prepare: husky`, so the commit-msg hook is
+          # live in the runner and rejects it: `type may not be empty`, exit 1, release failed.
+          # Measured on the first release with changesets pending. Both are overridden rather than
+          # disabling the hook, so the commit that lands on the default branch passes the same
+          # commitlint rule as every other commit.
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

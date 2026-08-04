@@ -77,5 +77,13 @@ jobs:
         with:
           version: npm run version
           publish: npm run release
+          # REQUIRED, not cosmetic. The action's defaults for both are `Version Packages`, which is not
+          # a conventional commit — and this standard installs husky, so `npm ci` above activates the
+          # commit-msg hook and commitlint rejects the action's own commit with `type may not be empty`.
+          # The release then fails at `git commit`, after having already written package.json and
+          # CHANGELOG.md. Overridden rather than setting HUSKY=0, because the version commit lands on
+          # the default branch and the commitlint CI job would reject it there anyway.
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
