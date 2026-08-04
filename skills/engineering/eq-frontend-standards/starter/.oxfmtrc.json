@@ -1,7 +1,7 @@
 // oxfmt is the formatter. It replaces the @stylistic ESLint rules the standard used to format
 // with: 4-space indent, single quotes, semicolons, 120 columns.
 //
-// printWidth 120 is a DECIDED value, not the old `max-len` ceiling carried forward — docs/adr/0007.
+// printWidth 120 is a DECIDED value, not the old `max-len` ceiling carried forward — ADR 0007 in the standard repo (everquint/frontend-skills, docs/adr/).
 // `max-len` only ever FLAGGED long lines; oxfmt actively JOINS short ones, so a wide printWidth
 // rewrites hand-wrapped code up to the limit and the result is unreadable in a side-by-side diff.
 //
