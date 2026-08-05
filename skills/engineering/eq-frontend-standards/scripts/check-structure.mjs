@@ -10,6 +10,7 @@
 //   3  a component folder has an index.ts barrel
 //   4  no __tests__/ directories, no .spec.* test files
 //   5  a top-level style class selector is declared in exactly one file
+//   6  the git index and the filesystem agree on filename case (macOS/Windows rename trap)
 //
 // Exit codes:
 //   0  the scan completed and found no violations
@@ -42,6 +43,7 @@
 // Usage, from the root of the repo being audited:
 //   node <path>/check-structure.mjs [--dir src] [--json]
 
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, relative, basename, sep } from 'node:path';
 
@@ -209,7 +211,7 @@ if (sourceFiles.length === 0) {
         + ' Point --dir at the directory holding the .ts/.tsx/.scss/.css sources.');
 }
 
-const violations = { casing: [], hooksFolder: [], barrel: [], testPlacement: [], styleCollision: [] };
+const violations = { casing: [], hooksFolder: [], barrel: [], testPlacement: [], styleCollision: [], gitCaseDrift: [] };
 
 // ── rule 1: kebab-case ───────────────────────────────────────────────────────
 // Checked segment by segment on the dot-separated name, so `<name>.types.ts`, `<name>.test.tsx`
@@ -399,6 +401,46 @@ for (const [cls, owners] of [...classOwners].sort(([a], [b]) => a.localeCompare(
     );
 }
 
+// ── rule 6: git index vs filesystem case drift ───────────────────────────────
+// On the case-insensitive filesystems macOS and Windows default to, a case-only rename
+// (App.tsx → app.tsx) changes the directory listing but NOT the git index unless staged as a
+// rename — so this scan passes locally while every fresh clone (CI included) materializes the old
+// name and fails rule 1. Found in the wild on the first greenfield adoption. Not a git repo, or
+// git absent: there is no index to drift, so the rule is vacuously clean.
+{
+    const listings = new Map();
+    const listing = (dir) => {
+        if (!listings.has(dir)) {
+            try {
+                listings.set(dir, readdirSync(dir === '' ? '.' : dir));
+            } catch {
+                listings.set(dir, null);
+            }
+        }
+        return listings.get(dir);
+    };
+    let tracked = [];
+    try {
+        tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+    } catch {
+        tracked = [];
+    }
+    for (const t of tracked) {
+        const slash = t.lastIndexOf('/');
+        const dir = slash === -1 ? '' : t.slice(0, slash);
+        const base = t.slice(slash + 1);
+        const names = listing(dir);
+        if (!names || names.includes(base)) continue;
+        const actual = names.find((n) => n.toLowerCase() === base.toLowerCase());
+        if (!actual) continue; // genuinely deleted, not a case drift — git status owns that
+        violations.gitCaseDrift.push(
+            `${t} — tracked by git as \`${base}\` but on disk as \`${actual}\`. The case-only rename never reached ` +
+            `the index, so a fresh clone (CI included) gets \`${base}\` back and fails rule 1. ` +
+            `Fix: git mv ${join(dir, base)} ${join(dir, actual)}`,
+        );
+    }
+}
+
 // ── report ───────────────────────────────────────────────────────────────────
 const RULES = [
     ['casing', '1. kebab-case filenames and directories'],
@@ -406,6 +448,7 @@ const RULES = [
     ['barrel', '3. component folder missing its index.ts barrel'],
     ['testPlacement', '4. test placement — no __tests__/, no .spec.*'],
     ['styleCollision', '5. top-level style class declared in more than one file'],
+    ['gitCaseDrift', '6. git index vs filesystem case drift'],
 ];
 
 const total = Object.values(violations).reduce((n, v) => n + v.length, 0);
