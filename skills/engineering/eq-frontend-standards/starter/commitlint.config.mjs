@@ -1,5 +1,4 @@
-// Named .mjs, not .js: this file uses `export default`, and commitlint loads a .js config as
-// CommonJS unless package.json declares "type": "module". The .mjs extension is unambiguous.
+// .mjs because commitlint loads a .js config as CommonJS unless package.json sets "type": "module".
 export default {
   extends: ['@commitlint/config-conventional'],
 };

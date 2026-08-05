@@ -1,15 +1,6 @@
-/* Solution-style root config. It compiles NO files: `files: []` plus `references` only.
- *
- * DO NOT PUT CHECKING FLAGS HERE. A referenced project does not inherit the solution config's
- * `compilerOptions`, so a flag set in this file is committed, visible in review, passes CI, and
- * checks nothing. Measured on this template: `noUncheckedIndexedAccess` here reported no error on
- * a `src` file indexing an array out of bounds; the same flag in `tsconfig.app.json` reported
- * TS18048 on that line. See references/typescript-config.md, "Project references".
- *
- * Every checking flag — and the `@/*` path alias, which is equally inert here — lives in
- * `tsconfig.app.json` and `tsconfig.node.json`. Verify with `tsc -p <leaf> --showConfig`, never by
- * reading a file.
- */
+/* Solution-style root: compiles NO files. Checking flags and the `@/*` alias are INERT here —
+ * referenced projects do not inherit them; they live in the leaf configs. Verify effective flags
+ * with `tsc -p <leaf> --showConfig`. See references/typescript-config.md. */
 {
   "files": [],
   "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]

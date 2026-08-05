@@ -5,5 +5,12 @@
   "files.associations": {
     ".oxlintrc*.json": "jsonc",
     ".oxfmtrc.json": "jsonc"
-  }
+  },
+
+  // The .ts files under skills/**/starter/ are TEMPLATES: they compile in a consumer repo (where
+  // vite/vitest are installed and the starter's own tsconfigs govern), not here — this repo
+  // installs none of their dependencies on purpose, and its own scripts are all .mjs. Disabling
+  // TS validation repo-wide silences the false "Cannot find module 'vite'" squiggles without
+  // touching what ships. Reload the window after changing this.
+  "typescript.validate.enable": false
 }

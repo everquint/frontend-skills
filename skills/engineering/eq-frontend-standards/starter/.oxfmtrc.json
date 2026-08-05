@@ -1,15 +1,6 @@
-// oxfmt is the formatter. It replaces the @stylistic ESLint rules the standard used to format
-// with: 2-space indent (the JS/TS ecosystem norm — docs/adr/0009 in the standard repo),
-// single quotes (docs/adr/0010), semicolons, 120 columns.
-//
-// printWidth 120 is a DECIDED value, not the old `max-len` ceiling carried forward — ADR 0007 in the standard repo (everquint/frontend-skills, docs/adr/).
-// `max-len` only ever FLAGGED long lines; oxfmt actively JOINS short ones, so a wide printWidth
-// rewrites hand-wrapped code up to the limit and the result is unreadable in a side-by-side diff.
-//
-// oxlint holds NO formatting rules, so nothing here can be contradicted by the linter. The old
-// `max-len` lint rule has no oxlint equivalent — printWidth below is its only successor, and a
-// formatter can only wrap, so a single unbreakable token past column 120 is reviewer-only; a
-// past-width Tailwind class string is extracted to a named constant (references/styling.md §1).
+// oxfmt owns all formatting; oxlint has no formatting rules, so the two cannot disagree. Every
+// value here is a decided one: width ADR 0007, indent ADR 0009, quotes ADR 0010 (docs/adr/ in the
+// standard repo). Full rationale: the eq-frontend-standards skill, references/starter-rationale.md.
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
 
@@ -18,38 +9,27 @@
   "semi": true,
   "printWidth": 120,
 
-  // JSX attributes keep double quotes, which is what React code looks like everywhere and what
-  // the @stylistic config produced (its `quotes` rule never applied to JSX attribute strings).
+  // JSX attributes keep double quotes — the React ecosystem norm.
   "jsxSingleQuote": false,
 
+  // Group order set explicitly so an upstream default change cannot rewrite every file. `@/` is
+  // this standard's source alias, grouped as internal.
   "sortImports": {
-    // Set explicitly. The default group order is not a contract, and import grouping is the
-    // kind of thing that silently rewrites every file in the repo when an upstream default
-    // changes.
     "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"],
-    // `@/` is this standard's source alias, so alias imports group as internal rather than
-    // falling through to `unknown`.
     "internalPattern": ["~/", "@/", "#"]
   },
 
-  // Tailwind v4 keeps its theme in CSS, not a `tailwind.config.js`, so the sorter has to be
-  // pointed at the stylesheet that holds `@import 'tailwindcss'`. If it cannot resolve this path
-  // it sorts NOTHING and still exits 0 — a silent no-op, not an error. A repo that renames or
-  // moves its entry stylesheet MUST update this path, and should confirm sorting still happens
-  // by reordering two classes and running `npm run format`.
+  // MUST point at the stylesheet holding `@import 'tailwindcss'`. If this path does not resolve,
+  // the sorter sorts NOTHING and still exits 0 — update it when the entry stylesheet moves, and
+  // confirm by reordering two classes and running `npm run format`. CI has a canary for this.
   "sortTailwindcss": {
     "stylesheet": "src/index.css",
-    // The helpers whose arguments hold class strings. Without these, classes passed through
-    // `cn(...)` are left unsorted while classes in a bare `className="..."` are sorted, which
-    // reads as the sorter being broken.
     "functions": ["cn", "clsx", "cva", "twMerge"]
   },
 
   "overrides": [
     {
-      // `singleQuote` is not JS-only: it also applies to CSS, Less and SCSS, where it
-      // rewrites `url("…")` and `@import "…"` to single quotes. That is legal CSS but is not
-      // what any stylesheet in the ecosystem looks like, so stylesheets keep double quotes.
+      // Stylesheets keep double quotes: singleQuote would rewrite url("…") and @import "…".
       "files": ["**/*.css", "**/*.scss", "**/*.less"],
       "options": { "singleQuote": false }
     }
