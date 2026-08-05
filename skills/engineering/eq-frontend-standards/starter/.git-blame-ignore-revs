@@ -1,0 +1,5 @@
+# Mechanical whole-repo commits (formatter rewraps, mass renames) — one full 40-char sha per line.
+# GitHub's blame view reads this file by name; local git needs the one-time config:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# Every migration of the standard that rewraps the repo REQUIRES its commit listed here, or
+# `git blame` attributes every line in the repo to the reformat.

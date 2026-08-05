@@ -256,3 +256,12 @@ Reviewer-enforced, because no compiler flag decides them:
   and `Buffer` type-check in code that ships to a browser, where both are `undefined` at runtime.
 - **Which TypeScript version the repo is pinned to.** §1's table is the reason: the pin changes what
   the flag set means. `engines` and lockfile pinning are `references/hygiene.md`.
+
+## No `baseUrl` — it silently disables type-aware linting
+
+`baseUrl` in any tsconfig makes oxlint-tsgolint reject the project with no error: every type-aware
+rule reports zero findings at exit 0, and the rules still count in `number_of_rules`, so even CI's
+rule-count assertion stays green. Measured on a real migrated repo — all type-aware counts read
+zero until `baseUrl` was deleted, then 174 genuine findings surfaced. Nothing in the standard needs
+it: the `@/*` alias is `paths` alone, and bundler-mode resolution never consults `baseUrl`.
+`standard-check` flags it as a policy gap and `measure-rules` refuses to measure over it.

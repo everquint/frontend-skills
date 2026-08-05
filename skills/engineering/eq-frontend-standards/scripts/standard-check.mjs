@@ -99,6 +99,13 @@ const MIGRATIONS = {
         'Run `npm run lint` and triage: `import/no-cycle` findings are real load-order bugs, fix by extracting the shared piece; type-aware findings are measured debt — fix the cheap ones, ratchet the rest per the migration doctrine, never blanket-suppress.',
         'Optional but recommended: re-pull .vscode/settings.json — it now maps .oxlintrc*.json/.oxfmtrc.json to JSONC so the editor stops flagging their comments.',
     ],
+    // Learnings from the second migrated repo: baseUrl silently zeroed every type-aware rule, the
+    // blame-ignore file was never created, and nothing told agents where the standard lives.
+    '1.5.0': [
+        'Delete `baseUrl` from every tsconfig (the `@/*` alias needs only `paths`), then re-run `npm run lint` — expect NEW type-aware findings: they were false zeros while baseUrl was present. Fix §2 promise rules now; park the rest per SKILL.md §3\'s parking contract.',
+        'Copy `starter/.git-blame-ignore-revs` and list every past mechanical rewrap commit in it. `--check` now flags the file when missing, and flags any tsconfig with baseUrl.',
+        'Merge `starter/AGENTS.md` into the repo\'s agent instructions (or copy it if none exist) so agents find the vendored standard, the gates, and the protected files.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
@@ -180,6 +187,27 @@ if (!hasWorkflow) {
     policyGaps.push(
         '.github/workflows/ — no workflow file at all: every gate is hook-only and bypassable with --no-verify. Start from the skill starter\'s .github/workflows/ci.yml.',
     );
+}
+
+// ── baseUrl kills type-aware linting silently ────────────────────────────────
+// Found on a real migrated repo: `baseUrl` in a tsconfig makes oxlint-tsgolint reject the project,
+// so EVERY type-aware rule reports zero at exit 0 — and the rules still count as loaded, so even
+// the CI number_of_rules assertion stays green. The `@/*` alias needs only `paths`; nothing in the
+// standard needs baseUrl. Raw scan, not --showConfig: the key is a gap even in a config not
+// currently wired, because the next `extends` edit arms it.
+for (const f of existsSync(cwd) ? readdirSync(cwd).filter((n) => /^tsconfig.*\.json$/.test(n)) : []) {
+    try {
+        if (/"baseUrl"\s*:/.test(readFileSync(join(cwd, f), 'utf8'))) {
+            policyGaps.push(`${f} — sets "baseUrl", which makes oxlint-tsgolint silently skip ALL type-aware rules (measured: zero findings at exit 0, rules still counted as loaded). Delete it; the @/* alias needs only "paths".`);
+        }
+    } catch { /* unreadable file surfaces elsewhere */ }
+}
+
+// ── .git-blame-ignore-revs ───────────────────────────────────────────────────
+// Every rewrap migration requires its mechanical commit listed here; a repo without the file has
+// either skipped that step or lost blame across the whole tree. The starter ships it.
+if (!existsSync(join(cwd, '.git-blame-ignore-revs'))) {
+    policyGaps.push('.git-blame-ignore-revs — missing. Copy it from the skill starter and list every mechanical rewrap commit, or `git blame` attributes the whole repo to the reformat.');
 }
 
 const reportPolicyGaps = (log) => {

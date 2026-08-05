@@ -51,7 +51,7 @@ by absolute path from the install location — usually `~/.claude/skills/eq-fron
    Scope it with `--dir` on large repos: measured 18s over 2,185 files with the JS plugin bridge on.
 3. **Follow the ladder** (§3). Zero-violation rules to `error`; the rest branch on the total.
 4. **Wire the gates** (§4). Every local hook gets a CI counterpart.
-5. **Install the agent policy** — copy `starter/.claude/` in whole (settings, the guard and lint-fix hooks, both reviewer agents, `pre-pr`) and `chmod 755` the hooks: without the executable bit a hook looks wired and never runs. Greenfield gets this from `init-greenfield.mjs`; an existing repo must do it explicitly, and it is the repo most exposed to agent edits that needs `guard-protected-files.sh` most.
+5. **Install the agent policy** — copy `starter/.claude/` in whole (settings, the guard and lint-fix hooks, both reviewer agents, `pre-pr`) and `chmod 755` the hooks: without the executable bit a hook looks wired and never runs. Copy `starter/.git-blame-ignore-revs` too, and merge `starter/AGENTS.md`'s pointer block into the repo's own agent instructions if it has any. Greenfield gets all of this from `init-greenfield.mjs`; an existing repo must do it explicitly, and it is the repo most exposed to agent edits that needs `guard-protected-files.sh` most.
 6. **Record exemptions** (§5). Read findings at source before exempting anything.
 7. **Record the version** — `node scripts/standard-check.mjs --record`, then commit the marker. It refuses while step 5's files are missing.
 
@@ -133,6 +133,10 @@ baseline to write. Measure with `scripts/measure-rules.mjs`, then take one branc
   suppressions baseline. Reasoning: [ADR 0002](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0002-ai-assisted-migration-instead-of-a-suppressions-baseline.md).
 
 **Never stage a rule at `warn`.** A rule parked at `warn` can never be ratcheted and sits green forever.
+
+**Parking a rule** — `off` inside a marked `PARKED` block — is allowed only inside the fix branch, for rules whose fixes are genuinely risky to batch. The contract: the block names the measured count and date, an ordered fix plan lives in a repo status doc, and `EXPECTED_OXLINT_RULES` moves to the enabled count — which must stay **above** every silent-failure shortfall or the assertion stops catching them. **§2 rules are never parked**: an unhandled rejection is the bug class the migration exists to close, so `no-floating-promises` and `no-misused-promises` sites are fixed in the migration pass itself.
+
+**Before measuring: no `baseUrl` in any tsconfig.** It makes the type-aware rules report false zeros at exit 0 while still counting as loaded — `references/typescript-config.md`. `measure-rules.mjs` refuses to run over it.
 
 ## 4. Gates — enforced
 
