@@ -2,7 +2,7 @@
 // Validates every SKILL.md against the Agent Skills spec and this repo's own budgets.
 // Exits non-zero on any failure so CI gates it.
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname, basename, relative } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..', 'skills');
 const MAX_LINES = 200;
@@ -149,6 +149,28 @@ if (checkers.length !== 1) {
     else if (embedded !== pkgVersion) {
         errors.push(`standard-check.mjs: STANDARD_VERSION '${embedded}' != package.json '${pkgVersion}'`);
     }
+}
+
+// The Claude Code plugin manifest lists every skill path explicitly. Plugin discovery only walks
+// `skills/<name>/SKILL.md` one level deep, and this repo nests skills under category folders, so
+// without the `skills` array the plugin installs and contributes nothing — silently, with no error
+// on either `/plugin install` or `/plugin marketplace add`. A skill added to a category folder and
+// not to the array is invisible to every plugin user, so the array is asserted exhaustive here.
+const MANIFEST = join(import.meta.dirname, '..', '.claude-plugin', 'plugin.json');
+const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
+const onDisk = skills.map((f) => './' + relative(join(import.meta.dirname, '..'), dirname(f))).sort();
+const declared = [...(manifest.skills ?? [])].sort();
+
+for (const p of onDisk.filter((p) => !declared.includes(p))) {
+    errors.push(`.claude-plugin/plugin.json: 'skills' is missing '${p}' — plugin users would not get it`);
+}
+for (const p of declared.filter((p) => !onDisk.includes(p))) {
+    errors.push(`.claude-plugin/plugin.json: 'skills' lists '${p}', which holds no SKILL.md`);
+}
+// Third copy of the version, bumped by sync-standard-version.mjs at release time for the same
+// reason as standard-check.mjs's constant: `changeset version` only touches package.json.
+if (manifest.version !== pkgVersion) {
+    errors.push(`.claude-plugin/plugin.json: version '${manifest.version}' != package.json '${pkgVersion}'`);
 }
 
 const dupes = skills.map((f) => basename(dirname(f))).filter((n, i, a) => a.indexOf(n) !== i);
