@@ -1,32 +1,25 @@
-/* The E2E config prescribed by `eq-frontend-quality-bar` references/e2e.md §2. Every value below is
- * that section's, and the reasoning for each lives there rather than being restated here.
- *
- * `baseURL` and the `webServer` command are the two values a real app must revisit: they assume the
- * Vite `preview` server on port 4173. `webServer` runs the PRODUCTION BUILD, never the dev server —
- * a dev server resolves modules differently, skips minification and skips production env
- * substitution, so a failure that exists only in the build escapes the suite entirely.
- */
+/* Every value is `eq-frontend-quality-bar` references/e2e.md §2's; reasoning lives there and in
+ * eq-frontend-standards references/starter-rationale.md. `baseURL` and `webServer` are the two
+ * values a real app revisits — webServer runs the PRODUCTION BUILD on purpose, never the dev
+ * server. */
 import { defineConfig } from '@playwright/test';
 
 const isCI = !!process.env.CI;
 
 export default defineConfig({
-  /* Specs are `<journey>.test.ts` here. Playwright's default testMatch collects `.test.ts`, so the
-   * repo-wide ban on `.spec.*` costs no config. */
+  /* Specs are `<journey>.test.ts` — the repo-wide .spec.* ban costs no config here. */
   testDir: 'e2e',
   fullyParallel: true,
-  /* Pinned in CI: the default scales to the runner's core count, and an oversubscribed 2-core runner
-   * produces timeouts that read as product flakiness. */
+  /* Pinned in CI: the default oversubscribes a 2-core runner and reads as product flakiness. */
   workers: isCI ? 2 : undefined,
-  /* A `test.only` reaching CI otherwise silently reduces the suite to one spec and reports green. */
+  /* A test.only reaching CI otherwise silently shrinks the suite to one green spec. */
   forbidOnly: isCI,
-  /* Retries in CI only. A retry locally hides a flake from the person who just wrote it. */
+  /* CI only — a local retry hides a flake from the person who just wrote it. */
   retries: isCI ? 2 : 0,
   reporter: isCI ? [['html'], ['github']] : [['list']],
   use: {
     baseURL: 'http://localhost:4173',
-    /* Set explicitly so `getByTestId` matches the attribute the codebase writes. Defaulted, half a
-     * team writes `data-test-id` and gets silent misses. */
+    /* Explicit so getByTestId matches the attribute the codebase writes. */
     testIdAttribute: 'data-testid',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

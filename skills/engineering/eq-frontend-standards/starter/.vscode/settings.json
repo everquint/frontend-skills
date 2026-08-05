@@ -1,32 +1,21 @@
 {
-  // Committed on purpose — see extensions.json. That file only STOPS the recommendation prompt
-  // from suggesting Prettier; this one is what actually routes files to oxfmt. Per-LANGUAGE
-  // blocks, not a single workspace-level editor.defaultFormatter: a user-level "[typescript]"
-  // block outranks a workspace-level default, so a Prettier user's personal config would win —
-  // and their saves would emit double quotes at printWidth 80 and fail `npm run format:check`
-  // on every file. A workspace [language] block is the highest-precedence spelling available.
-  //
-  // formatOnSave lives INSIDE the blocks, deliberately: set at the top level it would also fire
-  // on json/css/md, where whichever formatter the USER has as default (often Prettier) would
-  // take the file. Those types are still formatted at commit by lint-staged.
+  // Committed on purpose: routes ts/tsx/js/jsx to oxfmt. Per-LANGUAGE blocks, not a workspace
+  // default — a user-level "[typescript]" block outranks a workspace default, so a Prettier
+  // user's saves would otherwise fail format:check. Why each choice:
+  // eq-frontend-standards references/starter-rationale.md.
   "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
   "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
   "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
   "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
 
-  // The oxlint/oxfmt config files carry comments — documented oxc behaviour, but VS Code's JSON
-  // language service validates plain .json as strict JSON and flags every comment as an error.
-  // Associating them as JSONC silences the false "Comments are not permitted in JSON" squiggles.
+  // The oxc configs carry comments (documented behaviour); without this VS Code flags every one.
   "files.associations": {
     ".oxlintrc*.json": "jsonc",
     ".oxfmtrc.json": "jsonc"
   }
 
-  // NOT set, and the omission is a decision: the oxc language server reads .oxlintrc.json — the
-  // fast half — so the type-aware rules (typescript/no-floating-promises among them) and the 20
-  // react-hooks-js rules never squiggle in the editor; they surface at `npm run lint` and CI.
-  // Pointing the editor at the strict config costs type-aware analysis per keystroke, so it is a
-  // per-machine judgement by repo size, not repo policy. To opt in, add:
+  // oxc.configPath is deliberately NOT set: the LSP runs the fast config; type-aware and
+  // react-hooks findings surface at `npm run lint` and CI. Opt in per machine with:
   //     "oxc.configPath": ".oxlintrc.strict.json",
   //     "oxc.typeAware": true
 }

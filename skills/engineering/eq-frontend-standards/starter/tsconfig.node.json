@@ -1,11 +1,7 @@
-/* Build-time config code (`vite.config.ts` and any plugin it imports). This is a LEAF config, so
- * it carries the SAME checking flags as `tsconfig.app.json` — a null-deref in vite.config.ts breaks
- * the build for everyone, so it is not a lower-stakes file.
- *
- * `module: "nodenext"` and `types: ["node"]` are deliberately NOT unified with the app config.
- * Node loads this file directly, and widening the app config to include `node` would let
- * `process.env` and `Buffer` type-check in code that ships to a browser, where both are undefined.
- */
+/* Build-time config code — a LEAF config with the SAME three checking flags as tsconfig.app.json
+ * (a null-deref in vite.config.ts breaks the build for everyone). Deliberately NOT unified with
+ * the app config: widening the app to `types: ["node"]` would let process.env and Buffer
+ * type-check in browser code. Rationale: eq-frontend-standards references/starter-rationale.md. */
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
@@ -27,23 +23,12 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Correctness — added by this standard, and identical to tsconfig.app.json. Rationale for each
-     * flag is written out there; it is not repeated here so the two cannot drift in prose while
-     * agreeing in values. */
-
-    /* Version-dependent default: measured false on TS 5.9.3, true on 6.0.3. Never inherited. */
+    /* Correctness — identical to tsconfig.app.json; keep the two in step. */
     "strict": true,
-
-    /* `process.argv[2]` and `env[key]` are exactly the reads this catches, and config code is full
-     * of them. */
     "noUncheckedIndexedAccess": true,
-
-    /* An override that does not override. */
     "noImplicitOverride": true
   },
-  /* Every build-time config, not just the bundler's. `vitest.config.ts` IS the coverage gate and
-   * `playwright.config.ts` IS the E2E entry point, so the rationale at the top of this file applies
-   * to them unchanged — and a file in no project is read by no `tsc -b`, which means a type error in
-   * the gate config surfaces as a confusing runtime failure instead of a build error. */
+  /* Every build-time config: a gate config in no project is read by no `tsc -b`, so its type
+   * errors would surface at runtime instead of build time. */
   "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }

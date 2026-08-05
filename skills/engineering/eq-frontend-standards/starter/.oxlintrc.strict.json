@@ -1,49 +1,27 @@
-// The FULL lint gate: everything in .oxlintrc.json, plus the two groups of checks that cost real
-// time. `npm run lint` and CI run this file. `npm run lint:fast` and the editor run the base.
-//
-// WHY THIS IS A SEPARATE FILE. oxlint has no CLI flag to disable JS plugins — there is no
-// `--disable-js-plugins`, and `-A react-hooks-js` does not help (measured: 18.9s, and the plugin
-// still counts in `number_of_rules`, because declaring `jsPlugins` at all pays the bridge cost).
-// Since `extends` can add but never subtract, the fast config has to be the one WITHOUT
-// `jsPlugins`, and the strict config extends it.
-//
-// The dev-loop speed win is roughly 30x and lives ENTIRELY in the base config; this full gate is
-// within noise of the ESLint setup it replaced, because nearly all of its time is the JS plugin
-// bridge rather than --type-aware. That is why the pre-commit hook runs `lint:fast` and CI runs
-// `lint`. The measurement itself lives in references/hygiene.md — one copy, so the two cannot
-// drift apart and leave a reader unable to tell which number is current.
-//
-// MUST BE RUN WITH --type-aware. Every type-aware rule below is SILENTLY SKIPPED without it:
-// exit 0, no warning, no diagnostic, and a floating promise ships. `npm run lint` passes the flag,
-// and CI additionally asserts on `number_of_rules` from `-f json` so a dropped flag goes RED rather
-// than green. It also needs the `oxlint-tsgolint` package, which is in devDependencies.
+// The FULL lint gate: everything in .oxlintrc.json plus the react-hooks plugin and the type-aware
+// rules. `npm run lint` and CI run this file — ALWAYS with --type-aware: without the flag every
+// type-aware rule below is SKIPPED silently (exit 0, no warning). CI asserts on number_of_rules so
+// a dropped flag goes red, and the run needs the oxlint-tsgolint devDependency. Why this is a
+// separate file, and all rule rationale: the eq-frontend-standards skill,
+// references/starter-rationale.md.
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
 
   "extends": ["./.oxlintrc.json"],
 
-  // Both 'react-hooks' and 'react_hooks' are RESERVED alias names: oxlint ships a native Rust
-  // react-hooks plugin and rejects those aliases to avoid ambiguity with it. The standard gates
-  // all 20 rules of eslint-plugin-react-hooks v7 — including the 18 React Compiler rules oxlint
-  // has no native equivalent for — so the real plugin is loaded here under the alias oxlint's own
-  // error message recommends.
-  //
-  // THE ALIAS IS PART OF THE STANDARD. Every rule name below uses it, and so must every
-  // suppression comment in a consuming repo: `react-hooks-js/...`, never `react-hooks/...`.
+  // 'react-hooks' and 'react_hooks' are RESERVED alias names, so the real plugin loads under
+  // this alias — it is part of the standard: suppression comments in a consuming repo must use
+  // `react-hooks-js/...`, never `react-hooks/...`.
   "jsPlugins": [{ "name": "react-hooks-js", "specifier": "eslint-plugin-react-hooks" }],
 
   "rules": {
-    // The native pair the base config enables is redundant with the real plugin's versions and
-    // would report every hook finding twice. Off here, on there.
+    // The base config's native pair is redundant with the real plugin's versions below.
     "react/rules-of-hooks": "off",
     "react/exhaustive-deps": "off",
 
-    // ── §2 React, all 20 gated rules of eslint-plugin-react-hooks v7, through the alias.
-    //
-    // The plugin's other 9 rules stay OFF on purpose — config, fbt, gating,
-    // incompatible-library, invariant, rule-suppression, syntax, todo and unsupported-syntax
-    // report React Compiler limitations rather than defects in your code; `todo` fires on
-    // ordinary try/finally.
+    // §2 React: all 20 gated rules of eslint-plugin-react-hooks v7, React Compiler suite
+    // included. The plugin's other 9 stay OFF on purpose — they report Compiler limitations,
+    // not defects (see starter-rationale.md).
     "react-hooks-js/rules-of-hooks": "error",
     "react-hooks-js/exhaustive-deps": "error",
     "react-hooks-js/hooks": "error",
@@ -65,16 +43,8 @@
     "react-hooks-js/capitalized-calls": "error",
     "react-hooks-js/component-hook-factories": "error",
 
-    // ── §2 and §6, the type-aware rules: the COMPLETE type-aware half of typescript-eslint's
-    // `recommended-type-checked` preset, all 23 rules — docs/adr/0011 in the standard repo. The
-    // standard started with only the three promise/duplication rules because oxlint-tsgolint
-    // covered a small subset; it now implements 59 of the preset's 61, so the remaining 20 were
-    // measured (14 of them at zero violations on a real adopted repo) and enabled together.
-    //
-    // ALL 23 ARE PINNED BY NAME even though oxlint's `correctness` category auto-loads some of
-    // them when --type-aware is passed — same reason as the base config's pins: a category
-    // re-sort upstream must not silently drop a rule the standard claims to enforce. See the
-    // --type-aware warning in the header: every one of these vanishes without the flag.
+    // §2 and §6, type-aware: the complete type-aware half of typescript-eslint's
+    // recommended-type-checked preset, all 23 pinned by name (docs/adr/0011).
     "typescript/await-thenable": "error",
     "typescript/no-array-delete": "error",
     "typescript/no-base-to-string": "error",
@@ -102,11 +72,9 @@
 
   "overrides": [
     {
-      // Config files run in Node and are not part of the app's type-checked project, so the
-      // type-aware rules have no reliable type information there — measured: vite.config.ts
-      // reports an unsafe-`any` spread that is really a missing type project, not a defect.
-      // The WHOLE type-aware set goes off, listed one by one because oxlint overrides cannot
-      // subtract by category. Keep this list in lockstep with the rules block above.
+      // Config files are not part of the app's type-checked project, so the type-aware rules
+      // misreport there (measured). Spelled out because overrides cannot subtract by category;
+      // keep in lockstep with the rules block above.
       "files": ["*.config.js", "*.config.ts", "*.config.mjs", "*.config.mts"],
       "rules": {
         "typescript/await-thenable": "off",
