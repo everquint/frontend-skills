@@ -161,6 +161,14 @@ const MIGRATIONS = {
         'Add the ratchet script from starter/package.fragment.json: `"test:coverage:ratchet": "COVERAGE_RATCHET=1 vitest run --coverage"` (unix-shell env syntax, deliberate — vitest.config.ts documents the tradeoff; Windows shells need `npx cross-env` or WSL). Keep `test:coverage` unchanged — it is the gate.',
         'From now on floors only move via `npm run test:coverage:ratchet`, run deliberately after a green suite; `npm run test:coverage` (local and CI) enforces and never rewrites them.',
     ],
+    // Branch drift joined the guarded failure classes (references/hygiene.md §5): two sessions in
+    // one checkout share HEAD, so one session's checkout lands the other's commit on the wrong
+    // branch silently — measured reaching a protected default branch past its required checks.
+    '2.4.0': [
+        'Copy starter/.claude/hooks/branch-guard.sh into .claude/hooks/ and `chmod 755` it — without the executable bit it looks wired and never runs.',
+        'Merge starter/.claude/settings.json\'s three branch-guard hook entries (SessionStart, PreToolUse Bash, PostToolUse Bash) into your .claude/settings.json — keep your existing entries.',
+        '--check now asserts the hook file, so a repo without it reads as non-compliant. What it blocks and the escape hatch: references/hygiene.md §5.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
@@ -217,6 +225,7 @@ if (markerExists) {
 const POLICY_FILES = [
     'settings.json',
     'hooks/guard-protected-files.sh',
+    'hooks/branch-guard.sh',
     'hooks/lint-fix.sh',
     'agents/code-reviewer.md',
     'agents/conventions-reviewer.md',
