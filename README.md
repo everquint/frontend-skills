@@ -19,11 +19,13 @@ second is what installs the skills:
 
 ```
 /plugin marketplace add everquint/frontend-skills
-/plugin install frontend-skills@everquint
+/plugin install eq@everquint
 ```
 
 The first argument is a GitHub `owner/repo`; the second is `<plugin>@<marketplace>` as declared in
-`.claude-plugin/`, which is why the order looks inverted.
+`.claude-plugin/`, which is why the order looks inverted. The plugin is named `eq` because Claude
+Code prefixes every plugin-supplied skill with it — `eq:eq-frontend-standards` in the slash-command
+picker. A longer plugin name pushes the part that identifies the skill out of the visible column.
 
 For maintainers of this repo, `npm run link` symlinks every skill into `~/.claude/skills` and
 `~/.agents/skills`, so a `git pull` updates them in place.

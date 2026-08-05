@@ -10,9 +10,12 @@ paths, and `validate-skills.mjs` asserts that list is exhaustive in both directi
 added to a category folder and not to the manifest fails CI instead of silently reaching no plugin
 user.
 
-Install identifiers renamed for legibility: the marketplace is now `everquint` and the plugin
-`frontend-skills`, making the command `/plugin install frontend-skills@everquint` (previously
-`frontend-standards@frontend-standards`). Existing installs must
+Install identifiers renamed for legibility: the marketplace is now `everquint` and the plugin `eq`,
+making the command `/plugin install eq@everquint` (previously
+`frontend-standards@frontend-standards`). The plugin name is deliberately two characters because
+Claude Code prefixes every plugin-supplied skill with it in the slash-command picker, which clips
+long names from the left — `frontend-skills:eq-frontend-standards` hid the part that says which
+skill it is, where `eq:eq-frontend-standards` does not. Existing installs must
 `/plugin marketplace remove frontend-standards` and re-add, because the marketplace name is the key
 under which it is registered locally. The README now explains that the first argument is a GitHub
 `owner/repo` while the second is `<plugin>@<marketplace>` from the manifests, which is why the order
