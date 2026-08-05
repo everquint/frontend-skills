@@ -14,7 +14,7 @@
 // Exit 0 clean, 1 violations found, 2 the measurement could not be trusted.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, statSync, mkdtempSync, rmSync, copyFileSync, symlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, rmSync, copyFileSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -112,6 +112,22 @@ const BASE_CONFIG = join(STARTER, '.oxlintrc.json');
 const STRICT_CONFIG = join(STARTER, '.oxlintrc.strict.json');
 for (const f of [BASE_CONFIG, STRICT_CONFIG]) {
     if (!existsSync(f)) fail(`the standard's config is missing: ${f}`, ['re-install the skill; the configs ship beside it in starter/']);
+}
+
+// `baseUrl` in any tsconfig makes oxlint-tsgolint reject the project SILENTLY: every type-aware
+// rule reports zero at exit 0 while still counting as loaded, so a measurement taken over it
+// records false zeros for exactly the rules this script exists to measure. Found on a real
+// migrated repo — its type-aware counts were all zero until baseUrl was deleted, then 174 findings
+// surfaced. Fatal, because a poisoned measurement is worse than none.
+for (const f of readdirSync(cwd).filter((n) => /^tsconfig.*\.json$/.test(n))) {
+    try {
+        if (/"baseUrl"\s*:/.test(readFileSync(join(cwd, f), 'utf8'))) {
+            fail(`${f} sets "baseUrl", which makes oxlint-tsgolint silently skip ALL type-aware rules`, [
+                'Every type-aware count this run produced would be a false zero.',
+                'Delete baseUrl — the @/* alias needs only "paths" — then re-run.',
+            ]);
+        }
+    } catch { /* an unreadable tsconfig will fail the lint run itself */ }
 }
 
 // The three packages the full gate needs. oxlint resolves a jsPlugins specifier relative to the
