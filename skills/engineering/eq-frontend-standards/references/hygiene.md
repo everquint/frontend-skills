@@ -629,3 +629,8 @@ flag one unbreakable token past 120 — a past-width class string is extracted t
 Exempt from `max-lines`: test files, and CLI-generated directories such as `src/components/ui/`
 (`npx shadcn add` overwrites them). "Summed complexity per file" is a **review** guideline — no
 linter implements it, so do not describe it as enforced.
+
+Vendoring bites WHICHEVER linter is active, and the ignore must land in the same commit that
+vendors: on the ESLint branch the same vendored scripts measured 209 findings until
+`.claude/skills/**` and `.agents/**` were added to `globalIgnores` in `eslint.config.js` — see
+`eslint-branch.md` §4.

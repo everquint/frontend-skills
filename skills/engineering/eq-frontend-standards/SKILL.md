@@ -130,11 +130,13 @@ baseline to write. Measure with `scripts/measure-rules.mjs`, then take one branc
   1,474–2,105 did not.
 - **Clearly more than that → stay on ESLint + suppressions until #10549 lands.** Deliberate: a
   1,474-violation fix PR gets rubber-stamped, not reviewed, which is worse than debt recorded in a
-  suppressions baseline. Reasoning: [ADR 0002](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0002-ai-assisted-migration-instead-of-a-suppressions-baseline.md).
+  suppressions baseline. Reasoning: [ADR 0002](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0002-ai-assisted-migration-instead-of-a-suppressions-baseline.md). The branch has its own procedure —
+  `references/eslint-branch.md`: enable §2 in ESLint first, `--fix`, `--suppress-all`, protect the
+  baseline, prune-ratchet. On this branch the suppressions file IS the sanctioned §2 debt record.
 
 **Never stage a rule at `warn`.** A rule parked at `warn` can never be ratcheted and sits green forever.
 
-**Parking a rule** — `off` inside a marked `PARKED` block — is allowed only inside the fix branch, for rules whose fixes are genuinely risky to batch. The contract: the block names the measured count and date, an ordered fix plan lives in a repo status doc, and `EXPECTED_OXLINT_RULES` moves to the enabled count — which must stay **above** every silent-failure shortfall or the assertion stops catching them. **§2 rules are never parked**: an unhandled rejection is the bug class the migration exists to close, so `no-floating-promises` and `no-misused-promises` sites are fixed in the migration pass itself.
+**Parking a rule** — `off` inside a marked `PARKED` block — is allowed only inside the fix branch, for rules whose fixes are genuinely risky to batch. The contract: the block names the measured count and date, an ordered fix plan lives in a repo status doc, and `EXPECTED_OXLINT_RULES` moves to the enabled count — which must stay **above** every silent-failure shortfall or the assertion stops catching them. **§2 rules are never parked on the fix branch**: an unhandled rejection is the bug class the migration exists to close, so `no-floating-promises` and `no-misused-promises` sites are fixed in that migration pass itself. (On the suppressions branch their debt lives in the baseline — `references/eslint-branch.md` §2 — and prunes first.)
 
 **Before measuring: no `baseUrl` in any tsconfig.** It makes the type-aware rules report false zeros at exit 0 while still counting as loaded — `references/typescript-config.md`. `measure-rules.mjs` refuses to run over it.
 

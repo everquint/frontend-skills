@@ -40,6 +40,7 @@ const KNOWN_UNCONFIGURED = new Map([
     ['typescript/x', 'placeholder in prose'],
     ['jsx_a11y/x', 'placeholder in prose'],
     ['import/no-restricted-paths', 'evaluated and not adopted; named in prose as the rejected option'],
+    ['react/no-children-prop', 'named in eslint-branch.md as an ESLint rule to enable on that branch; oxlint covers it via the correctness category rather than a by-name pin'],
 ]);
 
 const mdFiles = [];
