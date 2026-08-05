@@ -470,7 +470,7 @@ console.log(`                          # (measured, vitest 4.1.10). passWithNoTe
 console.log(`                          # set: a coverage gate that passes with zero tests reports green`);
 console.log(`                          # while asserting nothing. The first test is setup work, like the`);
 console.log(`                          # scaffold's PascalCase App.tsx that the structure gate rejects.`);
-console.log(`  # rewrite README.md          # the scaffold's stock README is the one file every human opens`);
+console.log(`  # rewrite README.md     # the scaffold's stock README is the one file every human opens`);
 console.log(`                          # first and says nothing about this repo — one paragraph plus a`);
 console.log(`                          # pointer at AGENTS.md beats a stale template`);
 console.log(`  git add .claude && git commit                      # commit the shared agent config`);
