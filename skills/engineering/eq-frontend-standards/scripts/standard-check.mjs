@@ -17,7 +17,7 @@
 //   node <path>/standard-check.mjs             # human-readable status
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const MARKER = '.eq-frontend-skills.json';
@@ -168,8 +168,22 @@ for (const rel of POLICY_FILES) {
     else if (rel.includes('hooks/') && !(statSync(p).mode & 0o111)) policyGaps.push(`${rel} — present but NOT executable, so it looks wired and never runs`);
 }
 
+// ── CI presence ──────────────────────────────────────────────────────────────
+// "Mirror every hook in CI. A repo with hooks and no CI has no gate" is migration step one, and
+// it was found violated in the wild: an adopted repo carried hooks and was on the marker path
+// with no .github directory at all. The weakest useful assertion — at least one workflow file
+// exists — because workflow names vary by repo; what the workflows enforce stays reviewer-owned.
+const workflowsDir = join(cwd, '.github', 'workflows');
+const hasWorkflow =
+    existsSync(workflowsDir) && readdirSync(workflowsDir).some((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+if (!hasWorkflow) {
+    policyGaps.push(
+        '.github/workflows/ — no workflow file at all: every gate is hook-only and bypassable with --no-verify. Start from the skill starter\'s .github/workflows/ci.yml.',
+    );
+}
+
 const reportPolicyGaps = (log) => {
-    log(`  The agent-side repo policy is incomplete — ${policyGaps.length} of ${POLICY_FILES.length} file(s):`);
+    log(`  The repo policy is incomplete — ${policyGaps.length} gap(s):`);
     for (const g of policyGaps) log(`    ! ${g}`);
     log(`  Install from the skill's starter (merge an existing settings.json by hand, never clobber it):`);
     log(`      cp -R ${join(import.meta.dirname, '..', 'starter', '.claude')}/. .claude/`);
