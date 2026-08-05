@@ -101,6 +101,14 @@ const suffix = tests.length === 0
     : (tests.filter((f) => /\.test\./.test(f)).length >= tests.filter((f) => /\.spec\./.test(f)).length ? '.test.' : '.spec.');
 const networkSeam = dep('msw') ? fact('msw', 'msw dependency') : unknown('no network-level mocking library');
 
+// Formatting done INSIDE the linter: @stylistic rules produce no formatter dependency, so without
+// this the formatter row reads `unknown` for exactly the setup the standard replaces. The config
+// scan covers flat and legacy eslint configs at the root; a config kept elsewhere is missed and the
+// deps check is what usually catches it anyway (the plugin must be installed to run).
+const eslintConfigFiles = rootEntries.filter((f) => /^eslint\.config\.[cm]?[jt]s$/.test(f) || f.startsWith('.eslintrc'));
+const stylisticInLinter = Object.keys(deps).some((d) => d.startsWith('@stylistic/')) ? '@stylistic plugin in dependencies'
+    : eslintConfigFiles.find((f) => read(f).includes('@stylistic')) ?? null;
+
 // ── gates: what is already wired ─────────────────────────────────────────────
 const huskyDir = isDir('.husky');
 const hooks = listDir('.husky').filter((f) => !f.startsWith('_') && !f.startsWith('.'));
@@ -156,11 +164,15 @@ const profile = {
         : dep('swr') ? fact('swr', 'dependency') : unknown('none detected'),
     clientState: [dep('@reduxjs/toolkit') && 'redux-toolkit', dep('zustand') && 'zustand',
         dep('jotai') && 'jotai', dep('@tanstack/react-store') && 'tanstack-store'].filter(Boolean),
-    // Detection only. The old fallback here read 'none — @stylistic ESLint rules are the formatter',
-    // which stated the standard's own choice as though it were a fact about the audited repo.
+    // Detection only. A repo formatting through @stylistic lint rules has no formatter dependency,
+    // and reporting that as `unknown` hid the one arrangement the standard exists to replace — the
+    // audit then never surfaced it. The @stylistic branch is evidence-based (the plugin in deps or
+    // named in an eslint config), unlike the old unconditional fallback that asserted it for every
+    // repo with no formatter.
     formatter: dep('oxfmt') ? fact('oxfmt', 'dependency')
         : dep('prettier') ? fact('prettier', 'dependency')
         : dep('@biomejs/biome') ? fact('biome', 'dependency')
+        : stylisticInLinter ? fact('none (formatting via @stylistic lint rules — the anti-pattern the standard replaces)', stylisticInLinter)
         : unknown('no formatter dependency'),
     styling,
     tests: {
@@ -184,7 +196,9 @@ console.log('\nSTYLING CENSUS');
 for (const [k, v] of Object.entries(styling)) if (v) line(k, v);
 console.log('\nTESTS');
 line('runner', show(runner)); line('suffix', suffix); line('network seam', show(networkSeam));
-line('coverage', `${profile.tests.files} tests / ${profile.tests.sourceFiles} source = ${profile.tests.ratio}`);
+// "coverage" was a lie: this is a file-count ratio, not line coverage — a repo with one giant test
+// file per module reads low, one with thin smoke tests reads high. Label it as what it measures.
+line('test-file density', `${profile.tests.files} tests / ${profile.tests.sourceFiles} source = ${profile.tests.ratio}`);
 console.log('\nGATES');
 for (const [k, v] of Object.entries(gates)) line(k, show(v));
 console.log('\nNODE / EDITOR PINNING');

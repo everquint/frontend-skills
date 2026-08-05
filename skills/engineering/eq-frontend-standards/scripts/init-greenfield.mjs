@@ -191,6 +191,14 @@ const fragment = JSON.parse(readFileSync(join(STARTER, 'package.fragment.json'),
 
 const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+// `!==` on an object-valued entry compares REFERENCES, so a lint-staged map byte-identical to the
+// fragment's read as a conflict — every re-run then told the user to resolve, by hand, two values
+// that were the same. JSON.stringify equality assumes matching key order, which holds in the case
+// this exists for (the repo's value came from this fragment, so the order is the fragment's); a
+// hand-reordered but equal value still reads as a conflict, and that errs on the side this whole
+// merge errs on — report rather than overwrite.
+const valuesEqual = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
+
 // Keys the foreign-linter relocation below already reported in full. Without this, a taken
 // `lint:legacy` produces two conflict lines for the same key: the relocation's explanation, and then
 // the generic "yours X, standard Y" from this merge.
@@ -213,7 +221,7 @@ const mergeSection = (key) => {
     pkg[key] ??= {};
     for (const [k, v] of Object.entries(fragment[key])) {
         if (key === 'scripts' && scriptKeysAlreadyReported.has(k)) continue;
-        if (k in pkg[key] && pkg[key][k] !== v) {
+        if (k in pkg[key] && !valuesEqual(pkg[key][k], v)) {
             // Never silently replace a script or dependency the repo already chose.
             conflicts.push(`package.json ${key}.${k}: yours ${JSON.stringify(pkg[key][k])}, standard ${JSON.stringify(v)}`);
         } else {

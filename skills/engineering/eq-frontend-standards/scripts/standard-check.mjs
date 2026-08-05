@@ -151,6 +151,16 @@ const MIGRATIONS = {
         'Re-pull docs/features/README.md, docs/product/INDEX.md, and docs/product/current-focus.md from the starter (current-focus keeps your content — add the tracker link line).',
         'No renames needed: backfilled docs without tickets are `<slug>.md` by rule now; ticketed work stays `<ticket>-<slug>.md`.',
     ],
+    // The coverage ratchet mutated config on a RED run: vitest's thresholds.autoUpdate rewrites the
+    // floors in vitest.config.ts even when the run fails (measured, vitest 4.1.10: a zero-test run
+    // exits 1 and still writes floors, including a vacuous branches:100). autoUpdate is now gated
+    // behind COVERAGE_RATCHET, so ordinary runs and CI only enforce.
+    '2.3.0': [
+        'Re-pull .oxlintrc.json and .oxlintrc.strict.json from the starter: both gain a scripts/** override (untyped Node build scripts misreport every no-unsafe-* rule, and console IS their output channel). Without it, the format-changelog.mjs that migration 2.1.0 added red-gates your own lint — measured: 82 findings. Rule count stays 226.',
+        'Re-pull starter/vitest.config.ts from the installed skill, then restore your recorded coverage floors (lines/functions/branches/statements) — only the autoUpdate gate above the thresholds changed.',
+        'Add the ratchet script from starter/package.fragment.json: `"test:coverage:ratchet": "COVERAGE_RATCHET=1 vitest run --coverage"` (unix-shell env syntax, deliberate — vitest.config.ts documents the tradeoff; Windows shells need `npx cross-env` or WSL). Keep `test:coverage` unchanged — it is the gate.',
+        'From now on floors only move via `npm run test:coverage:ratchet`, run deliberately after a green suite; `npm run test:coverage` (local and CI) enforces and never rewrites them.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

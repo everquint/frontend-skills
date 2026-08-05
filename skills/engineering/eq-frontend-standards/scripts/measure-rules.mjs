@@ -9,9 +9,11 @@
 // temp dir, never into the repo, so a crashed run cannot leave the repo altered.
 //
 // Usage, from the root of the repo being measured:
-//   node <path>/measure-rules.mjs [--dir src] [--tooling <dir>] [--json]
+//   node <path>/measure-rules.mjs [--dir src] [--tooling <dir>] [--syntax-only] [--json]
 //
-// Exit 0 clean, 1 violations found, 2 the measurement could not be trusted.
+// Exit 0 clean, 1 violations found, 2 the measurement could not be trusted. A run degraded to
+// syntax-only (--syntax-only, or a baseUrl tsconfig) keeps the 0/1 contract: its counts are
+// trustworthy, just incomplete, and the report is bannered as such.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, rmSync, copyFileSync, symlinkSync } from 'node:fs';
@@ -79,6 +81,8 @@ measure-rules.mjs — measures a repo against the standard's oxlint rules and se
   --dir <path>       source root to lint (default: src). Scope it on large repos.
   --tooling <dir>    directory whose node_modules holds oxlint, oxlint-tsgolint and
                      eslint-plugin-react-hooks. Default: the audited repo, then this skill.
+  --syntax-only      skip the type-aware rules and measure only the syntax set. A baseUrl
+                     tsconfig degrades to this automatically; the report is bannered either way.
   --json             machine-readable output on stdout, including {"error": …} on failure
   --help, -h         this text
 
@@ -88,7 +92,7 @@ Read-only. Exit 0 clean, 1 violations found, 2 the measurement could not be trus
 if (has('--help') || has('-h')) { console.log(HELP); process.exit(0); }
 
 const VALUE_FLAGS = new Set(['--dir', '--tooling']);
-const BOOLEAN_FLAGS = new Set(['--json', '--help', '-h']);
+const BOOLEAN_FLAGS = new Set(['--json', '--syntax-only', '--help', '-h']);
 const opts = { '--dir': 'src', '--tooling': null };
 for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
@@ -118,16 +122,19 @@ for (const f of [BASE_CONFIG, STRICT_CONFIG]) {
 // rule reports zero at exit 0 while still counting as loaded, so a measurement taken over it
 // records false zeros for exactly the rules this script exists to measure. Found on a real
 // migrated repo — its type-aware counts were all zero until baseUrl was deleted, then 174 findings
-// surfaced. Fatal, because a poisoned measurement is worse than none.
-for (const f of readdirSync(cwd).filter((n) => /^tsconfig.*\.json$/.test(n))) {
-    try {
-        if (/"baseUrl"\s*:/.test(readFileSync(join(cwd, f), 'utf8'))) {
-            fail(`${f} sets "baseUrl", which makes oxlint-tsgolint silently skip ALL type-aware rules`, [
-                'Every type-aware count this run produced would be a false zero.',
-                'Delete baseUrl — the @/* alias needs only "paths" — then re-run.',
-            ]);
-        }
-    } catch { /* an unreadable tsconfig will fail the lint run itself */ }
+// surfaced. Only the type-aware rules are poisoned, though, and a read-only audit cannot delete
+// baseUrl, so the run DEGRADES instead of refusing: --type-aware is dropped, the ~200 syntax rules
+// still measure, and a banner brackets the report naming the gap. Exit stays 0/1 on this path —
+// only a measurement that cannot be trusted at all exits 2.
+let syntaxOnly = has('--syntax-only');
+let syntaxOnlyReason = syntaxOnly ? '--syntax-only passed' : '';
+const baseUrlFiles = readdirSync(cwd).filter((n) => /^tsconfig.*\.json$/.test(n)).filter((f) => {
+    // An unreadable tsconfig will fail the lint run itself.
+    try { return /"baseUrl"\s*:/.test(readFileSync(join(cwd, f), 'utf8')); } catch { return false; }
+});
+if (baseUrlFiles.length && !syntaxOnly) {
+    syntaxOnly = true;
+    syntaxOnlyReason = `baseUrl present in ${baseUrlFiles.join(', ')}`;
 }
 
 // The three packages the full gate needs. oxlint resolves a jsPlugins specifier relative to the
@@ -205,21 +212,48 @@ const severityOf = (value) => (Array.isArray(value) ? value[0] : value);
 const isOn = (value) => !['off', 'allow'].includes(severityOf(value));
 
 const declared = { ...readConfig(BASE_CONFIG).rules, ...readConfig(STRICT_CONFIG).rules };
+
+// The rules oxlint counts as loaded only under --type-aware. The pinned ones are read from the
+// strict config's overrides block, which is kept in lockstep with its rules block for exactly this
+// set; the four named here come from the correctness category, so no config file lists them.
+// Verified at oxlint 1.77.0 by toggling each candidate off in a syntax-only run: number_of_rules
+// holds for a skipped rule and drops for a measured one. String-matching the tsgolint binary
+// over-counts — typescript/no-unsafe-declaration-merging appears there but runs natively. A wrong
+// set here fails the loaded-rules assertion below, so drift cannot pass silently.
+// Selected by IDENTITY (the override whose files target *.config.*), never by position: the strict
+// config now carries more than one override (scripts/** was added beside it), and index 0 reading
+// the wrong block would silently drift this set — false-failing a healthy --syntax-only run or
+// false-passing a broken one.
+const configFileOverride = readConfig(STRICT_CONFIG).overrides?.find((o) => (o.files ?? []).some((f) => String(f).includes('.config.')));
+const typeAwareRules = new Set([
+    ...Object.keys(configFileOverride?.rules ?? {}),
+    'typescript/no-meaningless-void-operator',
+    'typescript/no-misused-spread',
+    'typescript/no-useless-default-assignment',
+    'typescript/require-array-sort-compare',
+]);
+
+// --print-config only resolves the config — tsgolint never runs — so the full rule universe is
+// safe to read even on a degraded run.
 const printed = runOxlint(['-c', probeConfig, '--type-aware', '--print-config'], 'print its resolved config').rules ?? {};
 const enabled = new Set([
     ...Object.entries(printed).filter(([, v]) => isOn(v)).map(([k]) => k),
     ...Object.entries(declared).filter(([, v]) => isOn(v)).map(([k]) => k),
 ]);
 
-const report = runOxlint(['-c', probeConfig, '--type-aware', '-f', 'json', dir], `lint ${dir}/`);
+const report = runOxlint(['-c', probeConfig, ...(syntaxOnly ? [] : ['--type-aware']), '-f', 'json', dir], `lint ${dir}/`);
 const loaded = report.number_of_rules;
 const scanned = report.number_of_files;
 
 // Both silent-failure modes below exit 0 on a clean repo while enforcing less than the standard.
-// `enabled` is derived from the same configs oxlint just read, so the two counts must agree.
+// `enabled` is derived from the same configs oxlint just read, so the two counts must agree. A
+// syntax-only run must still prove it loaded the full syntax set: the expectation shrinks by
+// exactly the type-aware set, nothing else.
+const expectedRules = syntaxOnly ? EXPECTED_RULES - typeAwareRules.size : EXPECTED_RULES;
+const expectedEnabled = syntaxOnly ? enabled.size - typeAwareRules.size : enabled.size;
 if (typeof loaded !== 'number') fail('oxlint reported no `number_of_rules`, so the loaded rule set cannot be verified');
-if (loaded < EXPECTED_RULES || loaded !== enabled.size) {
-    fail(`${loaded} rules loaded, expected ${EXPECTED_RULES} (${enabled.size} enabled by the standard's configs)`, [
+if (loaded < expectedRules || loaded !== expectedEnabled) {
+    fail(`${loaded} rules loaded, expected ${expectedRules} (${expectedEnabled} enabled by the standard's configs${syntaxOnly ? ', type-aware excluded' : ''})`, [
         KNOWN_SHORTFALL.get(loaded) ?? 'a rule the standard declares was not registered.',
         'A run with fewer rules exits 0 while enforcing less than it claims. Refusing to report counts from it.',
     ]);
@@ -252,41 +286,78 @@ if (tsconfigErrors.length) {
         'no-misused-promises and no-duplicate-type-constituents were skipped, not clean.',
         `Reported against: ${affected.join(', ')}${(files.get(tsconfigErrors[0])?.size ?? 0) > 3 ? ', …' : ''}`,
         'Common cause: `baseUrl` in a tsconfig — TypeScript 6.0 removed it; use relative `paths` instead.',
-        'Fix the tsconfig, then re-run.',
+        'Fix the tsconfig, then re-run — or re-run with --syntax-only for the syntax rules alone.',
     ]);
 }
 
 const total = [...counts.values()].reduce((a, b) => a + b, 0);
 // Cheapest wins first: zero-violation rules go straight to `error` for free, then ascending count.
-const free = [...enabled].filter((r) => !counts.has(r)).sort();
+// On a degraded run a skipped type-aware rule sits at zero findings, and listing it as
+// free-to-enable is exactly the false clean this script exists to prevent — the universe shrinks
+// to what was actually measured.
+const measurable = syntaxOnly ? [...enabled].filter((r) => !typeAwareRules.has(r)) : [...enabled];
+const free = measurable.filter((r) => !counts.has(r)).sort();
 const sequence = [...counts.keys()].sort((a, b) => counts.get(a) - counts.get(b) || a.localeCompare(b));
-const branch = total <= THRESHOLD ? 'ai-assisted-fix' : 'stay-on-eslint';
+
+// SKILL.md §3 calls ~300 a judgement, never a constant, so a total near it must not print as a
+// settled verdict — a hard branch at 310 overstates what was measured. Outside the band the branch
+// is stated plainly; inside it, both branches print and the migrator makes the call.
+const BAND_LOW = 240;
+const BAND_HIGH = 360;
+const branch = total < BAND_LOW ? 'ai-assisted-fix' : total > BAND_HIGH ? 'stay-on-eslint' : 'judgement-band';
+const FIX_BRANCH = 'one-time AI-assisted fix, landed as ONE reviewable PR';
+const SUPPRESS_BRANCH = 'stay on ESLint + suppressions until oxc-project/oxc#10549 lands';
 const BRANCH_TEXT = {
-    'ai-assisted-fix': `${total} violations is at or below ~${THRESHOLD} — one-time AI-assisted fix, landed as ONE reviewable PR (SKILL.md §3).`,
-    'stay-on-eslint': `${total} violations is above ~${THRESHOLD} — stay on ESLint + suppressions until oxc-project/oxc#10549 lands (SKILL.md §3).`,
+    'ai-assisted-fix': `${total} violation(s) is clearly below ~${THRESHOLD} — ${FIX_BRANCH} (SKILL.md §3).`,
+    'stay-on-eslint': `${total} violations is clearly above ~${THRESHOLD} — ${SUPPRESS_BRANCH} (SKILL.md §3).`,
+    'judgement-band': [
+        `${total} violations is inside the judgement band (${BAND_LOW}–${BAND_HIGH}, around ~${THRESHOLD}) — the call is the migrator's, not this script's (SKILL.md §3). Either:`,
+        `     → ${FIX_BRANCH} — if a PR this size is one a human can actually review and land;`,
+        `     → ${SUPPRESS_BRANCH} — if the fix PR's merge-conflict exposure would outlast its review.`,
+    ].join('\n'),
+};
+
+// A degraded report read without its caveat becomes a false clean on the §2 type-aware rules, so
+// the banner brackets the counts — printed before AND after, unmissable in a scrollback. In --json
+// mode it goes to stderr so stdout stays parseable.
+const banner = () => {
+    if (!syntaxOnly) return;
+    const out = json ? console.error : console.log;
+    const bar = '!'.repeat(100);
+    out(`\n${bar}`);
+    out(`!!  type-aware rules NOT MEASURED — ${syntaxOnlyReason}; the counts in this report are syntax-only.`);
+    out(`!!  All ${typeAwareRules.size} type-aware rules were SKIPPED, not clean — typescript/no-floating-promises included.`);
+    out(bar);
 };
 
 if (json) {
+    banner();
     console.log(JSON.stringify({
         measuredAt: new Date().toISOString().slice(0, 10),
-        dir, filesScanned: scanned, rulesLoaded: loaded, total, threshold: THRESHOLD, branch,
+        dir, filesScanned: scanned, rulesLoaded: loaded, typeAwareMeasured: !syntaxOnly,
+        ...(syntaxOnly && { syntaxOnlyReason, typeAwareRulesSkipped: typeAwareRules.size }),
+        total, threshold: THRESHOLD, band: [BAND_LOW, BAND_HIGH], branch,
         freeToEnable: free,
         fixSequence: sequence.map((rule) => ({ rule, count: counts.get(rule), files: files.get(rule).size })),
     }, null, 2));
+    banner();
     process.exit(total ? 1 : 0);
 }
 
+banner();
 console.log(`\nMEASURED ${dir}/ — ${total} violation(s) across ${scanned} files, ${loaded} rules loaded\n`);
 console.log(`§3 BRANCH: ${BRANCH_TEXT[branch]}\n`);
 console.log(`FIX SEQUENCE — cheapest first.\n`);
 console.log(`  1. FREE — ${free.length} rule(s) at zero violations. Set these to 'error' now; they can only regress from here.`);
 for (const rule of free) console.log(`       ✓ ${rule}`);
+if (syntaxOnly) console.log(`       (${typeAwareRules.size} type-aware rules are NOT in this list — skipped, not clean; see the banner.)`);
 if (sequence.length) {
     console.log(`\n  2. THEN, ascending by count — ${sequence.length} rule(s):`);
     console.log(`       ${'rule'.padEnd(46)}${'count'.padStart(7)}${'files'.padStart(7)}`);
     for (const rule of sequence) console.log(`       ${rule.padEnd(46)}${String(counts.get(rule)).padStart(7)}${String(files.get(rule).size).padStart(7)}`);
 } else {
-    console.log(`\n  2. Nothing to fix — this repo already satisfies every rule in the standard.`);
+    console.log(`\n  2. Nothing to fix — this repo already satisfies every ${syntaxOnly ? 'measured ' : ''}rule in the standard.`);
 }
+banner();
 console.log('');
 process.exit(total ? 1 : 0);

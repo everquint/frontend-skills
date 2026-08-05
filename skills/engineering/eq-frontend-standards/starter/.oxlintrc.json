@@ -108,6 +108,14 @@
                 "max-lines": "off",
                 "max-lines-per-function": "off"
             }
+        },
+        {
+            // Node build/release scripts print their reports to stdout — console IS their output
+            // channel, not a debugging leftover. The app-code ban stands everywhere else.
+            "files": ["scripts/**/*.mjs", "scripts/**/*.js"],
+            "rules": {
+                "no-console": "off"
+            }
         }
     ]
 }
