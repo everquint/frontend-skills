@@ -27,9 +27,15 @@ from the conversation and writes intended behaviour.
 
 1. **Search Linear for an existing issue** covering this. Duplicate tickets split the discussion and
    the history. If one exists, update it instead of creating a second, and say which you did.
-2. **Read the team's real field values** — statuses, labels, projects, cycles — from Linear rather
+2. **Read the repo's `docs/product/` when it has one.** `feature-inventory.md` answers "does this
+   already exist?" before a duplicate capability gets scoped — a ticket matching an inventory line
+   is an update to existing behaviour, and says so. `constraints.md` answers "is this feasible?"
+   before the acceptance criteria promise something the architecture rules out; when the answer is
+   no, the ticket names the violated constraint instead of being filed as-is. Link the relevant
+   sections rather than restating them — the ticket is ephemeral, the inventory is the record.
+3. **Read the team's real field values** — statuses, labels, projects, cycles — from Linear rather
    than assuming them. Status names differ per team and an invented one fails the write.
-3. **Ask for team, project, and priority once, together.** These three are the PM's call and cannot
+4. **Ask for team, project, and priority once, together.** These three are the PM's call and cannot
    be inferred from a diff. Everything else in the template you write yourself.
 
 ## The template

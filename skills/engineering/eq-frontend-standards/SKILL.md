@@ -5,8 +5,6 @@ description: One canonical frontend TypeScript standard — lint rules, correctn
 
 # Frontend TypeScript Standard
 
-One standard. Repos migrate to it once, then maintain it.
-
 ## The core rule
 
 **Detect facts. Enforce standards. Never derive standards from what the repo already does.**
@@ -88,9 +86,8 @@ no formatting rules at all, so nothing in the lint gate can contradict it, and `
 | `no-nested-ternary` | error |
 
 Rule identifiers are oxlint's, not ESLint's (`typescript/x`, `jsx_a11y/x` with an underscore); the
-mapping, the two rules the toolchain move lost (`no-octal`, `max-len`), and the `max-lines`
-exemptions are `references/hygiene.md` §11. `references/typescript-config.md` owns the compiler
-flag set behind §4's `tsc -b --noEmit --force` gate.
+mapping, the lost rules, and `max-lines` exemptions: `references/hygiene.md` §11.
+`references/typescript-config.md` owns the compiler flags behind §4's `tsc -b --noEmit --force` gate.
 
 ## 2. Correctness — non-negotiable
 
@@ -170,9 +167,8 @@ Node version must be pinned consistently across `.nvmrc`, `engines`, `packageMan
 Explicit, dated, argued — in the repo, not in this skill. An exemption needs a reason a cold reader
 can check, and it exempts a **pattern**, never the code that uses it.
 
-**Verify at source before exempting.** The known false-positive shapes — and the one shape that
-resembles them but is a real hazard — are `references/react-hooks-v7.md`, "Known false-positive
-shapes".
+**Verify at source before exempting** — the known false-positive shapes, and the one real hazard
+that resembles them: `references/react-hooks-v7.md`, "Known false-positive shapes".
 
 ## 6. Conventions — enforced, but not by a linter
 
@@ -193,3 +189,11 @@ condition is indistinguishable from a changed element; the name states the inten
 **Generate every measured claim, or delete it.** Hand-written status tables go stale silently:
 auditing one mature repo produced four false claims in its own conventions doc, every one a
 hand-typed number. Keep instruction files under 200 lines and put procedures in skills, not prose.
+
+## 8. Product knowledge — mandatory
+
+`docs/product/` answers what code cannot — "does this already exist?", "is this feasible?" — because
+a capability's absence is invisible in code. Four files, asserted by `standard-check`: INDEX.md,
+feature-inventory.md, constraints.md, current-focus.md. **A PR that adds or removes a user-facing
+capability updates feature-inventory.md in the same PR** — `/pre-pr` step 7 reports the gap, and
+`check-structure.mjs` rule 7 fails stale cited paths. Templates, seeding: `references/product-knowledge.md`.

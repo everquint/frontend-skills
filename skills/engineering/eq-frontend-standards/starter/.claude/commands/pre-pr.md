@@ -78,6 +78,17 @@ node "$EQ_STANDARD/scripts/standard-check.mjs" --check
 Exit 1 means this repo is behind the installed standard, or was never migrated. It prints the named
 migration steps between the recorded version and the installed one.
 
+## 7. Feature inventory — when the diff changes what the product can do
+
+```bash
+git diff --name-only origin/HEAD...HEAD
+```
+
+A diff that adds or removes a user-facing capability — a new route, screen, or feature directory
+is the usual shape — must also touch `docs/product/feature-inventory.md`. If it does not, report
+the missing entry as a failure and name the capability it should record. A diff of bug fixes,
+refactors, styling, or performance work inside existing behaviour owes nothing here.
+
 ## Report
 
 Name every step, whether it ran, and what it returned.

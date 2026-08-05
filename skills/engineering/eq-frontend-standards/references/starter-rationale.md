@@ -244,3 +244,19 @@ changes the file.
 
 - Named `.mjs` because the file uses `export default` and commitlint loads a `.js` config as
   CommonJS unless package.json declares `"type": "module"`.
+
+## docs/product/ — the product knowledge templates
+
+- Four files, not one: the split is by question ("does this exist?" / "is this feasible?" / "does
+  this fit priorities?"), so an agent loads only the file its task routes to and the per-session
+  cost stays flat as the product grows. INDEX.md exists purely as that router.
+- The templates ship as placeholders (`<capability>`, `<domain>`) rather than examples: an example
+  entry survives seeding and reads as a real capability to the next agent. The placeholders carry
+  angle brackets on purpose — check-structure.mjs rule 7's path regex excludes them, so an
+  unseeded template reports nothing.
+- `NOT SUPPORTED:` is a named line format because deliberate absence is the one fact no codebase
+  states; the format makes it greppable and makes its omission visible in review.
+- current-focus.md carries a visible `Updated:` stamp instead of a freshness gate: priorities
+  churn on a planning cadence no script knows, so the reader judges staleness — every other
+  freshness property here is machine-enforced (SKILL.md §8, references/product-knowledge.md).
+- Full design and the decision to make this mandatory: docs/adr/0014 in the standard repo.
