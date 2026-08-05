@@ -11,7 +11,7 @@
   "scripts": {
     "prepare": "husky",
     "link": "bash scripts/link-skills.sh",
-    "validate": "node scripts/validate-skills.mjs",
+    "validate": "node scripts/validate-skills.mjs && node scripts/validate-claims.mjs",
     "changeset": "changeset",
     "version": "changeset version && node scripts/sync-standard-version.mjs",
     "release": "changeset tag"
