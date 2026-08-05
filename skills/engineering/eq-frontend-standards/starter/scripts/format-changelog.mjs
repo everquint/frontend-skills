@@ -32,7 +32,9 @@ if (!existsSync(path)) {
 
 const git = (...args) => {
     try {
-        return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+        // stderr ignored: probing a tag that does not exist yet (the version being released right
+        // now) is a normal path, and git's `fatal: bad revision` would leak into the release log.
+        return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     } catch {
         return '';
     }
