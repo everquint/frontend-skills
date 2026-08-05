@@ -112,6 +112,13 @@ const MIGRATIONS = {
         'Vendor the standard if not already: `.claude/skills/` must hold byte-identical copies of the three skills — `--check` now flags a repo without them. init-greenfield.mjs vendors by default now (safe to re-run; it never overwrites).',
         'Copy `starter/CLAUDE.md` (a one-line pointer at AGENTS.md for hosts that only load CLAUDE.md) and re-pull `starter/AGENTS.md` — it now declares itself the entry point for every environment.',
     ],
+    // Indent moved 2 → 4 by organizational ruling (docs/adr/0013, superseding 0009). YAML is
+    // carved out at 2-space in both the formatter and .editorconfig.
+    '1.8.0': [
+        'Set `tabWidth: 4` in .oxfmtrc.json and add its YAML override (`**/*.yml`/`**/*.yaml` at tabWidth 2); set `indent_size = 4` in .editorconfig with a `[*.{yml,yaml}]` carve-out at 2 — or re-pull both from the starter.',
+        'Run `npm run format`, commit the rewrap as its own mechanical commit, and list it in `.git-blame-ignore-revs` — this touches most indented lines; the entry is not optional.',
+        'Repos on the ESLint-suppressions branch (references/eslint-branch.md) set `@stylistic/indent: 4` instead if it is not already 4, and skip the oxfmt steps — the active linter owns formatting there.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

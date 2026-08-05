@@ -5,109 +5,109 @@
 // formatting rules. Rationale for every rule and value: the eq-frontend-standards skill,
 // references/starter-rationale.md. (oxlint reads comments in .json configs — documented.)
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
 
-  "plugins": ["react", "typescript", "oxc", "import", "jsx_a11y"],
+    "plugins": ["react", "typescript", "oxc", "import", "jsx_a11y"],
 
-  "categories": { "correctness": "error" },
+    "categories": { "correctness": "error" },
 
-  // .agents and .claude/skills hold installed agent skills, not source.
-  "ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"],
+    // .agents and .claude/skills hold installed agent skills, not source.
+    "ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"],
 
-  "rules": {
-    // §1 hygiene
-    "no-console": ["error", { "allow": ["error"] }],
-    "typescript/no-explicit-any": "error",
-    "no-nested-ternary": "error",
+    "rules": {
+        // §1 hygiene
+        "no-console": ["error", { "allow": ["error"] }],
+        "typescript/no-explicit-any": "error",
+        "no-nested-ternary": "error",
 
-    // §1 budgets — no function-length limit on purpose.
-    "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
-    "max-depth": ["error", 4],
-    "complexity": ["error", 15],
-    "max-lines-per-function": "off",
+        // §1 budgets — no function-length limit on purpose.
+        "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+        "max-depth": ["error", 4],
+        "complexity": ["error", 15],
+        "max-lines-per-function": "off",
 
-    // §2 correctness. Everything below is pinned BY NAME even where a category covers it —
-    // an upstream category re-sort must not silently drop a rule the standard claims.
-    "no-unused-vars": "error",
-    "no-unused-expressions": "error",
-    "no-array-constructor": "error",
-    "no-case-declarations": "error",
-    "no-empty": "error",
-    "no-fallthrough": "error",
-    "no-prototype-builtins": "error",
-    "no-regex-spaces": "error",
-    "no-unexpected-multiline": "error",
-    "no-var": "error",
-    "prefer-const": "error",
-    "prefer-rest-params": "error",
-    "prefer-spread": "error",
-    "typescript/ban-ts-comment": "error",
-    "typescript/no-empty-object-type": "error",
-    "typescript/no-namespace": "error",
-    "typescript/no-require-imports": "error",
-    "typescript/no-unnecessary-type-constraint": "error",
-    "typescript/no-unsafe-function-type": "error",
+        // §2 correctness. Everything below is pinned BY NAME even where a category covers it —
+        // an upstream category re-sort must not silently drop a rule the standard claims.
+        "no-unused-vars": "error",
+        "no-unused-expressions": "error",
+        "no-array-constructor": "error",
+        "no-case-declarations": "error",
+        "no-empty": "error",
+        "no-fallthrough": "error",
+        "no-prototype-builtins": "error",
+        "no-regex-spaces": "error",
+        "no-unexpected-multiline": "error",
+        "no-var": "error",
+        "prefer-const": "error",
+        "prefer-rest-params": "error",
+        "prefer-spread": "error",
+        "typescript/ban-ts-comment": "error",
+        "typescript/no-empty-object-type": "error",
+        "typescript/no-namespace": "error",
+        "typescript/no-require-imports": "error",
+        "typescript/no-unnecessary-type-constraint": "error",
+        "typescript/no-unsafe-function-type": "error",
 
-    "react/no-array-index-key": "error",
-    "react/no-unstable-nested-components": "error",
-    "react/button-has-type": "error",
+        "react/no-array-index-key": "error",
+        "react/no-unstable-nested-components": "error",
+        "react/button-has-type": "error",
 
-    // The only hook coverage the fast loop has; the strict config re-gates both through the real
-    // plugin and switches these off, so a finding is never reported twice.
-    "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "error",
+        // The only hook coverage the fast loop has; the strict config re-gates both through the real
+        // plugin and switches these off, so a finding is never reported twice.
+        "react/rules-of-hooks": "error",
+        "react/exhaustive-deps": "error",
 
-    // §6 duplication (mechanical case) and §2 circular imports — the one import defect tsc
-    // does not catch. Both measured before enabling; no-cycle: docs/adr/0012.
-    "import/no-duplicates": "error",
-    "import/no-cycle": "error",
+        // §6 duplication (mechanical case) and §2 circular imports — the one import defect tsc
+        // does not catch. Both measured before enabling; no-cycle: docs/adr/0012.
+        "import/no-duplicates": "error",
+        "import/no-cycle": "error",
 
-    // a11y: the full recommended set of eslint-plugin-jsx-a11y (31 rules; the 3 it ships off
-    // stay off here too). Prefix is jsx_a11y with an underscore.
-    "jsx_a11y/alt-text": "error",
-    "jsx_a11y/anchor-has-content": "error",
-    "jsx_a11y/anchor-is-valid": "error",
-    "jsx_a11y/aria-activedescendant-has-tabindex": "error",
-    "jsx_a11y/aria-props": "error",
-    "jsx_a11y/aria-proptypes": "error",
-    "jsx_a11y/aria-role": "error",
-    "jsx_a11y/aria-unsupported-elements": "error",
-    "jsx_a11y/autocomplete-valid": "error",
-    "jsx_a11y/click-events-have-key-events": "error",
-    "jsx_a11y/heading-has-content": "error",
-    "jsx_a11y/html-has-lang": "error",
-    "jsx_a11y/iframe-has-title": "error",
-    "jsx_a11y/img-redundant-alt": "error",
-    "jsx_a11y/interactive-supports-focus": "error",
-    "jsx_a11y/label-has-associated-control": "error",
-    "jsx_a11y/media-has-caption": "error",
-    "jsx_a11y/mouse-events-have-key-events": "error",
-    "jsx_a11y/no-access-key": "error",
-    "jsx_a11y/no-autofocus": "error",
-    "jsx_a11y/no-distracting-elements": "error",
-    "jsx_a11y/no-interactive-element-to-noninteractive-role": "error",
-    "jsx_a11y/no-noninteractive-element-interactions": "error",
-    "jsx_a11y/no-noninteractive-element-to-interactive-role": "error",
-    "jsx_a11y/no-noninteractive-tabindex": "error",
-    "jsx_a11y/no-redundant-roles": "error",
-    "jsx_a11y/no-static-element-interactions": "error",
-    "jsx_a11y/role-has-required-aria-props": "error",
-    "jsx_a11y/role-supports-aria-props": "error",
-    "jsx_a11y/scope": "error",
-    "jsx_a11y/tabindex-no-positive": "error",
+        // a11y: the full recommended set of eslint-plugin-jsx-a11y (31 rules; the 3 it ships off
+        // stay off here too). Prefix is jsx_a11y with an underscore.
+        "jsx_a11y/alt-text": "error",
+        "jsx_a11y/anchor-has-content": "error",
+        "jsx_a11y/anchor-is-valid": "error",
+        "jsx_a11y/aria-activedescendant-has-tabindex": "error",
+        "jsx_a11y/aria-props": "error",
+        "jsx_a11y/aria-proptypes": "error",
+        "jsx_a11y/aria-role": "error",
+        "jsx_a11y/aria-unsupported-elements": "error",
+        "jsx_a11y/autocomplete-valid": "error",
+        "jsx_a11y/click-events-have-key-events": "error",
+        "jsx_a11y/heading-has-content": "error",
+        "jsx_a11y/html-has-lang": "error",
+        "jsx_a11y/iframe-has-title": "error",
+        "jsx_a11y/img-redundant-alt": "error",
+        "jsx_a11y/interactive-supports-focus": "error",
+        "jsx_a11y/label-has-associated-control": "error",
+        "jsx_a11y/media-has-caption": "error",
+        "jsx_a11y/mouse-events-have-key-events": "error",
+        "jsx_a11y/no-access-key": "error",
+        "jsx_a11y/no-autofocus": "error",
+        "jsx_a11y/no-distracting-elements": "error",
+        "jsx_a11y/no-interactive-element-to-noninteractive-role": "error",
+        "jsx_a11y/no-noninteractive-element-interactions": "error",
+        "jsx_a11y/no-noninteractive-element-to-interactive-role": "error",
+        "jsx_a11y/no-noninteractive-tabindex": "error",
+        "jsx_a11y/no-redundant-roles": "error",
+        "jsx_a11y/no-static-element-interactions": "error",
+        "jsx_a11y/role-has-required-aria-props": "error",
+        "jsx_a11y/role-supports-aria-props": "error",
+        "jsx_a11y/scope": "error",
+        "jsx_a11y/tabindex-no-positive": "error",
 
-    // React 17+ automatic JSX runtime.
-    "react/react-in-jsx-scope": "off"
-  },
+        // React 17+ automatic JSX runtime.
+        "react/react-in-jsx-scope": "off"
+    },
 
-  "overrides": [
-    {
-      // Tests are exempt from the size budget: a long flat list of cases is the right shape.
-      "files": ["**/*.test.ts", "**/*.test.tsx", "src/test/**"],
-      "rules": {
-        "max-lines": "off",
-        "max-lines-per-function": "off"
-      }
-    }
-  ]
+    "overrides": [
+        {
+            // Tests are exempt from the size budget: a long flat list of cases is the right shape.
+            "files": ["**/*.test.ts", "**/*.test.tsx", "src/test/**"],
+            "rules": {
+                "max-lines": "off",
+                "max-lines-per-function": "off"
+            }
+        }
+    ]
 }

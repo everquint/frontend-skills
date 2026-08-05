@@ -1,5 +1,8 @@
 # 0009 — 2-space indent, over the 4 inherited from the ESLint era
 
+> Superseded by [0013](0013-four-space-indent-by-organizational-decision.md) (2026-08-05): the
+> organization ruled for 4-space. The reasoning below stands as the record of why 2 was chosen.
+
 Date: 2026-08-05
 
 ## Context

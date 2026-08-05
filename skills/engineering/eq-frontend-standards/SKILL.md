@@ -29,7 +29,7 @@ first commit. Skip the measuring — `measure-rules.mjs` would only report zeroe
 ```bash
 node <skill>/scripts/init-greenfield.mjs [--dry-run]   # --dry-run prints the file plan first
 # exits 1 the first time, naming two edits vite.config.ts and a stylesheet need; re-run until 0
-npm install && npm run format     # normalizes the scaffold's quotes/semicolons; indent already matches
+npm install && npm run format     # normalizes the scaffold's quotes, semicolons and indent
 npm run lint && npm run typecheck && npm run build
 node <skill>/scripts/check-structure.mjs    # the Vite template itself needs three fixes
 ```
@@ -74,7 +74,7 @@ design: answers stored beside the version, named migrations, no writing to a dir
 
 ## 1. Formatting and budgets — enforced
 
-**oxfmt is the formatter** — 2-space indent, single quotes, semicolons, `printWidth: 120`. Both numbers are decided, not inherited: [ADR 0007](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0007-printwidth-120-over-the-inherited-200.md) (width), [ADR 0009](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0009-two-space-indent-over-the-inherited-four.md) (indent). oxlint holds
+**oxfmt is the formatter** — 4-space indent, single quotes, semicolons, `printWidth: 120`. Both numbers are decided: [ADR 0007](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0007-printwidth-120-over-the-inherited-200.md) (width), [ADR 0013](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0013-four-space-indent-by-organizational-decision.md) (indent — an organizational ruling; YAML stays 2-space by override). oxlint holds
 no formatting rules at all, so nothing in the lint gate can contradict it, and `format:check` gates it in CI.
 
 | Rule | Value |

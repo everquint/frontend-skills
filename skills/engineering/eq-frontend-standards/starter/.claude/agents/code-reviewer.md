@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Hunts runtime bugs in changed frontend TypeScript code — effect and state loops, stale closures, races, lifecycle leaks, unvalidated boundary data, optimistic-update rollback, index remaps, missing tests. This is the correctness half of the mandatory two-review gate; conventions-reviewer is the other half. Use after writing or modifying any code in this repo.
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ['Read', 'Grep', 'Glob', 'Bash']
 model: opus
 ---
 

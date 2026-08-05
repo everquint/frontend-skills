@@ -2,41 +2,41 @@
  * the SAME three flags; a flag added to one and not the other is silent drift. Rationale per flag:
  * eq-frontend-standards references/starter-rationale.md. */
 {
-  "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "es2023",
-    "lib": ["ES2023", "DOM"],
-    "module": "esnext",
-    "types": ["vite/client"],
-    "allowArbitraryExtensions": true,
-    "skipLibCheck": true,
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+        "target": "es2023",
+        "lib": ["ES2023", "DOM"],
+        "module": "esnext",
+        "types": ["vite/client"],
+        "allowArbitraryExtensions": true,
+        "skipLibCheck": true,
 
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-    "jsx": "react-jsx",
+        /* Bundler mode */
+        "moduleResolution": "bundler",
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "moduleDetection": "force",
+        "noEmit": true,
+        "jsx": "react-jsx",
 
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
+        /* Linting */
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "erasableSyntaxOnly": true,
+        "noFallthroughCasesInSwitch": true,
 
-    /* Correctness — added by this standard; the Vite template sets none of the three. */
-    /* Explicit because the default is version-dependent (false on TS 5.9, true on 6.0). */
-    "strict": true,
-    /* Unguarded rows[0] / map[key] reads. Migrating repos gate this via tsconfig.strict.json. */
-    "noUncheckedIndexedAccess": true,
-    /* An override that does not override (e.g. a typo'd componentDidCatch). */
-    "noImplicitOverride": true,
+        /* Correctness — added by this standard; the Vite template sets none of the three. */
+        /* Explicit because the default is version-dependent (false on TS 5.9, true on 6.0). */
+        "strict": true,
+        /* Unguarded rows[0] / map[key] reads. Migrating repos gate this via tsconfig.strict.json. */
+        "noUncheckedIndexedAccess": true,
+        /* An override that does not override (e.g. a typo'd componentDidCatch). */
+        "noImplicitOverride": true,
 
-    /* Keep in step with `resolve.alias` in vite.config.ts — tsc and Vite resolve independently. */
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["src"]
+        /* Keep in step with `resolve.alias` in vite.config.ts — tsc and Vite resolve independently. */
+        "paths": {
+            "@/*": ["./src/*"]
+        }
+    },
+    "include": ["src"]
 }

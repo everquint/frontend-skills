@@ -498,7 +498,7 @@ root = true
 charset = utf-8
 end_of_line = lf
 indent_style = space
-indent_size = 2
+indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
 max_line_length = 120
@@ -507,7 +507,7 @@ max_line_length = 120
 trim_trailing_whitespace = false
 ```
 
-`indent_size` matches oxfmt's `tabWidth: 2` — the JS/TS ecosystem norm, decided over the inherited 4
+`indent_size` matches oxfmt's `tabWidth: 4` — an organizational ruling (docs/adr/0013), with YAML carved out at 2
 (ADR 0009 in the standard repo) — and `max_line_length` matches `printWidth: 120` (decided over the
 inherited 200 — [ADR 0007](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0007-printwidth-120-over-the-inherited-200.md)). That pair is the one to read carefully:
 `printWidth` is a wrap target, not a bound, so oxfmt will emit a line past 120 columns when there is

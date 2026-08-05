@@ -3,32 +3,32 @@
  * the app config: widening the app to `types: ["node"]` would let process.env and Buffer
  * type-check in browser code. Rationale: eq-frontend-standards references/starter-rationale.md. */
 {
-  "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "target": "es2023",
-    "lib": ["ES2023"],
-    "types": ["node"],
-    "skipLibCheck": true,
+    "compilerOptions": {
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+        "target": "es2023",
+        "lib": ["ES2023"],
+        "types": ["node"],
+        "skipLibCheck": true,
 
-    /* Bundler mode */
-    "module": "nodenext",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
+        /* Bundler mode */
+        "module": "nodenext",
+        "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
+        "moduleDetection": "force",
+        "noEmit": true,
 
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
+        /* Linting */
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "erasableSyntaxOnly": true,
+        "noFallthroughCasesInSwitch": true,
 
-    /* Correctness — identical to tsconfig.app.json; keep the two in step. */
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
-  },
-  /* Every build-time config: a gate config in no project is read by no `tsc -b`, so its type
-   * errors would surface at runtime instead of build time. */
-  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+        /* Correctness — identical to tsconfig.app.json; keep the two in step. */
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true
+    },
+    /* Every build-time config: a gate config in no project is read by no `tsc -b`, so its type
+     * errors would surface at runtime instead of build time. */
+    "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }
