@@ -4,6 +4,16 @@ import type { UserConfigFn } from 'vite';
  * eq-frontend-standards references/starter-rationale.md. */
 import { defineConfig, mergeConfig } from 'vitest/config';
 
+/* autoUpdate is gated behind COVERAGE_RATCHET because vitest rewrites the floors even on a FAILED
+ * run (measured, vitest 4.1.10: a zero-test run exits 1 and still writes floors, including a
+ * vacuous branches:100). With the flag unset, every ordinary run — `npm run test:coverage` locally
+ * red or green, and CI — ENFORCES the recorded floors and never mutates this file. Only
+ * `npm run test:coverage:ratchet` may move them, run deliberately after a green suite. Any
+ * non-empty value enables it; the ratchet script's inline `COVERAGE_RATCHET=1` assignment is
+ * unix-shell syntax — no cross-env dependency is worth carrying for a script humans run on
+ * purpose. */
+const ratchet = !!process.env.COVERAGE_RATCHET;
+
 /* The `.ts` extension is required: Vite's native config loader will not resolve it extensionless. */
 import viteConfig from './vite.config.ts';
 
@@ -28,10 +38,11 @@ export default mergeConfig(
                  * to raise the percentage — the ratchet would lock the flattering number in. */
                 include: ['src/**/*.{ts,tsx,js,jsx}'],
                 exclude: ['src/**/*.test.{ts,tsx,js,jsx}', 'src/**/*.d.ts', 'src/test/**'],
-                /* Floors are rewritten upward by every FULL run (filtered runs leave them alone).
-                 * Lowering one by hand is how the ratchet stops being one. */
+                /* Floors are rewritten upward only by the ratchet script (filtered runs and
+                 * ordinary runs leave them alone — see the gate above). Lowering one by hand is
+                 * how the ratchet stops being one. */
                 thresholds: {
-                    autoUpdate: true,
+                    autoUpdate: ratchet,
                     lines: 0,
                     functions: 0,
                     branches: 0,

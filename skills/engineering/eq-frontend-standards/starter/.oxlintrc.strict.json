@@ -101,6 +101,39 @@
                 "typescript/restrict-template-expressions": "off",
                 "typescript/unbound-method": "off"
             }
+        },
+        {
+            // Node build/release scripts (scripts/format-changelog.mjs ships with the standard) are
+            // plain untyped .mjs outside the app's type-checked project: every no-unsafe-* rule
+            // misreports there exactly as in config files above (measured: 82 findings on the
+            // shipped script, red-gating the repo's own lint). Same subtract-by-name list; keep in
+            // lockstep with the rules block above.
+            "files": ["scripts/**/*.mjs", "scripts/**/*.js"],
+            "rules": {
+                "typescript/await-thenable": "off",
+                "typescript/no-array-delete": "off",
+                "typescript/no-base-to-string": "off",
+                "typescript/no-duplicate-type-constituents": "off",
+                "typescript/no-floating-promises": "off",
+                "typescript/no-for-in-array": "off",
+                "typescript/no-implied-eval": "off",
+                "typescript/no-misused-promises": "off",
+                "typescript/no-redundant-type-constituents": "off",
+                "typescript/no-unnecessary-type-assertion": "off",
+                "typescript/no-unsafe-argument": "off",
+                "typescript/no-unsafe-assignment": "off",
+                "typescript/no-unsafe-call": "off",
+                "typescript/no-unsafe-enum-comparison": "off",
+                "typescript/no-unsafe-member-access": "off",
+                "typescript/no-unsafe-return": "off",
+                "typescript/no-unsafe-unary-minus": "off",
+                "typescript/only-throw-error": "off",
+                "typescript/prefer-promise-reject-errors": "off",
+                "typescript/require-await": "off",
+                "typescript/restrict-plus-operands": "off",
+                "typescript/restrict-template-expressions": "off",
+                "typescript/unbound-method": "off"
+            }
         }
     ]
 }

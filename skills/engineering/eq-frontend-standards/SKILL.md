@@ -26,10 +26,10 @@ first commit. Skip the measuring — `measure-rules.mjs` would only report zeroe
 
 ```bash
 node <skill>/scripts/init-greenfield.mjs [--dry-run]   # --dry-run prints the file plan first
-# exits 1 the first time, naming two edits vite.config.ts and a stylesheet need; re-run until 0
+# exits 2 the first time — landed but not yet enforcing (exit 1 means the run never started) — naming two edits vite.config.ts and a stylesheet need; re-run until 0
 npm install && npm run format     # normalizes the scaffold's quotes, semicolons and indent
 npm run lint && npm run typecheck && npm run build
-node <skill>/scripts/check-structure.mjs    # the Vite template itself needs three fixes
+node <skill>/scripts/check-structure.mjs    # the Vite template itself needs three fixes. Its rule 6 (git case drift) stays pending until the first commit — seeing it right after init is expected, not a failure
 ```
 
 It never overwrites and never edits your source: existing files are skipped and `package.json` is merged
@@ -46,7 +46,7 @@ by absolute path from the install location — usually `~/.claude/skills/eq-fron
 
 1. **Profile the stack** — `scripts/profile-repo.mjs`. Facts only, no judgement.
 2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts, and the fix sequence.
-   Scope it with `--dir` on large repos: measured 18s over 2,185 files with the JS plugin bridge on.
+   Scope it with `--dir` on large repos: measured 18s over 2,185 files with the JS plugin bridge on. For a read-only audit of a repo without the three dev-deps installed, point `--tooling <dir>` at any directory whose `node_modules` has them.
 3. **Follow the ladder** (§3). Zero-violation rules to `error`; the rest branch on the total.
 4. **Wire the gates** (§4). Every local hook gets a CI counterpart.
 5. **Install the agent policy and vendor the standard** — copy `starter/.claude/` in whole (settings, the guard and lint-fix hooks, both reviewer agents, `pre-pr`) and `chmod 755` the hooks: without the executable bit a hook looks wired and never runs. Copy `starter/.git-blame-ignore-revs` and `starter/CLAUDE.md`, and merge `starter/AGENTS.md`'s pointer block into the repo's own agent instructions if it has any. Vendor the three skills into `.claude/skills/` (byte-identical copies): a CI runner or agent host — Cyrus, Claude Tag, a cloud sandbox — has no personal install, so a repo that does not carry the skill carries no standard there; `--check` asserts it. Greenfield gets all of this from `init-greenfield.mjs`; an existing repo must do it explicitly, and it is the repo most exposed to agent edits that needs `guard-protected-files.sh` most.
@@ -135,7 +135,7 @@ baseline to write. Measure with `scripts/measure-rules.mjs`, then take one branc
 
 **Parking a rule** — `off` inside a marked `PARKED` block — is allowed only inside the fix branch, for rules whose fixes are genuinely risky to batch. The contract: the block names the measured count and date, an ordered fix plan lives in a repo status doc, and `EXPECTED_OXLINT_RULES` moves to the enabled count — which must stay **above** every silent-failure shortfall or the assertion stops catching them. **§2 rules are never parked on the fix branch**: an unhandled rejection is the bug class the migration exists to close, so `no-floating-promises` and `no-misused-promises` sites are fixed in that migration pass itself. (On the suppressions branch their debt lives in the baseline — `references/eslint-branch.md` §2 — and prunes first.)
 
-**Before measuring: no `baseUrl` in any tsconfig.** It makes the type-aware rules report false zeros at exit 0 while still counting as loaded — `references/typescript-config.md`. `measure-rules.mjs` refuses to run over it.
+**Before measuring: no `baseUrl` in any tsconfig.** It makes the type-aware rules report false zeros at exit 0 while still counting as loaded — `references/typescript-config.md`. `measure-rules.mjs` degrades to syntax-only counts over it, bannering the gap.
 
 ## 4. Gates — enforced
 

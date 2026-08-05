@@ -11,6 +11,7 @@
         "format:check": "oxfmt --check . '!.claude/skills/**' '!.agents/**'",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
+        "test:coverage:ratchet": "COVERAGE_RATCHET=1 vitest run --coverage",
         "test:e2e": "playwright test --pass-with-no-tests",
         "test:e2e:smoke": "playwright test --pass-with-no-tests --grep @smoke",
         "changeset": "changeset",

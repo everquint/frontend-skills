@@ -39,7 +39,9 @@
 // It also requires the class to be the WHOLE selector (`.foo {` or `.foo,`), not merely its first
 // compound. `.dark .toast` and `.dark .error-block` are two different rules that happen to share a
 // theme ancestor, so counting them as two declarations of `.dark` reports a collision that does not
-// exist — measured on a real repo, that shape was the only finding the loose form produced.
+// exist — measured on a real repo, that shape was the only finding the loose form produced. Bare
+// theme-mode selectors (`.dark`, `.light`, `.theme-*`) are skipped entirely: two files declaring
+// `.dark` blocks is additive theming, not a collision, and the hoist advice is wrong for it.
 //
 // Usage, from the root of the repo being audited:
 //   node <path>/check-structure.mjs [--dir src] [--json]
@@ -100,6 +102,11 @@ for (let i = 0; i < argv.length; i += 1) {
 
 const cwd = process.cwd();
 
+// SKIP_DIRS is only the fixed list of names every repo shares. It cannot enumerate a repo's own
+// generated trees — a real repo's gitignored graphify-out/ was walked and its PascalCase output
+// flagged as rule-1 violations nobody wrote. So in a git repo the ignored set extends SKIP_DIRS:
+// one `git status --porcelain --ignored -z` call up front, not a check-ignore spawn per entry.
+// Not a git repo, or git absent — there is no ignore state to consult, so walk everything as before.
 const SKIP_DIRS = new Set([
     'node_modules', '.git', 'coverage',
     // build output — a compiled bundle is not source, and its classes recur after every build
@@ -109,6 +116,20 @@ const SKIP_DIRS = new Set([
     // agent tooling
     '.agents', '.claude',
 ]);
+
+// Absolute paths of everything the repo's .gitignore excludes. Porcelain `!!` entries are relative
+// to the repo root, which the usage line already requires as cwd — the same assumption rule 6's
+// `git ls-files` makes. A directory arrives with a trailing slash; strip it so join() comparisons hold.
+const gitIgnored = (() => {
+    const ignored = new Set();
+    try {
+        const out = execFileSync('git', ['status', '--porcelain', '--ignored', '-z'], { encoding: 'utf8' });
+        for (const entry of out.split('\0')) {
+            if (entry.startsWith('!! ')) ignored.add(join(cwd, entry.slice(3).replace(/\/$/, '')));
+        }
+    } catch { /* not a git repo, or git absent — nothing to consult */ }
+    return ignored;
+})();
 const SOURCE_EXT = /\.(ts|tsx|scss|css)$/;
 const STYLE_EXT = /\.(scss|css)$/;
 
@@ -189,6 +210,7 @@ const walk = (dir) => {
             try { entryIsDir = statSync(full).isDirectory(); } catch { continue; }
             if (entryIsDir) continue;
         }
+        if (gitIgnored.has(full)) continue;
         if (entryIsDir) {
             if (SKIP_DIRS.has(e.name)) continue;
             dirs.push(full);
@@ -333,14 +355,40 @@ for (const dir of dirs) {
 // `.test.yaml`.
 const SPEC_TEST_FILE = /\.spec\.(ts|tsx|js|jsx)$/;
 
+// `e2e/*.spec.ts` is Playwright's DEFAULT testMatch. In a repo mid-migration — a playwright.config.*
+// at the root but not yet the standard's starter config, which collects .test.ts — following the
+// plain "rename to .test.ts" advice drops the file from test discovery with no error. So a .spec.*
+// file under a Playwright-convention directory (e2e/, tests/e2e/, playwright/), when a root
+// playwright.config.* exists, gets a remedy naming BOTH actions in one commit; anywhere else the
+// plain rename stays correct.
+const hasPlaywrightConfig = topLevelEntries().some((e) => e.isFile() && /^playwright\.config\./.test(e.name));
+const PLAYWRIGHT_DIR = new Set(['e2e', 'playwright']);
+const underPlaywrightDir = (file) => relative(cwd, file).split(sep).slice(0, -1).some((s) => PLAYWRIGHT_DIR.has(s));
+
 for (const file of files) {
-    if (SPEC_TEST_FILE.test(basename(file))) {
-        violations.testPlacement.push(`${rel(file)} — no .spec.* suffix; rename to ${basename(file).replace('.spec.', '.test.')}`);
+    if (!SPEC_TEST_FILE.test(basename(file))) continue;
+    if (hasPlaywrightConfig && underPlaywrightDir(file)) {
+        violations.testPlacement.push(
+            `${rel(file)} — no .spec.* suffix; this sits under a Playwright default-testMatch directory, so a bare ` +
+            `rename silently drops it from test discovery. In the SAME commit: (1) rename to ` +
+            `${basename(file).replace('.spec.', '.test.')} AND (2) update playwright.config testMatch to collect .test.ts.`,
+        );
+        continue;
     }
+    violations.testPlacement.push(`${rel(file)} — no .spec.* suffix; rename to ${basename(file).replace('.spec.', '.test.')}`);
 }
 
 // ── rule 5: duplicate top-level style class selectors ────────────────────────
 const CLASS_AT_COLUMN_ZERO = /^\.([a-zA-Z_-][\w-]*)\s*(\{|,|$)/;
+
+// `.dark` declared in a design-tokens stylesheet AND in index.css is a THEME MODE selector, not a
+// component-class collision: each file adds its own custom properties under the mode by design, and
+// "hoist into *-shared.scss" is the wrong fix — measured on a real repo, that was the finding this
+// produced. Theme-mode names are skipped outright. Residual risk accepted: two files setting the
+// SAME property under `.dark` still merge by load order, and this rule no longer sees that overlap —
+// it stays reviewer-enforced.
+const THEME_MODE_CLASS = /^(dark|light|theme-[\w-]+)$/;
+
 const classOwners = new Map();
 
 // A declaration inside `/* … */` is not a declaration. Newlines are preserved so the column-zero
@@ -386,6 +434,7 @@ for (const file of files) {
             else if (ch === '}') depth = Math.max(0, depth - 1);
         }
         if (!m) continue;
+        if (THEME_MODE_CLASS.test(m[1])) continue;
         if (seen.has(m[1])) continue;   // one file declaring it twice is one owner, not a collision
         seen.add(m[1]);
         if (!classOwners.has(m[1])) classOwners.set(m[1], []);
