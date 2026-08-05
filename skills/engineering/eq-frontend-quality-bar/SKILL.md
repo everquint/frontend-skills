@@ -71,28 +71,13 @@ covered" is the **gate**, machine-enforced. Do not claim the gate proves the pra
 
 ### The ratchet
 
-Vitest writes current coverage back into the config as the new floor:
-
-```ts
-// vitest.config.ts
-coverage: {
-    provider: 'v8',
-    reporter: ['text-summary', 'json-summary'],
-    thresholds: { autoUpdate: true, lines: 0, functions: 0, branches: 0, statements: 0 },
-}
-```
-
-```bash
-npx vitest run --coverage          # fails if coverage drops below the recorded floor
-```
-
-Two constraints, both real:
-
-- `autoUpdate` only applies when **all** tests ran. A filtered run will not update thresholds.
-- It requires a real config **file** — it throws without one, because it rewrites that file.
-
-Same shape as the lint suppressions baseline: record where you are, then only allow improvement. A
-repo with almost no tests adopts the ratchet at its current floor on day one and cannot regress.
+Vitest writes current coverage back into the config as the new floor: `thresholds.autoUpdate: true`
+with all four floors starting at 0, and `npx vitest run --coverage` fails when coverage drops below
+the recorded floor. The canonical config is the standards skill's `starter/vitest.config.ts` — copy
+it, never retype it. Two constraints, both real: `autoUpdate` applies only when **all** tests ran (a
+filtered run leaves the floors alone), and it requires a real config **file**, because it rewrites
+that file. Same shape as a suppressions baseline: record where you are, then only allow improvement
+— a repo with almost no tests adopts at its current floor on day one and cannot regress.
 
 ### `include` must cover the whole codebase
 
@@ -144,10 +129,9 @@ Measured-but-not-gated is not enforced. A bundle analyzer nobody runs catches no
 
 ## 4. Accessibility — partly enforced
 
-The standard pins **31 `jsx_a11y/*` rules by name** — oxlint's port of `eslint-plugin-jsx-a11y`,
-under `jsx_a11y` with an underscore. Pinned rather than enabled by category, because oxlint sorts
-a11y rules across `correctness` and `restriction`, so enabling one category silently leaves the
-others off at exit 0. Enable all 31; see the standards skill's `starter/.oxlintrc.json`.
+The standard pins **31 `jsx_a11y/*` rules by name** in the standards skill's
+`starter/.oxlintrc.json` — pinned rather than enabled by category, because oxlint sorts a11y rules
+across categories and one category silently leaves the rest off at exit 0.
 
 But the failures that matter are **not lintable**, so they are reviewer-enforced with a checklist:
 

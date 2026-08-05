@@ -144,3 +144,12 @@ Two React 19 + Vite + TypeScript codebases by the same author, measured the same
 The two rows measure different things and the second is the actionable one: a rule at zero that must
 never be enabled buys nothing. **A fixed tier list shipped in a package would have been wrong for
 both.** Measure per repo; the standard stays the same, the sequence does not.
+
+## Known false-positive shapes — verify at source before exempting
+
+Two shapes recur. `static-components` fires on icon-by-variable
+(`const Icon = iconFor(ext); <Icon />` — the component is a stable module-level import, only the
+selection varies), and `hooks` fires on libraries that invoke a passed function as a hook. But do
+not assume a finding is a false positive because it resembles one: optional-chained hook calls —
+`slots?.useSidePanel?.()` — look like a library seam and are a **real** hazard, because hook order
+breaks the moment the object is passed conditionally.
