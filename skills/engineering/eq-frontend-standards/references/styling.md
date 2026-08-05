@@ -49,8 +49,13 @@ The formatter cannot wrap inside a string, so a past-width class string is the o
 §1's dropped `max-len` leaves with no mechanical check at all: nothing flags it at any width, and it
 only grows. The constant's name states what the styling is *for*, which no multi-hundred-character
 literal does, and a changed class then diffs as one line under a stable name instead of a shifted
-wall of text. Reviewer-enforced. CLI-generated `src/components/ui/` is exempt, as everywhere — the
-next `add` overwrites it.
+wall of text. Reviewer-enforced — **deliberately, and measured**: oxlint 1.77.0 has no
+`no-restricted-syntax` to flag it, and the ecosystem's wrapping autofix
+(`better-tailwindcss/enforce-consistent-line-wrapping` via `jsPlugins`) oscillates forever against
+oxfmt's class sorter, which rejoins a wrapped string past any `printWidth`. The sorter never merges
+separate `cn()` arguments, which is why the split — not a wrapped literal — is the prescribed shape.
+Full measurements and the supersede conditions: ADR 0008 in the standard repo. CLI-generated
+`src/components/ui/` is exempt, as everywhere — the next `add` overwrites it.
 
 ### 3. A co-located `.scss` stylesheet, for what has no direct utility
 
