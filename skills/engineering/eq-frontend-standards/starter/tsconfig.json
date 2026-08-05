@@ -2,6 +2,6 @@
  * referenced projects do not inherit them; they live in the leaf configs. Verify effective flags
  * with `tsc -p <leaf> --showConfig`. See references/typescript-config.md. */
 {
-  "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+    "files": [],
+    "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
 }

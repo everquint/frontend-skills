@@ -21,14 +21,14 @@
 //   @use '../../styles/breakpoints' as *;
 //   .thing { @include above('lg') { … } }
 
-@use 'sass:map';
+@use "sass:map";
 
 $breakpoints: (
-    'sm': 40rem,
-    'md': 48rem,
-    'lg': 64rem,
-    'xl': 80rem,
-    '2xl': 96rem,
+    "sm": 40rem,
+    "md": 48rem,
+    "lg": 64rem,
+    "xl": 80rem,
+    "2xl": 96rem,
 );
 
 @function breakpoint($name) {
@@ -43,13 +43,19 @@ $breakpoints: (
 // inside `@layer utilities`, this one is unlayered, and no minifier merges across a layer boundary.
 // `below` is `<`, not `<=`, so above/below partition the axis with no one-pixel band where both apply.
 @mixin above($name) {
-    @media (width >= breakpoint($name)) { @content; }
+    @media (width >= breakpoint($name)) {
+        @content;
+    }
 }
 
 @mixin below($name) {
-    @media (width < breakpoint($name)) { @content; }
+    @media (width < breakpoint($name)) {
+        @content;
+    }
 }
 
 @mixin between($from, $to) {
-    @media (breakpoint($from) <= width < breakpoint($to)) { @content; }
+    @media (breakpoint($from) <= width < breakpoint($to)) {
+        @content;
+    }
 }

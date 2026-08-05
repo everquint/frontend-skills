@@ -5,12 +5,12 @@
  * together. Run explicitly (`tsc -p tsconfig.strict.json --noEmit`); deliberately not in the
  * root's references. Full story: eq-frontend-standards references/starter-rationale.md. */
 {
-  "extends": "./tsconfig.app.json",
-  "compilerOptions": {
-    /* Own build-info path so ratchet and typecheck runs cannot poison each other's cache. */
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.strict.tsbuildinfo",
+    "extends": "./tsconfig.app.json",
+    "compilerOptions": {
+        /* Own build-info path so ratchet and typecheck runs cannot poison each other's cache. */
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.strict.tsbuildinfo",
 
-    /* Restated so the file is self-contained after a migrating repo removes it from the app config. */
-    "noUncheckedIndexedAccess": true
-  }
+        /* Restated so the file is self-contained after a migrating repo removes it from the app config. */
+        "noUncheckedIndexedAccess": true
+    }
 }

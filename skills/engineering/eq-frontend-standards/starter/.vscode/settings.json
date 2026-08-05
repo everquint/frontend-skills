@@ -1,21 +1,21 @@
 {
-  // Committed on purpose: routes ts/tsx/js/jsx to oxfmt. Per-LANGUAGE blocks, not a workspace
-  // default — a user-level "[typescript]" block outranks a workspace default, so a Prettier
-  // user's saves would otherwise fail format:check. Why each choice:
-  // eq-frontend-standards references/starter-rationale.md.
-  "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-  "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-  "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-  "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+    // Committed on purpose: routes ts/tsx/js/jsx to oxfmt. Per-LANGUAGE blocks, not a workspace
+    // default — a user-level "[typescript]" block outranks a workspace default, so a Prettier
+    // user's saves would otherwise fail format:check. Why each choice:
+    // eq-frontend-standards references/starter-rationale.md.
+    "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+    "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+    "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+    "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
 
-  // The oxc configs carry comments (documented behaviour); without this VS Code flags every one.
-  "files.associations": {
-    ".oxlintrc*.json": "jsonc",
-    ".oxfmtrc.json": "jsonc"
-  }
+    // The oxc configs carry comments (documented behaviour); without this VS Code flags every one.
+    "files.associations": {
+        ".oxlintrc*.json": "jsonc",
+        ".oxfmtrc.json": "jsonc"
+    }
 
-  // oxc.configPath is deliberately NOT set: the LSP runs the fast config; type-aware and
-  // react-hooks findings surface at `npm run lint` and CI. Opt in per machine with:
-  //     "oxc.configPath": ".oxlintrc.strict.json",
-  //     "oxc.typeAware": true
+    // oxc.configPath is deliberately NOT set: the LSP runs the fast config; type-aware and
+    // react-hooks findings surface at `npm run lint` and CI. Opt in per machine with:
+    //     "oxc.configPath": ".oxlintrc.strict.json",
+    //     "oxc.typeAware": true
 }

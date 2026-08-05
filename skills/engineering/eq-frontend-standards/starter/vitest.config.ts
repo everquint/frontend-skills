@@ -16,28 +16,28 @@ const callConfigFn = (fn: UserConfigFn) => fn({ command: 'serve', mode: 'test' }
 const base = typeof viteConfig === 'function' ? callConfigFn(viteConfig) : viteConfig;
 
 export default mergeConfig(
-  base,
-  defineConfig({
-    test: {
-      environment: 'jsdom',
-      setupFiles: ['./src/test/setup.ts'],
-      coverage: {
-        provider: 'v8',
-        reporter: ['text-summary', 'json-summary'],
-        /* Coverage must see the whole codebase: widen when source moves out of src/, never narrow
-         * to raise the percentage — the ratchet would lock the flattering number in. */
-        include: ['src/**/*.{ts,tsx,js,jsx}'],
-        exclude: ['src/**/*.test.{ts,tsx,js,jsx}', 'src/**/*.d.ts', 'src/test/**'],
-        /* Floors are rewritten upward by every FULL run (filtered runs leave them alone).
-         * Lowering one by hand is how the ratchet stops being one. */
-        thresholds: {
-          autoUpdate: true,
-          lines: 0,
-          functions: 0,
-          branches: 0,
-          statements: 0,
+    base,
+    defineConfig({
+        test: {
+            environment: 'jsdom',
+            setupFiles: ['./src/test/setup.ts'],
+            coverage: {
+                provider: 'v8',
+                reporter: ['text-summary', 'json-summary'],
+                /* Coverage must see the whole codebase: widen when source moves out of src/, never narrow
+                 * to raise the percentage — the ratchet would lock the flattering number in. */
+                include: ['src/**/*.{ts,tsx,js,jsx}'],
+                exclude: ['src/**/*.test.{ts,tsx,js,jsx}', 'src/**/*.d.ts', 'src/test/**'],
+                /* Floors are rewritten upward by every FULL run (filtered runs leave them alone).
+                 * Lowering one by hand is how the ratchet stops being one. */
+                thresholds: {
+                    autoUpdate: true,
+                    lines: 0,
+                    functions: 0,
+                    branches: 0,
+                    statements: 0,
+                },
+            },
         },
-      },
-    },
-  }),
+    }),
 );

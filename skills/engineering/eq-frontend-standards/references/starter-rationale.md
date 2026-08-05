@@ -93,8 +93,9 @@ changes the file.
 
 ## .oxfmtrc.json
 
-- Replaces the @stylistic ESLint rules the standard used to format with: 2-space indent
-  (docs/adr/0009), single quotes (docs/adr/0010), semicolons, printWidth 120 (docs/adr/0007).
+- Replaces the @stylistic ESLint rules the standard used to format with: 4-space indent
+  (docs/adr/0013, an organizational ruling superseding 0009; YAML overridden to 2-space, which the
+  whole YAML ecosystem assumes), single quotes (docs/adr/0010), semicolons, printWidth 120 (docs/adr/0007).
 - printWidth is a DECIDED value, not the old `max-len` ceiling carried forward: `max-len` only
   FLAGGED long lines; oxfmt actively JOINS short ones, so a wide printWidth rewrites hand-wrapped
   code up to the limit. A past-width Tailwind class string is extracted to a named constant

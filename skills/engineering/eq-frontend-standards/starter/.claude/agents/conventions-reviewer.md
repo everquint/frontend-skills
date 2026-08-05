@@ -1,7 +1,7 @@
 ---
 name: conventions-reviewer
 description: Reviews changed frontend TypeScript code against the four conventions reference docs — structure (naming, component folders, placement, file size), styling (the four-layer precedence, responsive, no CSS Modules), code quality (comments, identifier naming, per-file complexity budgets), and duplication verdicts. This is the conventions half of the mandatory two-review gate; code-reviewer is the other half. Use after writing or modifying any component, hook, style, or module in this repo.
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ['Read', 'Grep', 'Glob', 'Bash']
 model: opus
 ---
 
@@ -52,7 +52,7 @@ The four, each read from `$EQ_STANDARD/references/`:
   much belongs in one file (§3): the one-exported-unit rule, the per-complexity-class helper table,
   and the summed-complexity budget.
 - `duplication.md` — owns the three classes of duplication and the verdict for each. A duplicated
-  *decision* is a defect; a duplicated *shape* is not, and calling it one produces a wrong
+  _decision_ is a defect; a duplicated _shape_ is not, and calling it one produces a wrong
   abstraction. Its §7 states how to word the finding.
 
 Consult `structure.md` and `code-quality.md` for any changed `.ts`/`.tsx`, `styling.md` for changed
@@ -84,7 +84,7 @@ npx oxlint -c .oxlintrc.strict.json --type-aware <changed files>
 
 Anything those two report is settled — cite it, do not re-argue it.
 
-To read complexity, know that **oxlint has no `--rule` flag**: rule *options* cannot be set on the
+To read complexity, know that **oxlint has no `--rule` flag**: rule _options_ cannot be set on the
 command line (`-D`/`-A`/`-W` only switch a rule or category on and off, at whatever max the config
 says), and `oxlint --rules` prints nothing. So the equivalent is a throwaway config with the max set
 to 0, which turns `complexity` from a pass/fail check into a report of every function's number:

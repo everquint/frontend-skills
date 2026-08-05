@@ -1,37 +1,43 @@
 // oxfmt owns all formatting; oxlint has no formatting rules, so the two cannot disagree. Every
-// value here is a decided one: width ADR 0007, indent ADR 0009, quotes ADR 0010 (docs/adr/ in the
-// standard repo). Full rationale: the eq-frontend-standards skill, references/starter-rationale.md.
+// value here is a decided one: width ADR 0007, indent ADR 0013 (org ruling), quotes ADR 0010
+// (docs/adr/ in the standard repo). Full rationale: the eq-frontend-standards skill,
+// references/starter-rationale.md.
 {
-  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
 
-  "tabWidth": 2,
-  "singleQuote": true,
-  "semi": true,
-  "printWidth": 120,
+    "tabWidth": 4,
+    "singleQuote": true,
+    "semi": true,
+    "printWidth": 120,
 
-  // JSX attributes keep double quotes — the React ecosystem norm.
-  "jsxSingleQuote": false,
+    // JSX attributes keep double quotes — the React ecosystem norm.
+    "jsxSingleQuote": false,
 
-  // Group order set explicitly so an upstream default change cannot rewrite every file. `@/` is
-  // this standard's source alias, grouped as internal.
-  "sortImports": {
-    "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"],
-    "internalPattern": ["~/", "@/", "#"]
-  },
+    // Group order set explicitly so an upstream default change cannot rewrite every file. `@/` is
+    // this standard's source alias, grouped as internal.
+    "sortImports": {
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"],
+        "internalPattern": ["~/", "@/", "#"]
+    },
 
-  // MUST point at the stylesheet holding `@import 'tailwindcss'`. If this path does not resolve,
-  // the sorter sorts NOTHING and still exits 0 — update it when the entry stylesheet moves, and
-  // confirm by reordering two classes and running `npm run format`. CI has a canary for this.
-  "sortTailwindcss": {
-    "stylesheet": "src/index.css",
-    "functions": ["cn", "clsx", "cva", "twMerge"]
-  },
+    // MUST point at the stylesheet holding `@import 'tailwindcss'`. If this path does not resolve,
+    // the sorter sorts NOTHING and still exits 0 — update it when the entry stylesheet moves, and
+    // confirm by reordering two classes and running `npm run format`. CI has a canary for this.
+    "sortTailwindcss": {
+        "stylesheet": "src/index.css",
+        "functions": ["cn", "clsx", "cva", "twMerge"]
+    },
 
-  "overrides": [
-    {
-      // Stylesheets keep double quotes: singleQuote would rewrite url("…") and @import "…".
-      "files": ["**/*.css", "**/*.scss", "**/*.less"],
-      "options": { "singleQuote": false }
-    }
-  ]
+    "overrides": [
+        {
+            // Stylesheets keep double quotes: singleQuote would rewrite url("…") and @import "…".
+            "files": ["**/*.css", "**/*.scss", "**/*.less"],
+            "options": { "singleQuote": false }
+        },
+        {
+            // YAML stays 2-space: the whole YAML ecosystem assumes it, and 4-space YAML trips reviewers.
+            "files": ["**/*.yml", "**/*.yaml"],
+            "options": { "tabWidth": 2 }
+        }
+    ]
 }

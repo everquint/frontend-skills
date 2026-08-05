@@ -1,17 +1,17 @@
 {
-  // Committed on purpose (.gitignore excepts this file and settings.json). Recommends only —
-  // the editor prompts, never installs. Why: eq-frontend-standards references/starter-rationale.md.
-  "recommendations": [
-    // Drives oxfmt and oxlint — the same tools the pre-commit hook and CI run.
-    "oxc.oxc-vscode",
-    // Cursor does not read .editorconfig without it.
-    "editorconfig.editorconfig"
-  ],
-  // All three format to Prettier's defaults, which contradict .oxfmtrc.json; unwanted stops the
-  // prompt re-adding them for THIS workspace (they stay active in other repos).
-  "unwantedRecommendations": [
-    "esbenp.prettier-vscode",
-    "hb432.prettier-eslint-typescript",
-    "rvest.vs-code-prettier-eslint"
-  ]
+    // Committed on purpose (.gitignore excepts this file and settings.json). Recommends only —
+    // the editor prompts, never installs. Why: eq-frontend-standards references/starter-rationale.md.
+    "recommendations": [
+        // Drives oxfmt and oxlint — the same tools the pre-commit hook and CI run.
+        "oxc.oxc-vscode",
+        // Cursor does not read .editorconfig without it.
+        "editorconfig.editorconfig"
+    ],
+    // All three format to Prettier's defaults, which contradict .oxfmtrc.json; unwanted stops the
+    // prompt re-adding them for THIS workspace (they stay active in other repos).
+    "unwantedRecommendations": [
+        "esbenp.prettier-vscode",
+        "hb432.prettier-eslint-typescript",
+        "rvest.vs-code-prettier-eslint"
+    ]
 }
