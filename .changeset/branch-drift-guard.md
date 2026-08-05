@@ -1,5 +1,0 @@
----
-"frontend-skills": minor
----
-
-New starter hook `branch-guard.sh` closes the one git failure the existing guards cannot: two interactive sessions in one checkout share HEAD, so one session's `git checkout` retargets the other between reading its branch and committing — the commit lands on the wrong branch with no error (measured today reaching a protected default branch past its required checks; no file is lost, so the file guards and stash denial never fire). The hook records each session's branch at SessionStart, updates the record on the session's own checkout/switch/worktree calls so deliberate moves never false-positive, and blocks `git commit` when HEAD drifted from the record or sits on the default branch; `CLAUDE_BRANCH_GUARD_ALLOW=1` is the explicit, greppable override, and detached HEAD (rebase/bisect) is skipped. Wired via three settings.json entries, asserted by standard-check as the seventh policy file; migration 2.4.0 names the install steps; full behaviour in references/hygiene.md §9.
