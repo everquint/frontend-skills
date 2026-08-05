@@ -1,0 +1,6 @@
+# Mechanical whole-tree rewraps. Configure once per clone:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# feat(standard): 2-space indent over the @stylistic 4 (starter reformat)
+817d6f9010fded33b3aec1086fc6ef90f9d6b5e3
+# feat(standard): indent moves to 4-space by organizational ruling (starter reformat)
+b5fcc123714d6bc156ee6aa6946c9492af215810
