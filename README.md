@@ -23,9 +23,17 @@ second is what installs the skills:
 ```
 
 The first argument is a GitHub `owner/repo`; the second is `<plugin>@<marketplace>` as declared in
-`.claude-plugin/`, which is why the order looks inverted. The plugin is named `eq` because Claude
-Code prefixes every plugin-supplied skill with it — `eq:eq-frontend-standards` in the slash-command
-picker. A longer plugin name pushes the part that identifies the skill out of the visible column.
+`.claude-plugin/`, which is why the order looks inverted.
+
+**Plugin-installed skills are invoked with the plugin as a prefix** — `/eq:eq-frontend-standards`,
+not `/eq-frontend-standards`. That is what namespaces them against your own skills, and it is why the
+plugin is named `eq`: the slash-command picker clips long names from the left, so a wordier prefix
+would hide the part that says which skill it is. **Restart the session** (or `/reload-plugins`) after
+installing — plugin components load at session start, so a fresh install is invisible until then.
+
+Pick one route, not both. The two install to different places — `npx skills add` writes
+`~/.agents/skills/`, the plugin loads from `~/.claude/plugins/` — and running both lists every skill
+twice, prefixed and not.
 
 For maintainers of this repo, `npm run link` symlinks every skill into `~/.claude/skills` and
 `~/.agents/skills`, so a `git pull` updates them in place.
@@ -74,7 +82,14 @@ update` scans only `./.claude/skills`; with nothing there it prints `No project 
 exits **0**, which reads as "checked, already current". Verified on `skills@1.5.21`, where the global
 lock lives at `~/.agents/.skill-lock.json`.
 
-Two more things it will not tell you. It tracks the **default branch**, so work sitting on a
+On the plugin route it is two commands instead, and the first is the one people skip:
+
+```
+/plugin marketplace update everquint    # re-pulls the repo — without this, install finds the old copy
+/plugin update eq@everquint             # restart required to apply
+```
+
+Two more things `npx skills update` will not tell you. It tracks the **default branch**, so work sitting on a
 feature branch is legitimately "up to date". And it compares a per-skill folder hash, so edits
 outside a skill's own directory — this `README.md`, `scripts/`, `docs/adr/` — are not an update.
 
