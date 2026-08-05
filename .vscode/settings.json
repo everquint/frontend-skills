@@ -1,0 +1,9 @@
+{
+  // The starter's oxlint/oxfmt configs carry comments (documented oxc behaviour). Without this
+  // association VS Code validates them as strict JSON and marks every comment line as an error
+  // when they are opened inside THIS repo.
+  "files.associations": {
+    ".oxlintrc*.json": "jsonc",
+    ".oxfmtrc.json": "jsonc"
+  }
+}

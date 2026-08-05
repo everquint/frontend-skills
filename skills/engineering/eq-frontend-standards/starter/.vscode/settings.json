@@ -12,7 +12,15 @@
   "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
   "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
   "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-  "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true }
+  "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+
+  // The oxlint/oxfmt config files carry comments — documented oxc behaviour, but VS Code's JSON
+  // language service validates plain .json as strict JSON and flags every comment as an error.
+  // Associating them as JSONC silences the false "Comments are not permitted in JSON" squiggles.
+  "files.associations": {
+    ".oxlintrc*.json": "jsonc",
+    ".oxfmtrc.json": "jsonc"
+  }
 
   // NOT set, and the omission is a decision: the oxc language server reads .oxlintrc.json — the
   // fast half — so the type-aware rules (typescript/no-floating-promises among them) and the 20
