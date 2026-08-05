@@ -19,7 +19,7 @@ second is what installs the skills:
 
 ```
 /plugin marketplace add everquint/frontend-skills
-/plugin install eq@everquint
+/plugin install eq@frontend-skills
 ```
 
 The first argument is a GitHub `owner/repo`; the second is `<plugin>@<marketplace>` as declared in
@@ -85,8 +85,8 @@ lock lives at `~/.agents/.skill-lock.json`.
 On the plugin route it is two commands instead, and the first is the one people skip:
 
 ```
-/plugin marketplace update everquint    # re-pulls the repo — without this, install finds the old copy
-/plugin update eq@everquint             # restart required to apply
+/plugin marketplace update frontend-skills    # re-pulls the repo — without this, install finds the old copy
+/plugin update eq@frontend-skills             # restart required to apply
 ```
 
 Two more things `npx skills update` will not tell you. It tracks the **default branch**, so work sitting on a
