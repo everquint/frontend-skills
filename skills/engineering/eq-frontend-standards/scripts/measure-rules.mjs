@@ -304,7 +304,13 @@ const sequence = [...counts.keys()].sort((a, b) => counts.get(a) - counts.get(b)
 // is stated plainly; inside it, both branches print and the migrator makes the call.
 const BAND_LOW = 240;
 const BAND_HIGH = 360;
-const branch = total < BAND_LOW ? 'ai-assisted-fix' : total > BAND_HIGH ? 'stay-on-eslint' : 'judgement-band';
+// A degraded run UNDERCOUNTS — the type-aware rules were skipped, not measured — so its total can
+// only rule one way: already above the band means above it for certain; anything else is
+// unknowable and must not print as a verdict (found live: syntax-only 209 printed "clearly below
+// ~300" while the repo's true total was ~377, steering the migrator to the wrong branch).
+const branch = syntaxOnly
+    ? (total > BAND_HIGH ? 'stay-on-eslint' : 'degraded-no-verdict')
+    : (total < BAND_LOW ? 'ai-assisted-fix' : total > BAND_HIGH ? 'stay-on-eslint' : 'judgement-band');
 const FIX_BRANCH = 'one-time AI-assisted fix, landed as ONE reviewable PR';
 const SUPPRESS_BRANCH = 'stay on ESLint + suppressions until oxc-project/oxc#10549 lands';
 const BRANCH_TEXT = {
@@ -315,6 +321,7 @@ const BRANCH_TEXT = {
         `     → ${FIX_BRANCH} — if a PR this size is one a human can actually review and land;`,
         `     → ${SUPPRESS_BRANCH} — if the fix PR's merge-conflict exposure would outlast its review.`,
     ].join('\n'),
+    'degraded-no-verdict': `NO VERDICT: ${total} violation(s) is a syntax-only UNDERCOUNT (see the banner) — the true total may sit anywhere at or above it. Fix the degrade cause and re-measure before choosing a §3 branch.`,
 };
 
 // A degraded report read without its caveat becomes a false clean on the §2 type-aware rules, so

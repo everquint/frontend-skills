@@ -1,9 +1,10 @@
 # Agent instructions
 
 This repo follows the everquint frontend standard, vendored at
-`.claude/skills/eq-frontend-standards` — **read that skill's SKILL.md before writing or reviewing
-code**. Everything needed to follow and enforce it is committed in this repo; install nothing.
-`.claude/` holds the repo policy (guard hooks, the two reviewer agents, the `/pre-pr` gate).
+`.claude/skills/eq-frontend-standards`. Everything the standard needs is already committed —
+install nothing. During normal work the standard is enforced by the gates below and by `.claude/`
+(guard hooks, the two reviewer agents, the `/pre-pr` gate); read the vendored SKILL.md only when
+a task needs the standard itself — judging a lint finding, migrating, auditing the tooling.
 
 - Gates: `npm run lint` (strict, type-aware — CI's gate), `npm run lint:fast` (the editor loop),
   `npm run typecheck`, `npm run format:check`, `npm run test:coverage`, `npm run build`.

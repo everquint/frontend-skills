@@ -365,7 +365,8 @@ if (!recorded) {
     console.error(`\n✗ This repo has never been migrated to the frontend standard.`);
     console.error(`  No ${MARKER} found.\n`);
     console.error(`  Run the migration (see the frontend-standards skill), then:`);
-    console.error(`    node <path>/standard-check.mjs --record\n`);
+    console.error(`    node <path>/standard-check.mjs --record`);
+    if (!has('--check')) console.error(`  (status mode exits 0 — the CI gate is --check, which exits 1 here)\n`);
     process.exit(has('--check') ? 1 : 0);
 }
 

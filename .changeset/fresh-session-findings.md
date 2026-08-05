@@ -1,0 +1,5 @@
+---
+"frontend-skills": patch
+---
+
+Fixes from two fresh-session field tests of v2.4.0 against real repos. The measured steering bug: a degraded (syntax-only) measure-rules run printed a confident "clearly below ~300" verdict on an undercount — live case: 209 syntax-only against a true ~377 — steering the migrator to the one-PR fix branch on incomplete data; a degraded run now rules only when already above the band, and otherwise prints NO VERDICT with the re-measure instruction. check-structure's "not scanned: docs" note no longer contradicts rule 7 (which reads docs/ from cwd regardless); standard-check's status mode says explicitly that only --check exits non-zero. Leanness, from the overwhelm assessments both sessions ran: starter/AGENTS.md's intro becomes a conditional pointer — the vendored SKILL.md is read only when a task needs the standard itself, not as a mandatory first read; SKILL.md states that a fresh adopter targets the CURRENT state and never replays MIGRATIONS history; init-greenfield's next-steps nudge rewriting the scaffold's stock README, the one file every human opens first.

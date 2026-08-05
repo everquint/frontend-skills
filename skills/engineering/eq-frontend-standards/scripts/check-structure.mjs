@@ -560,8 +560,11 @@ if (json) {
 console.log(`\nSTRUCTURE CHECK — ${rel(sourceRoot)} (${sourceFiles.length} source files of ${files.length} walked)\n`);
 
 if (unscanned.length) {
+    // docs/ is named separately or the note lies: rule 7 reads docs/features and docs/product
+    // from cwd regardless of the walk root, so listing docs as "not scanned" contradicted the
+    // rule-7 result printed below it (found by a fresh-session test).
     console.log(`  not scanned, outside ${rel(sourceRoot)}: ${unscanned.join(', ')}`);
-    console.log(`  re-run with --dir . to include them\n`);
+    console.log(`  re-run with --dir . to include them${unscanned.includes('docs') ? ' (docs/features and docs/product are still read by rule 7)' : ''}\n`);
 }
 if (readErrors.length) {
     console.log(`  ⚠ could not read ${readErrors.length} path(s), so their contents were NOT checked:`);
