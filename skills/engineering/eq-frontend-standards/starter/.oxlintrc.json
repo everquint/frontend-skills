@@ -19,139 +19,139 @@
 //
 // oxlint reads comments in .json config files; this is documented behaviour, not a hack.
 {
-    "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
 
-    "plugins": ["react", "typescript", "oxc", "import", "jsx_a11y"],
+  "plugins": ["react", "typescript", "oxc", "import", "jsx_a11y"],
 
-    // oxlint's `correctness` is the rough equivalent of eslint's js.configs.recommended plus the
-    // non-type-aware half of typescript-eslint's recommended set.
-    "categories": { "correctness": "error" },
+  // oxlint's `correctness` is the rough equivalent of eslint's js.configs.recommended plus the
+  // non-type-aware half of typescript-eslint's recommended set.
+  "categories": { "correctness": "error" },
 
-    // .agents and .claude/skills hold installed agent skills, not source. Linting them reports
-    // undefined globals against the skills' own Node scripts.
-    "ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"],
+  // .agents and .claude/skills hold installed agent skills, not source. Linting them reports
+  // undefined globals against the skills' own Node scripts.
+  "ignorePatterns": ["dist", "build", "coverage", ".agents", ".claude/skills"],
 
-    "rules": {
-        // ── §1 hygiene. eslint's `max-len` has NO oxlint equivalent. oxfmt's printWidth 120 is its
-        // only successor, and a formatter can only wrap — it cannot flag a single unbreakable token
-        // (a long URL, a base64 literal) sitting past column 120. That case is now reviewer-only.
-        "no-console": ["error", { "allow": ["error"] }],
-        "typescript/no-explicit-any": "error",
+  "rules": {
+    // ── §1 hygiene. eslint's `max-len` has NO oxlint equivalent. oxfmt's printWidth 120 is its
+    // only successor, and a formatter can only wrap — it cannot flag a single unbreakable token
+    // (a long URL, a base64 literal) sitting past column 120. That case is now reviewer-only.
+    "no-console": ["error", { "allow": ["error"] }],
+    "typescript/no-explicit-any": "error",
 
-        // A nested ternary is the shape §1's render* helper rule replaces: two conditions and two
-        // outcomes on one expression, where a changed condition diffs like a changed value.
-        // no-unneeded-ternary is deliberately absent — the formatter owns formatting, and
-        // `a ? a : b` is rewritten by hand to `a ?? b`, which is a different value for ''/0.
-        "no-nested-ternary": "error",
+    // A nested ternary is the shape §1's render* helper rule replaces: two conditions and two
+    // outcomes on one expression, where a changed condition diffs like a changed value.
+    // no-unneeded-ternary is deliberately absent — the formatter owns formatting, and
+    // `a ? a : b` is rewritten by hand to `a ?? b`, which is a different value for ''/0.
+    "no-nested-ternary": "error",
 
-        // ── §1 budgets. No function-length limit: hooks, reducers and render* helpers are
-        // legitimately long.
-        "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
-        "max-depth": ["error", 4],
-        "complexity": ["error", 15],
-        "max-lines-per-function": "off",
+    // ── §1 budgets. No function-length limit: hooks, reducers and render* helpers are
+    // legitimately long.
+    "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+    "max-depth": ["error", 4],
+    "complexity": ["error", 15],
+    "max-lines-per-function": "off",
 
-        // ── §2 correctness, lint-gated.
-        //
-        // These three were `@typescript-eslint/*` under eslint and are oxlint CORE rules, taking no
-        // prefix at all. They already arrive via the `correctness` category; pinned explicitly so a
-        // future category change cannot silently drop them.
-        "no-unused-vars": "error",
-        "no-unused-expressions": "error",
-        "no-array-constructor": "error",
+    // ── §2 correctness, lint-gated.
+    //
+    // These three were `@typescript-eslint/*` under eslint and are oxlint CORE rules, taking no
+    // prefix at all. They already arrive via the `correctness` category; pinned explicitly so a
+    // future category change cannot silently drop them.
+    "no-unused-vars": "error",
+    "no-unused-expressions": "error",
+    "no-array-constructor": "error",
 
-        // These 16 were enabled by js.configs.recommended / tseslint.configs.recommended under
-        // ESLint, and oxlint has every one of them — but sorted into `suspicious`, `style` and
-        // `restriction` rather than `correctness`, so enabling only the `correctness` category
-        // silently drops all 16. Pinned by name; do not assume a category covers them.
-        //
-        // `no-octal` was the 17th and is the ONE rule from those presets that oxlint does not
-        // implement at all. It is unreplaced: legacy octal literals (`052`) are now caught only by
-        // TypeScript, which errors on them in modules, and by review.
-        "no-case-declarations": "error",
-        "no-empty": "error",
-        "no-fallthrough": "error",
-        "no-prototype-builtins": "error",
-        "no-regex-spaces": "error",
-        "no-unexpected-multiline": "error",
-        "no-var": "error",
-        "prefer-const": "error",
-        "prefer-rest-params": "error",
-        "prefer-spread": "error",
-        "typescript/ban-ts-comment": "error",
-        "typescript/no-empty-object-type": "error",
-        "typescript/no-namespace": "error",
-        "typescript/no-require-imports": "error",
-        "typescript/no-unnecessary-type-constraint": "error",
-        "typescript/no-unsafe-function-type": "error",
+    // These 16 were enabled by js.configs.recommended / tseslint.configs.recommended under
+    // ESLint, and oxlint has every one of them — but sorted into `suspicious`, `style` and
+    // `restriction` rather than `correctness`, so enabling only the `correctness` category
+    // silently drops all 16. Pinned by name; do not assume a category covers them.
+    //
+    // `no-octal` was the 17th and is the ONE rule from those presets that oxlint does not
+    // implement at all. It is unreplaced: legacy octal literals (`052`) are now caught only by
+    // TypeScript, which errors on them in modules, and by review.
+    "no-case-declarations": "error",
+    "no-empty": "error",
+    "no-fallthrough": "error",
+    "no-prototype-builtins": "error",
+    "no-regex-spaces": "error",
+    "no-unexpected-multiline": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "prefer-spread": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-function-type": "error",
 
-        "react/no-array-index-key": "error",
-        "react/no-unstable-nested-components": "error",
-        // A `<button>` with no `type` defaults to `submit`. Inside a form, a "Remove attachment"
-        // handler therefore also submits: the page navigates and every other unsaved field is lost.
-        // Not in `correctness`, so it must be named. See references/correctness-rules.md §18.
-        "react/button-has-type": "error",
+    "react/no-array-index-key": "error",
+    "react/no-unstable-nested-components": "error",
+    // A `<button>` with no `type` defaults to `submit`. Inside a form, a "Remove attachment"
+    // handler therefore also submits: the page navigates and every other unsaved field is lost.
+    // Not in `correctness`, so it must be named. See references/correctness-rules.md §18.
+    "react/button-has-type": "error",
 
-        // oxlint's native Rust react-hooks holds exactly these two of the plugin's 29 rules, and
-        // they are the only hook coverage the fast loop has. The strict config switches them off
-        // and re-gates them through the real plugin, so a finding is never reported twice.
-        "react/rules-of-hooks": "error",
-        "react/exhaustive-deps": "error",
+    // oxlint's native Rust react-hooks holds exactly these two of the plugin's 29 rules, and
+    // they are the only hook coverage the fast loop has. The strict config switches them off
+    // and re-gates them through the real plugin, so a finding is never reported twice.
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
 
-        // ── §6 duplication, the mechanical case. Judgement-free: it cannot mistake incidental
-        // shape for a duplicated decision, so it needs no reviewer. (Its type-aware sibling,
-        // no-duplicate-type-constituents, is in the strict config.)
-        "import/no-duplicates": "error",
+    // ── §6 duplication, the mechanical case. Judgement-free: it cannot mistake incidental
+    // shape for a duplicated decision, so it needs no reviewer. (Its type-aware sibling,
+    // no-duplicate-type-constituents, is in the strict config.)
+    "import/no-duplicates": "error",
 
-        // ── a11y: the recommended set of eslint-plugin-jsx-a11y, not a hand-picked subset. All 31
-        // of its enabled rules exist in oxlint under the `jsx_a11y` prefix (underscore, not
-        // hyphen). The 3 that set ships off — anchor-ambiguous-text, control-has-associated-label,
-        // label-has-for — stay off here too.
-        "jsx_a11y/alt-text": "error",
-        "jsx_a11y/anchor-has-content": "error",
-        "jsx_a11y/anchor-is-valid": "error",
-        "jsx_a11y/aria-activedescendant-has-tabindex": "error",
-        "jsx_a11y/aria-props": "error",
-        "jsx_a11y/aria-proptypes": "error",
-        "jsx_a11y/aria-role": "error",
-        "jsx_a11y/aria-unsupported-elements": "error",
-        "jsx_a11y/autocomplete-valid": "error",
-        "jsx_a11y/click-events-have-key-events": "error",
-        "jsx_a11y/heading-has-content": "error",
-        "jsx_a11y/html-has-lang": "error",
-        "jsx_a11y/iframe-has-title": "error",
-        "jsx_a11y/img-redundant-alt": "error",
-        "jsx_a11y/interactive-supports-focus": "error",
-        "jsx_a11y/label-has-associated-control": "error",
-        "jsx_a11y/media-has-caption": "error",
-        "jsx_a11y/mouse-events-have-key-events": "error",
-        "jsx_a11y/no-access-key": "error",
-        "jsx_a11y/no-autofocus": "error",
-        "jsx_a11y/no-distracting-elements": "error",
-        "jsx_a11y/no-interactive-element-to-noninteractive-role": "error",
-        "jsx_a11y/no-noninteractive-element-interactions": "error",
-        "jsx_a11y/no-noninteractive-element-to-interactive-role": "error",
-        "jsx_a11y/no-noninteractive-tabindex": "error",
-        "jsx_a11y/no-redundant-roles": "error",
-        "jsx_a11y/no-static-element-interactions": "error",
-        "jsx_a11y/role-has-required-aria-props": "error",
-        "jsx_a11y/role-supports-aria-props": "error",
-        "jsx_a11y/scope": "error",
-        "jsx_a11y/tabindex-no-positive": "error",
+    // ── a11y: the recommended set of eslint-plugin-jsx-a11y, not a hand-picked subset. All 31
+    // of its enabled rules exist in oxlint under the `jsx_a11y` prefix (underscore, not
+    // hyphen). The 3 that set ships off — anchor-ambiguous-text, control-has-associated-label,
+    // label-has-for — stay off here too.
+    "jsx_a11y/alt-text": "error",
+    "jsx_a11y/anchor-has-content": "error",
+    "jsx_a11y/anchor-is-valid": "error",
+    "jsx_a11y/aria-activedescendant-has-tabindex": "error",
+    "jsx_a11y/aria-props": "error",
+    "jsx_a11y/aria-proptypes": "error",
+    "jsx_a11y/aria-role": "error",
+    "jsx_a11y/aria-unsupported-elements": "error",
+    "jsx_a11y/autocomplete-valid": "error",
+    "jsx_a11y/click-events-have-key-events": "error",
+    "jsx_a11y/heading-has-content": "error",
+    "jsx_a11y/html-has-lang": "error",
+    "jsx_a11y/iframe-has-title": "error",
+    "jsx_a11y/img-redundant-alt": "error",
+    "jsx_a11y/interactive-supports-focus": "error",
+    "jsx_a11y/label-has-associated-control": "error",
+    "jsx_a11y/media-has-caption": "error",
+    "jsx_a11y/mouse-events-have-key-events": "error",
+    "jsx_a11y/no-access-key": "error",
+    "jsx_a11y/no-autofocus": "error",
+    "jsx_a11y/no-distracting-elements": "error",
+    "jsx_a11y/no-interactive-element-to-noninteractive-role": "error",
+    "jsx_a11y/no-noninteractive-element-interactions": "error",
+    "jsx_a11y/no-noninteractive-element-to-interactive-role": "error",
+    "jsx_a11y/no-noninteractive-tabindex": "error",
+    "jsx_a11y/no-redundant-roles": "error",
+    "jsx_a11y/no-static-element-interactions": "error",
+    "jsx_a11y/role-has-required-aria-props": "error",
+    "jsx_a11y/role-supports-aria-props": "error",
+    "jsx_a11y/scope": "error",
+    "jsx_a11y/tabindex-no-positive": "error",
 
-        // React 17+ automatic JSX runtime. (eslint's react/prop-types has no oxlint equivalent and
-        // needed no replacement — it was already off, because prop types are TypeScript's job.)
-        "react/react-in-jsx-scope": "off"
-    },
+    // React 17+ automatic JSX runtime. (eslint's react/prop-types has no oxlint equivalent and
+    // needed no replacement — it was already off, because prop types are TypeScript's job.)
+    "react/react-in-jsx-scope": "off"
+  },
 
-    "overrides": [
-        {
-            // Tests are exempt from the size budget: a long flat list of cases is the right shape.
-            "files": ["**/*.test.ts", "**/*.test.tsx", "src/test/**"],
-            "rules": {
-                "max-lines": "off",
-                "max-lines-per-function": "off"
-            }
-        }
-    ]
+  "overrides": [
+    {
+      // Tests are exempt from the size budget: a long flat list of cases is the right shape.
+      "files": ["**/*.test.ts", "**/*.test.tsx", "src/test/**"],
+      "rules": {
+        "max-lines": "off",
+        "max-lines-per-function": "off"
+      }
+    }
+  ]
 }

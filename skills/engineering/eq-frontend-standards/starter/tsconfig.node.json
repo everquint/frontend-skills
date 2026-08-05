@@ -7,43 +7,43 @@
  * `process.env` and `Buffer` type-check in code that ships to a browser, where both are undefined.
  */
 {
-    "compilerOptions": {
-        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-        "target": "es2023",
-        "lib": ["ES2023"],
-        "types": ["node"],
-        "skipLibCheck": true,
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
 
-        /* Bundler mode */
-        "module": "nodenext",
-        "allowImportingTsExtensions": true,
-        "verbatimModuleSyntax": true,
-        "moduleDetection": "force",
-        "noEmit": true,
+    /* Bundler mode */
+    "module": "nodenext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
 
-        /* Linting */
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "erasableSyntaxOnly": true,
-        "noFallthroughCasesInSwitch": true,
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
 
-        /* Correctness — added by this standard, and identical to tsconfig.app.json. Rationale for each
-         * flag is written out there; it is not repeated here so the two cannot drift in prose while
-         * agreeing in values. */
+    /* Correctness — added by this standard, and identical to tsconfig.app.json. Rationale for each
+     * flag is written out there; it is not repeated here so the two cannot drift in prose while
+     * agreeing in values. */
 
-        /* Version-dependent default: measured false on TS 5.9.3, true on 6.0.3. Never inherited. */
-        "strict": true,
+    /* Version-dependent default: measured false on TS 5.9.3, true on 6.0.3. Never inherited. */
+    "strict": true,
 
-        /* `process.argv[2]` and `env[key]` are exactly the reads this catches, and config code is full
-         * of them. */
-        "noUncheckedIndexedAccess": true,
+    /* `process.argv[2]` and `env[key]` are exactly the reads this catches, and config code is full
+     * of them. */
+    "noUncheckedIndexedAccess": true,
 
-        /* An override that does not override. */
-        "noImplicitOverride": true
-    },
-    /* Every build-time config, not just the bundler's. `vitest.config.ts` IS the coverage gate and
-     * `playwright.config.ts` IS the E2E entry point, so the rationale at the top of this file applies
-     * to them unchanged — and a file in no project is read by no `tsc -b`, which means a type error in
-     * the gate config surfaces as a confusing runtime failure instead of a build error. */
-    "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+    /* An override that does not override. */
+    "noImplicitOverride": true
+  },
+  /* Every build-time config, not just the bundler's. `vitest.config.ts` IS the coverage gate and
+   * `playwright.config.ts` IS the E2E entry point, so the rationale at the top of this file applies
+   * to them unchanged — and a file in no project is read by no `tsc -b`, which means a type error in
+   * the gate config surfaces as a confusing runtime failure instead of a build error. */
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }

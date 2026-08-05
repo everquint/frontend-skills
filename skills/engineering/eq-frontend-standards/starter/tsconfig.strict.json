@@ -24,14 +24,14 @@
  *   tsc -p tsconfig.strict.json --noEmit
  */
 {
-    "extends": "./tsconfig.app.json",
-    "compilerOptions": {
-        /* Its own build-info path. Sharing tsconfig.app.json's would let a ratchet run and a
-         * `npm run typecheck` run invalidate each other's cache under a different flag set. */
-        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.strict.tsbuildinfo",
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    /* Its own build-info path. Sharing tsconfig.app.json's would let a ratchet run and a
+     * `npm run typecheck` run invalidate each other's cache under a different flag set. */
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.strict.tsbuildinfo",
 
-        /* The one flag this config exists for. Inherited from tsconfig.app.json in a greenfield repo;
-         * restated here so the file is self-contained after an existing repo removes it from there. */
-        "noUncheckedIndexedAccess": true
-    }
+    /* The one flag this config exists for. Inherited from tsconfig.app.json in a greenfield repo;
+     * restated here so the file is self-contained after an existing repo removes it from there. */
+    "noUncheckedIndexedAccess": true
+  }
 }
