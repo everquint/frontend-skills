@@ -9,20 +9,26 @@ description: Delivery workflow — branch or worktree, commits, PRs, review, mer
 
 Default to a **branch**. The working tree already has `node_modules`, editor state, and build caches warm.
 
-A **git worktree** is a second checkout of the same repository on its own branch, in its own directory. It costs a dependency install: a fresh worktree has no `node_modules`, so a full install runs per worktree. On a large repo that is minutes of wall time and gigabytes of disk each. Some package managers and tools can link or share a store across checkouts; **assume a full reinstall unless it is verified for this repo**.
+A **git worktree** is a second checkout of the same repository on its own branch, in its own directory. It costs a dependency install: a fresh worktree has no `node_modules` — **assume a full reinstall per worktree** (minutes and gigabytes on a large repo) unless a shared store is verified for this repo.
 
 | Situation | Use | Why |
 |---|---|---|
 | One agent or one person, one task | Branch | No install cost, warm caches |
-| Two or more agents working at once | Worktree per agent | Agents collide over a single dirty working tree — one stages or reverts the other's edits |
+| Two or more agents or SESSIONS working at once | Worktree per agent/session | Shared HEAD — the silent-failure hazard below, not just a dirty-tree collision |
 | Risky or disposable spike | Worktree | Delete the directory to discard everything, no branch surgery |
 | Long-lived work needing frequent switching back to the default branch | Worktree | Avoids repeated rebuild of the primary checkout |
 | Hotfix while a feature is mid-flight and uncommitted | Worktree | Do not stash; stash is invisible state that gets lost |
 | Task is one file or a doc edit | Branch | Install cost dominates the task |
 
-Claude Code subagents accept `isolation: "worktree"` natively — the agent gets its own worktree and it is cleaned up automatically if nothing changed. Use it for parallel agent fan-out, not for a single sequential task.
+**Two interactive sessions in one checkout fail silently.** Branches do not isolate them: HEAD is
+shared, so session B's `git checkout` retargets session A between reading its branch and
+committing — the commit lands on B's branch with no error (measured: a fix-branch commit reached
+main past its required checks). Worktree per interactive session, and re-check
+`git branch --show-current` immediately before every commit regardless. A worktree isolates HEAD
+and the working tree ONLY — `~/.claude/settings.json`, plugin registrations, and everything else
+outside the repo stay shared and clobberable.
 
-Remove a finished worktree with `git worktree remove <path>`; inspect with `git worktree list` and `git worktree prune --dry-run -v`.
+Claude Code subagents accept `isolation: "worktree"` natively — the agent gets its own worktree and it is cleaned up automatically if nothing changed. Use it for parallel agent fan-out, not for a single sequential task. Remove a finished worktree with `git worktree remove <path>`; inspect with `git worktree list`.
 
 ## Execution model
 
@@ -43,8 +49,6 @@ The primary agent **orients, plans, decides the approach, and holds the thread**
 **The primary agent stays responsible for the result.** Read what a subagent returns, verify its claims against the actual diff, and never relay an unverified summary as fact.
 
 The primary agent edits directly in exactly three cases: a one-line or trivially mechanical fix, documentation, and anything the user asks to be done inline.
-
-Every rule in this section is reviewer-enforced except the stash denial, which the starter's settings file blocks at the tool call.
 
 ## Before writing it: look it up
 
@@ -95,8 +99,6 @@ Rules:
 
 ### Merge with merge commits, never squash
 
-Consequences, both directions:
-
 - History keeps **every individual commit**, so the local `commit-msg` hook genuinely protects the log. PR-title linting is redundant under this model — do not configure it, since the titles are not what lands.
 - Commit granularity matters far more than under a squash workflow. Under squash a sloppy intermediate commit disappears at merge; here it is permanent and will be read during a future bisect. Clean up the branch before the gate: `git rebase -i` to squash "fix typo" and "wip" commits into the commit they belong to.
 
@@ -104,9 +106,7 @@ commitlint ignores merge commits by default (core `defaultIgnores`), so a `Merge
 
 ## When to open the PR
 
-Push the branch and open a **draft PR after the first meaningful commit**, not at the end. Draft PRs run CI, which surfaces environment-only failures early, and they make in-flight work visible so two people do not build the same thing.
-
-Mark **ready for review** only once the gate below passes locally and CI is green.
+Push the branch and open a **draft PR after the first meaningful commit**, not at the end. Draft PRs run CI, which surfaces environment-only failures early, and they make in-flight work visible so two people do not build the same thing. Mark **ready for review** only once the gate below passes locally and CI is green.
 
 ## The gate before pushing
 
