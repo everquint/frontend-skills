@@ -34,17 +34,33 @@ if (!found) {
 
 if (found[2] === version) {
     console.log(`sync-standard-version: STANDARD_VERSION already ${version}`);
-    process.exit(0);
+} else {
+    writeFileSync(TARGET, source.replace(PATTERN, `$1${version}$3`));
+
+    // Read back rather than trusting the write: a regex that matched but substituted nothing would
+    // otherwise report success and leave the release PR red.
+    const after = readFileSync(TARGET, 'utf8').match(PATTERN);
+    if (after?.[2] !== version) {
+        console.error(`sync-standard-version: rewrite did not take — still '${after?.[2]}', wanted '${version}'`);
+        process.exit(1);
+    }
+
+    console.log(`sync-standard-version: STANDARD_VERSION ${found[2]} -> ${version}`);
 }
 
-writeFileSync(TARGET, source.replace(PATTERN, `$1${version}$3`));
+// The Claude Code plugin manifest carries its own version, and `changeset version` does not touch
+// it either. Same contract as the constant above: validate-skills.mjs asserts the two agree, so a
+// release that skipped this step fails CI rather than shipping a manifest claiming an old version.
+const MANIFEST = join(ROOT, '.claude-plugin', 'plugin.json');
+const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
 
-// Read back rather than trusting the write: a regex that matched but substituted nothing would
-// otherwise report success and leave the release PR red.
-const after = readFileSync(TARGET, 'utf8').match(PATTERN);
-if (after?.[2] !== version) {
-    console.error(`sync-standard-version: rewrite did not take — still '${after?.[2]}', wanted '${version}'`);
-    process.exit(1);
+if (manifest.version === version) {
+    console.log(`sync-standard-version: plugin.json version already ${version}`);
+} else {
+    const before = manifest.version;
+    manifest.version = version;
+    // Rewritten through JSON.stringify, so key order follows the object — `version` keeps its
+    // position because parsing preserves insertion order. Trailing newline matches the original.
+    writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n');
+    console.log(`sync-standard-version: plugin.json version ${before} -> ${version}`);
 }
-
-console.log(`sync-standard-version: STANDARD_VERSION ${found[2]} -> ${version}`);

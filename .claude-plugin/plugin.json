@@ -1,9 +1,27 @@
 {
   "name": "frontend-standards",
   "description": "Frontend engineering standards: code conventions, delivery workflow, and the quality bar (TDD, observability, performance, accessibility, security).",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "license": "MIT",
   "author": {
     "name": "gokulsgr"
-  }
+  },
+  "homepage": "https://github.com/everquint/frontend-skills",
+  "repository": "https://github.com/everquint/frontend-skills",
+  "keywords": [
+    "frontend",
+    "typescript",
+    "oxlint",
+    "oxfmt",
+    "tdd",
+    "code-review",
+    "conventions"
+  ],
+  "skills": [
+    "./skills/engineering/eq-frontend-standards",
+    "./skills/engineering/eq-frontend-workflow",
+    "./skills/engineering/eq-frontend-quality-bar",
+    "./skills/productivity/eq-create-issue",
+    "./skills/productivity/eq-take-issue"
+  ]
 }

@@ -14,10 +14,12 @@ npx skills add everquint/frontend-skills
 Works in any harness that supports [Agent Skills](https://agentskills.io) — Claude Code, Cursor,
 Codex, Gemini CLI, VS Code, Copilot, OpenCode and others.
 
-As a Claude Code plugin:
+As a Claude Code plugin — **both** commands, in order. The first only registers the catalogue; the
+second is what installs the skills:
 
 ```
 /plugin marketplace add everquint/frontend-skills
+/plugin install frontend-standards@frontend-standards
 ```
 
 For maintainers of this repo, `npm run link` symlinks every skill into `~/.claude/skills` and
