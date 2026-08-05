@@ -103,6 +103,13 @@
     // no-duplicate-type-constituents, is in the strict config.)
     "import/no-duplicates": "error",
 
+    // ── §2 circular imports — the one import defect TypeScript does not catch: `tsc` compiles a
+    // cycle happily, and the bug surfaces at runtime as an `undefined` binding whose value depends
+    // on which module loaded first. Not in any recommended preset (under ESLint this rule was too
+    // slow to leave on); oxlint's native version is cheap enough for the fast loop. Measured at
+    // zero violations on both adopted repos before enabling — docs/adr/0012 in the standard repo.
+    "import/no-cycle": "error",
+
     // ── a11y: the recommended set of eslint-plugin-jsx-a11y, not a hand-picked subset. All 31
     // of its enabled rules exist in oxlint under the `jsx_a11y` prefix (underscore, not
     // hyphen). The 3 that set ships off — anchor-ambiguous-text, control-has-associated-label,
