@@ -32,9 +32,9 @@ the closest thing the repo already does. Prior art settles more approach questio
 does.
 
 Where the repo has `docs/product/`, read `INDEX.md` and the files it routes to for this ticket:
-`feature-inventory.md` names the entry point — the prior art lookup — and a `constraints.md` entry
-can veto an approach before it is proposed. A ticket that duplicates an inventory line goes back to
-the human as a question, not into code.
+the feature doc in `docs/features/` is the prior art and carries the decisions this ticket
+inherits, and a `constraints.md` entry can veto an approach before it is proposed. A ticket that
+duplicates an existing feature doc goes back to the human as a question, not into code.
 
 Look outside the repo too, before proposing anything: whether a maintained package already solves this,
 and how the libraries involved actually behave at the versions this repo pins. Both are facts, so both
@@ -94,9 +94,10 @@ Under `../eq-frontend-workflow/SKILL.md` for branch, commits, and delegation, an
 - Typecheck often, run the touched test files often, run the full suite once at the end.
 - **The approach is settled.** A discovery that breaks it goes back to the human as a question, not
   into the diff as a decision. Post the change of approach to the issue comment when it lands.
-- **A capability added or removed is an inventory line added or removed.** Update
-  `docs/product/feature-inventory.md` in the same branch — it is part of the diff, not a follow-up;
-  `/pre-pr` reports it missing.
+- **A capability shipped is a feature doc shipped.** Write `docs/features/<ticket>-<slug>.md` from
+  the ticket and the step 5 approach comment (why, behaviour, decisions, out of scope — format:
+  the repo's `docs/features/README.md`) in the same branch; a changed behaviour updates the
+  existing doc. It is part of the diff, not a follow-up; `/pre-pr` reports it missing.
 
 ## 7. Verify against the ticket, not against the code
 

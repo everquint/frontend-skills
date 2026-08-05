@@ -128,6 +128,16 @@ const MIGRATIONS = {
         'Re-pull starter/AGENTS.md (or merge its product-knowledge bullet) and .claude/commands/pre-pr.md — the gate now checks that a capability-changing diff also updates the inventory.',
         'From now on, a PR that adds or removes a user-facing capability updates feature-inventory.md in the same PR.',
     ],
+    // v2 of product knowledge (docs/adr/0015): per-feature docs replace the hand-maintained
+    // inventory — the docs/features/ directory IS the index, agents write and maintain the files,
+    // /doc-lint audits claims. Repos coming from <1.9.0 skip the 1.9.0 inventory seeding above and
+    // land here directly.
+    '2.0.0': [
+        'Create docs/features/ with the starter\'s README.md (the format), and re-pull docs/product/INDEX.md and constraints.md — constraints now owns the NOT SUPPORTED list.',
+        'Convert feature-inventory.md if you seeded one: each line becomes a feature doc in docs/features/ (an agent pass converts it; backfill only capabilities that matter — a doc per legacy feature is not required), move its NOT SUPPORTED lines into constraints.md, then delete the inventory.',
+        'Re-pull starter/AGENTS.md, .claude/commands/pre-pr.md, and copy .claude/commands/doc-lint.md — the PR gate now expects a feature doc per capability change, and /doc-lint is the periodic claims audit.',
+        'From now on, the agent that ships a capability writes its feature doc in the shipping PR, from the ticket material; whoever changes the behaviour updates the doc in that PR.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
@@ -241,12 +251,18 @@ for (const sentinel of ['SKILL.md', join('scripts', 'check-structure.mjs')]) {
 
 // ── product knowledge ────────────────────────────────────────────────────────
 // "Does this already exist?" and "is this feasible?" cannot be read out of code — a capability's
-// ABSENCE is invisible in a codebase — so the standard carries the answers as docs/product/, and
-// starter/AGENTS.md routes agents to it. Presence only: what the files say stays reviewer-owned,
-// and a cited entry-point path that no longer exists fails check-structure.mjs rule 7.
-for (const f of ['INDEX.md', 'feature-inventory.md', 'constraints.md', 'current-focus.md']) {
-    if (!existsSync(join(cwd, 'docs', 'product', f))) {
-        policyGaps.push(`docs/product/${f} — missing. Copy the template from the skill starter's docs/product/ and seed it: without it, agents judging feasibility or duplicates work from the code alone, which cannot state what is deliberately absent.`);
+// ABSENCE is invisible in a codebase — so the standard carries the answers as docs/product/ plus
+// per-feature docs in docs/features/ (written by the agent that ships the feature, docs/adr/0015),
+// and starter/AGENTS.md routes agents to them. Presence only: what the files say stays owned by
+// /doc-lint and review, and a cited path that no longer exists fails check-structure.mjs rule 7.
+for (const rel of [
+    join('docs', 'product', 'INDEX.md'),
+    join('docs', 'product', 'constraints.md'),
+    join('docs', 'product', 'current-focus.md'),
+    join('docs', 'features', 'README.md'),
+]) {
+    if (!existsSync(join(cwd, rel))) {
+        policyGaps.push(`${rel} — missing. Copy it from the skill starter and seed it: without these, agents judging feasibility or duplicates work from the code alone, which cannot state what is deliberately absent.`);
     }
 }
 
