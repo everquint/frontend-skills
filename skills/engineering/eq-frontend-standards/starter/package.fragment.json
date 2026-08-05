@@ -18,7 +18,10 @@
     "release": "changeset tag"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs,cjs}": ["oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'", "oxlint --fix --no-error-on-unmatched-pattern"],
+    "*.{ts,tsx,js,jsx,mjs,cjs}": [
+      "oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'",
+      "oxlint --fix --no-error-on-unmatched-pattern"
+    ],
     "*.{css,scss,json,jsonc,md,yml,yaml}": ["oxfmt --no-error-on-unmatched-pattern '!.claude/skills/**' '!.agents/**'"]
   },
   "devDependencies": {

@@ -1,8 +1,6 @@
 {
   "permissions": {
-    "deny": [
-      "Bash(git stash:*)"
-    ]
+    "deny": ["Bash(git stash:*)"]
   },
   "hooks": {
     "PreToolUse": [

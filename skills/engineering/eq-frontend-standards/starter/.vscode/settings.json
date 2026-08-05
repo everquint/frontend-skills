@@ -1,24 +1,24 @@
 {
-    // Committed on purpose — see extensions.json. That file only STOPS the recommendation prompt
-    // from suggesting Prettier; this one is what actually routes files to oxfmt. Per-LANGUAGE
-    // blocks, not a single workspace-level editor.defaultFormatter: a user-level "[typescript]"
-    // block outranks a workspace-level default, so a Prettier user's personal config would win —
-    // and their saves would emit double quotes at printWidth 80 and fail `npm run format:check`
-    // on every file. A workspace [language] block is the highest-precedence spelling available.
-    //
-    // formatOnSave lives INSIDE the blocks, deliberately: set at the top level it would also fire
-    // on json/css/md, where whichever formatter the USER has as default (often Prettier) would
-    // take the file. Those types are still formatted at commit by lint-staged.
-    "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-    "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-    "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
-    "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true }
+  // Committed on purpose — see extensions.json. That file only STOPS the recommendation prompt
+  // from suggesting Prettier; this one is what actually routes files to oxfmt. Per-LANGUAGE
+  // blocks, not a single workspace-level editor.defaultFormatter: a user-level "[typescript]"
+  // block outranks a workspace-level default, so a Prettier user's personal config would win —
+  // and their saves would emit double quotes at printWidth 80 and fail `npm run format:check`
+  // on every file. A workspace [language] block is the highest-precedence spelling available.
+  //
+  // formatOnSave lives INSIDE the blocks, deliberately: set at the top level it would also fire
+  // on json/css/md, where whichever formatter the USER has as default (often Prettier) would
+  // take the file. Those types are still formatted at commit by lint-staged.
+  "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+  "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+  "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true },
+  "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode", "editor.formatOnSave": true }
 
-    // NOT set, and the omission is a decision: the oxc language server reads .oxlintrc.json — the
-    // fast half — so the type-aware rules (typescript/no-floating-promises among them) and the 20
-    // react-hooks-js rules never squiggle in the editor; they surface at `npm run lint` and CI.
-    // Pointing the editor at the strict config costs type-aware analysis per keystroke, so it is a
-    // per-machine judgement by repo size, not repo policy. To opt in, add:
-    //     "oxc.configPath": ".oxlintrc.strict.json",
-    //     "oxc.typeAware": true
+  // NOT set, and the omission is a decision: the oxc language server reads .oxlintrc.json — the
+  // fast half — so the type-aware rules (typescript/no-floating-promises among them) and the 20
+  // react-hooks-js rules never squiggle in the editor; they surface at `npm run lint` and CI.
+  // Pointing the editor at the strict config costs type-aware analysis per keystroke, so it is a
+  // per-machine judgement by repo size, not repo policy. To opt in, add:
+  //     "oxc.configPath": ".oxlintrc.strict.json",
+  //     "oxc.typeAware": true
 }

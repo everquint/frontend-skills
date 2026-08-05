@@ -1,11 +1,11 @@
 {
-    "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-    "changelog": "@changesets/cli/changelog",
-    "commit": false,
-    "access": "restricted",
-    "baseBranch": "main",
-    "privatePackages": {
-        "version": true,
-        "tag": true
-    }
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "access": "restricted",
+  "baseBranch": "main",
+  "privatePackages": {
+    "version": true,
+    "tag": true
+  }
 }

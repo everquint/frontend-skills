@@ -1,5 +1,6 @@
 // oxfmt is the formatter. It replaces the @stylistic ESLint rules the standard used to format
-// with: 4-space indent, single quotes, semicolons, 120 columns.
+// with: 2-space indent (the JS/TS ecosystem norm — docs/adr/0009 in the standard repo),
+// single quotes, semicolons, 120 columns.
 //
 // printWidth 120 is a DECIDED value, not the old `max-len` ceiling carried forward — ADR 0007 in the standard repo (everquint/frontend-skills, docs/adr/).
 // `max-len` only ever FLAGGED long lines; oxfmt actively JOINS short ones, so a wide printWidth
@@ -10,56 +11,47 @@
 // formatter can only wrap, so a single unbreakable token past column 120 is reviewer-only; a
 // past-width Tailwind class string is extracted to a named constant (references/styling.md §1).
 {
-    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
 
-    "tabWidth": 4,
-    "singleQuote": true,
-    "semi": true,
-    "printWidth": 120,
+  "tabWidth": 2,
+  "singleQuote": true,
+  "semi": true,
+  "printWidth": 120,
 
-    // JSX attributes keep double quotes, which is what React code looks like everywhere and what
-    // the @stylistic config produced (its `quotes` rule never applied to JSX attribute strings).
-    "jsxSingleQuote": false,
+  // JSX attributes keep double quotes, which is what React code looks like everywhere and what
+  // the @stylistic config produced (its `quotes` rule never applied to JSX attribute strings).
+  "jsxSingleQuote": false,
 
-    "sortImports": {
-        // Set explicitly. The default group order is not a contract, and import grouping is the
-        // kind of thing that silently rewrites every file in the repo when an upstream default
-        // changes.
-        "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"],
-        // `@/` is this standard's source alias, so alias imports group as internal rather than
-        // falling through to `unknown`.
-        "internalPattern": ["~/", "@/", "#"]
-    },
+  "sortImports": {
+    // Set explicitly. The default group order is not a contract, and import grouping is the
+    // kind of thing that silently rewrites every file in the repo when an upstream default
+    // changes.
+    "groups": ["builtin", "external", "internal", "parent", "sibling", "index", "unknown"],
+    // `@/` is this standard's source alias, so alias imports group as internal rather than
+    // falling through to `unknown`.
+    "internalPattern": ["~/", "@/", "#"]
+  },
 
-    // Tailwind v4 keeps its theme in CSS, not a `tailwind.config.js`, so the sorter has to be
-    // pointed at the stylesheet that holds `@import 'tailwindcss'`. If it cannot resolve this path
-    // it sorts NOTHING and still exits 0 — a silent no-op, not an error. A repo that renames or
-    // moves its entry stylesheet MUST update this path, and should confirm sorting still happens
-    // by reordering two classes and running `npm run format`.
-    "sortTailwindcss": {
-        "stylesheet": "src/index.css",
-        // The helpers whose arguments hold class strings. Without these, classes passed through
-        // `cn(...)` are left unsorted while classes in a bare `className="..."` are sorted, which
-        // reads as the sorter being broken.
-        "functions": ["cn", "clsx", "cva", "twMerge"]
-    },
+  // Tailwind v4 keeps its theme in CSS, not a `tailwind.config.js`, so the sorter has to be
+  // pointed at the stylesheet that holds `@import 'tailwindcss'`. If it cannot resolve this path
+  // it sorts NOTHING and still exits 0 — a silent no-op, not an error. A repo that renames or
+  // moves its entry stylesheet MUST update this path, and should confirm sorting still happens
+  // by reordering two classes and running `npm run format`.
+  "sortTailwindcss": {
+    "stylesheet": "src/index.css",
+    // The helpers whose arguments hold class strings. Without these, classes passed through
+    // `cn(...)` are left unsorted while classes in a bare `className="..."` are sorted, which
+    // reads as the sorter being broken.
+    "functions": ["cn", "clsx", "cva", "twMerge"]
+  },
 
-    "overrides": [
-        {
-            // `singleQuote` is not JS-only: it also applies to CSS, Less and SCSS, where it
-            // rewrites `url("…")` and `@import "…"` to single quotes. That is legal CSS but is not
-            // what any stylesheet in the ecosystem looks like, so stylesheets keep double quotes.
-            "files": ["**/*.css", "**/*.scss", "**/*.less"],
-            "options": { "singleQuote": false }
-        },
-        {
-            // YAML is 2-space everywhere in the ecosystem, and `.editorconfig` already says so for
-            // these extensions. Without this override oxfmt reindents every workflow to 4 and
-            // `format:check` then enforces it, so the two tools disagree on the same file and
-            // `.editorconfig` is the one that loses — an editor indenting new lines at 2 while the
-            // gate demands 4. Measured on oxfmt 0.62.0: it reformats YAML, so this is not inert.
-            "files": ["**/*.yml", "**/*.yaml"],
-            "options": { "tabWidth": 2 }
-        }
-    ]
+  "overrides": [
+    {
+      // `singleQuote` is not JS-only: it also applies to CSS, Less and SCSS, where it
+      // rewrites `url("…")` and `@import "…"` to single quotes. That is legal CSS but is not
+      // what any stylesheet in the ecosystem looks like, so stylesheets keep double quotes.
+      "files": ["**/*.css", "**/*.scss", "**/*.less"],
+      "options": { "singleQuote": false }
+    }
+  ]
 }
