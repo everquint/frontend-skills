@@ -22,7 +22,7 @@ A **git worktree** is a second checkout of the same repository on its own branch
 
 Claude Code subagents accept `isolation: "worktree"` natively — the agent gets its own worktree and it is cleaned up automatically if nothing changed. Use it for parallel agent fan-out, not for a single sequential task.
 
-Remove a finished worktree with `git worktree remove <path>`. List what exists with `git worktree list`; preview what would be cleaned up with `git worktree prune --dry-run -v`. Bare `git worktree prune` removes stale entries and prints nothing.
+Remove a finished worktree with `git worktree remove <path>`; inspect with `git worktree list` and `git worktree prune --dry-run -v`.
 
 ## Execution model
 
@@ -98,7 +98,7 @@ Consequences, both directions:
 - History keeps **every individual commit**, so the local `commit-msg` hook genuinely protects the log. PR-title linting is redundant under this model — do not configure it, since the titles are not what lands.
 - Commit granularity matters far more than under a squash workflow. Under squash a sloppy intermediate commit disappears at merge; here it is permanent and will be read during a future bisect. Clean up the branch before the gate: `git rebase -i` to squash "fix typo" and "wip" commits into the commit they belong to.
 
-commitlint ignores merge commits by default — the patterns live in commitlint core's `defaultIgnores`, not in `@commitlint/config-conventional` (which exports only `parserPreset`, `rules`, and `prompt`). So a `Merge branch …` message does not need to be conventional.
+commitlint ignores merge commits by default (core `defaultIgnores`), so a `Merge branch …` message does not need to be conventional.
 
 ## When to open the PR
 
@@ -179,13 +179,12 @@ Versioning uses **Changesets**. A PR that changes published behaviour includes a
 
 Changesets rather than semantic-release because the bump is a human decision about consumer impact, reviewable per PR, rather than inferred from commit messages — and `feat:` versus `fix:` is routinely wrong at commit time on a branch that later grows. Full comparison: `references/release-tooling.md`.
 
-**Manual version bumps in a `chore: bump version` commit are an anti-pattern.** They race with the release tooling, produce versions with no changelog entry, and make the published version disagree with the tag. Version numbers are written by the release job, never by hand.
-
-**`CHANGELOG.md` is generated at the repo root by the release job — never hand-written and never hand-edited.** `changeset version` writes it from the accumulated changesets, so it first appears at the first release; the requirement on a repo with no releases yet is the mechanism, not the file. A hand-written entry disagrees with the changesets that actually shipped, so the file stops being derivable from them and the next `changeset version` either overwrites the edit or conflicts with it.
-
-**A release job is required.** It consumes the changesets, bumps the versions, regenerates `CHANGELOG.md`, and tags. Doing any of that by hand fails exactly as the paragraph above describes. It lives in `.github/workflows/release.yml`; `hygiene.md` §1 carries the gate row and §6 the wiring.
-
-Enforcement splits, and the halves are not equal. **Regeneration is machine-enforced**: the release job rewrites `CHANGELOG.md` from the changesets, so a hand-edit is destroyed at the next release rather than caught at the commit that made it. **That no commit hand-edits the file is reviewer-enforced** — a `CHANGELOG.md` diff in any commit that is not the release job's is a finding. The missing-changeset half is already a merge requirement above, caught by a CI check.
+**A release job is required, and it owns the version and `CHANGELOG.md`.** It consumes the
+changesets, bumps the versions, regenerates the changelog, and tags — none of that is done by hand,
+and `CHANGELOG.md` is never hand-written or hand-edited. It lives in
+`.github/workflows/release.yml`; `hygiene.md` §1 carries the gate row and §6 the wiring. Why
+hand-bumps and hand-edits fail, and which half of this is machine-enforced:
+`references/release-tooling.md`, "CHANGELOG.md is a build output".
 
 ## Rollback
 

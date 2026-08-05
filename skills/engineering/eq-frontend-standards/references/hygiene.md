@@ -612,3 +612,20 @@ to one machine, so these entries are mandatory, not a measurement-time workaroun
 `.claude/skills` and not `.claude` — the rest of the tree is small, hand-written, and worth linting.
 Lint-ignored and git-ignored point opposite ways here: `.claude/skills` is **excluded from linting
 and committed to git** (§10). Missing that distinction is what produces the 108-finding jump.
+
+## 11. Rule identifiers, and the two rules the toolchain move lost
+
+Rule identifiers are oxlint's, not ESLint's: `@typescript-eslint/x` is `typescript/x`, `jsx-a11y/x`
+is `jsx_a11y/x` (underscore), and `no-unused-vars`, `no-unused-expressions` and
+`no-array-constructor` are unprefixed core rules. Verify a name with
+`npx oxlint -D all --print-config`; `--rules` prints nothing in 1.77.0.
+
+Two rules were lost in the move from ESLint and are now reviewer-only. `no-octal` has no oxlint
+equivalent, leaving legacy octal literals to TypeScript — which errors on them in modules — and to
+review. `max-len` has none either: `printWidth: 120` succeeds it, and a formatter wraps but cannot
+flag one unbreakable token past 120 — a past-width class string is extracted to a named constant
+(`styling.md` §1).
+
+Exempt from `max-lines`: test files, and CLI-generated directories such as `src/components/ui/`
+(`npx shadcn add` overwrites them). "Summed complexity per file" is a **review** guideline — no
+linter implements it, so do not describe it as enforced.

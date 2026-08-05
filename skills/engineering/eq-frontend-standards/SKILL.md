@@ -87,19 +87,10 @@ no formatting rules at all, so nothing in the lint gate can contradict it, and `
 | `max-lines-per-function` | **off** — deliberate; hooks, reducers and `render*` helpers are legitimately long |
 | `no-nested-ternary` | error |
 
-Rule identifiers are oxlint's, not ESLint's: `@typescript-eslint/x` is `typescript/x`, `jsx-a11y/x` is
-`jsx_a11y/x` (underscore), and `no-unused-vars`, `no-unused-expressions` and `no-array-constructor` are
-unprefixed core rules. Verify a name with `npx oxlint -D all --print-config`; `--rules` prints nothing.
-
-Two rules were lost in the move and are now reviewer-only. `no-octal` has no oxlint equivalent, leaving
-legacy octal literals to TypeScript — which errors on them in modules — and to review. `max-len` has none
-either: `printWidth: 120` succeeds it, and a formatter wraps but cannot flag one unbreakable token past 120 — a past-width class string is extracted to a named constant, `references/styling.md` §1.
-
-Exempt from `max-lines`: test files, and CLI-generated directories such as `src/components/ui/`
-(`npx shadcn add` overwrites them). "Summed complexity per file" is a **review** guideline — no
-linter implements it, so do not describe it as enforced.
-
-`references/typescript-config.md` owns the compiler flag set behind §4's `tsc -b --noEmit --force` gate.
+Rule identifiers are oxlint's, not ESLint's (`typescript/x`, `jsx_a11y/x` with an underscore); the
+mapping, the two rules the toolchain move lost (`no-octal`, `max-len`), and the `max-lines`
+exemptions are `references/hygiene.md` §11. `references/typescript-config.md` owns the compiler
+flag set behind §4's `tsc -b --noEmit --force` gate.
 
 ## 2. Correctness — non-negotiable
 
@@ -173,10 +164,9 @@ Node version must be pinned consistently across `.nvmrc`, `engines`, `packageMan
 Explicit, dated, argued — in the repo, not in this skill. An exemption needs a reason a cold reader
 can check, and it exempts a **pattern**, never the code that uses it.
 
-**Verify at source before exempting.** Two known false-positive shapes: `static-components` fires on icon-by-variable
-(`const Icon = iconFor(ext); <Icon />` — the component is a stable module-level import, only the selection varies), and
-`hooks` fires on libraries that invoke a passed function as a hook. But do not assume a finding is a false positive because it
-resembles one. Optional-chained hook calls — `slots?.useSidePanel?.()` — look like a library seam and are a **real** hazard: hook order breaks the moment the object is passed conditionally.
+**Verify at source before exempting.** The known false-positive shapes — and the one shape that
+resembles them but is a real hazard — are `references/react-hooks-v7.md`, "Known false-positive
+shapes".
 
 ## 6. Conventions — enforced, but not by a linter
 

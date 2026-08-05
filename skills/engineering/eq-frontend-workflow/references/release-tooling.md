@@ -99,3 +99,21 @@ shipped, so the file stops being derivable from them, and the next `changeset ve
 the edit or conflicts with it. Delete a changeset only when its content is already in a released
 `CHANGELOG.md` — otherwise the next release re-bumps for work that already shipped, which produces a
 duplicate changelog entry and a version nobody expected.
+
+## CHANGELOG.md is a build output — the full enforcement story
+
+`changeset version` writes `CHANGELOG.md` from the accumulated changesets, so it first appears at
+the first release; the requirement on a repo with no releases yet is the mechanism, not the file. A
+hand-written entry disagrees with the changesets that actually shipped, so the file stops being
+derivable from them and the next `changeset version` either overwrites the edit or conflicts with
+it.
+
+Enforcement splits, and the halves are not equal. **Regeneration is machine-enforced**: the release
+job rewrites the file from the changesets, so a hand-edit is destroyed at the next release rather
+than caught at the commit that made it. **That no commit hand-edits the file is
+reviewer-enforced** — a `CHANGELOG.md` diff in any commit that is not the release job's is a
+finding. The missing-changeset half is a merge requirement, caught by a CI check.
+
+Manual version bumps in a `chore: bump version` commit race the release tooling, produce versions
+with no changelog entry, and make the published version disagree with the tag — versions are
+written by the release job, never by hand.
