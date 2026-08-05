@@ -11,6 +11,7 @@
 //   4  no __tests__/ directories, no .spec.* test files
 //   5  a top-level style class selector is declared in exactly one file
 //   6  the git index and the filesystem agree on filename case (macOS/Windows rename trap)
+//   7  every code path cited in docs/product/feature-inventory.md exists
 //
 // Exit codes:
 //   0  the scan completed and found no violations
@@ -211,7 +212,7 @@ if (sourceFiles.length === 0) {
         + ' Point --dir at the directory holding the .ts/.tsx/.scss/.css sources.');
 }
 
-const violations = { casing: [], hooksFolder: [], barrel: [], testPlacement: [], styleCollision: [], gitCaseDrift: [] };
+const violations = { casing: [], hooksFolder: [], barrel: [], testPlacement: [], styleCollision: [], gitCaseDrift: [], inventoryPath: [] };
 
 // ── rule 1: kebab-case ───────────────────────────────────────────────────────
 // Checked segment by segment on the dot-separated name, so `<name>.types.ts`, `<name>.test.tsx`
@@ -441,6 +442,32 @@ for (const [cls, owners] of [...classOwners].sort(([a], [b]) => a.localeCompare(
     }
 }
 
+// ── rule 7: feature-inventory cited paths exist ──────────────────────────────
+// docs/product/feature-inventory.md cites each capability's code entry point. A cited path that no
+// longer exists is the inventory lying to every agent that reads it — the doc-rot failure the
+// same-PR rule (SKILL.md §8) exists to prevent, surfaced mechanically after a move slips past it.
+// Reads from cwd, not the walk root: the inventory is repo-level. No file, no findings — presence
+// is standard-check's policy gap, and a repo mid-migration must not fail structure over a doc it
+// has not adopted yet.
+{
+    const inventory = join(cwd, 'docs', 'product', 'feature-inventory.md');
+    if (existsSync(inventory)) {
+        let body = '';
+        try { body = readFileSync(inventory, 'utf8'); } catch (err) { readErrors.push(`docs/product/feature-inventory.md — ${err.code ?? err.message}`); }
+        // Backticked repo paths only, under the roots source lives in. The starter template's
+        // placeholder (`src/<entry-point>/`) carries angle brackets, which the character class
+        // excludes, so an unseeded template reports nothing.
+        for (const m of body.matchAll(/`((?:src|app|e2e|apps|packages)\/[A-Za-z0-9._/@-]*)`/g)) {
+            if (!existsSync(join(cwd, m[1].replace(/\/$/, '')))) {
+                violations.inventoryPath.push(
+                    `docs/product/feature-inventory.md — cites \`${m[1]}\`, which does not exist. The entry is stale: ` +
+                    `point it at where the capability's code moved, or delete the line if the capability was removed.`,
+                );
+            }
+        }
+    }
+}
+
 // ── report ───────────────────────────────────────────────────────────────────
 const RULES = [
     ['casing', '1. kebab-case filenames and directories'],
@@ -449,6 +476,7 @@ const RULES = [
     ['testPlacement', '4. test placement — no __tests__/, no .spec.*'],
     ['styleCollision', '5. top-level style class declared in more than one file'],
     ['gitCaseDrift', '6. git index vs filesystem case drift'],
+    ['inventoryPath', '7. feature-inventory cited code paths exist'],
 ];
 
 const total = Object.values(violations).reduce((n, v) => n + v.length, 0);

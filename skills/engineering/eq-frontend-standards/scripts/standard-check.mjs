@@ -119,6 +119,15 @@ const MIGRATIONS = {
         'Run `npm run format`, commit the rewrap as its own mechanical commit, and list it in `.git-blame-ignore-revs` — this touches most indented lines; the entry is not optional.',
         'Repos on the ESLint-suppressions branch (references/eslint-branch.md) set `@stylistic/indent: 4` instead if it is not already 4, and skip the oxfmt steps — the active linter owns formatting there.',
     ],
+    // Product knowledge joined the standard (docs/adr/0014): agents judging "does this exist?" or
+    // "is this feasible?" need facts no codebase states — what is deliberately absent, and what the
+    // architecture rules out. --check flags the four files when missing.
+    '1.9.0': [
+        'Create docs/product/ from the starter templates: INDEX.md, feature-inventory.md, constraints.md, current-focus.md.',
+        'Seed feature-inventory.md with one line per existing user-facing capability — an agent pass over the routes/screens tree drafts it, a human verifies — and write constraints.md by hand: the hard limits and the NOT SUPPORTED list are the entries only a human knows.',
+        'Re-pull starter/AGENTS.md (or merge its product-knowledge bullet) and .claude/commands/pre-pr.md — the gate now checks that a capability-changing diff also updates the inventory.',
+        'From now on, a PR that adds or removes a user-facing capability updates feature-inventory.md in the same PR.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
@@ -227,6 +236,17 @@ for (const sentinel of ['SKILL.md', join('scripts', 'check-structure.mjs')]) {
     if (!existsSync(p)) {
         policyGaps.push(`.claude/skills/eq-frontend-standards/${sentinel} — the standard is not vendored, so agent hosts and CI runners without a personal install enforce nothing. Fix: node <skill>/scripts/init-greenfield.mjs (vendors by default; safe on an existing repo — it never overwrites).`);
         break;
+    }
+}
+
+// ── product knowledge ────────────────────────────────────────────────────────
+// "Does this already exist?" and "is this feasible?" cannot be read out of code — a capability's
+// ABSENCE is invisible in a codebase — so the standard carries the answers as docs/product/, and
+// starter/AGENTS.md routes agents to it. Presence only: what the files say stays reviewer-owned,
+// and a cited entry-point path that no longer exists fails check-structure.mjs rule 7.
+for (const f of ['INDEX.md', 'feature-inventory.md', 'constraints.md', 'current-focus.md']) {
+    if (!existsSync(join(cwd, 'docs', 'product', f))) {
+        policyGaps.push(`docs/product/${f} — missing. Copy the template from the skill starter's docs/product/ and seed it: without it, agents judging feasibility or duplicates work from the code alone, which cannot state what is deliberately absent.`);
     }
 }
 
