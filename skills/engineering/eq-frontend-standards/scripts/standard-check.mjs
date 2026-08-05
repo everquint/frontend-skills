@@ -144,6 +144,13 @@ const MIGRATIONS = {
         'Copy scripts/format-changelog.mjs from the skill starter into scripts/, and set package.json scripts.version to "changeset version && node scripts/format-changelog.mjs".',
         'Run `node scripts/format-changelog.mjs` once if the repo already has a CHANGELOG.md — it reformats existing entries in place, dating each version from its git tag. Commit the rewrite.',
     ],
+    // Feature-doc format refinements from the first external review of a seeded repo: the naming
+    // rule now admits ticketless backfills, and the template gains audience, status, and
+    // decision-reversal guidance.
+    '2.2.0': [
+        'Re-pull docs/features/README.md, docs/product/INDEX.md, and docs/product/current-focus.md from the starter (current-focus keeps your content — add the tracker link line).',
+        'No renames needed: backfilled docs without tickets are `<slug>.md` by rule now; ticketed work stays `<ticket>-<slug>.md`.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
