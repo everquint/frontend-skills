@@ -41,8 +41,8 @@ hundreds of errors at once, which is how a whole rule set gets switched back off
 
 ## Procedure — existing repo
 
-The scripts ship beside this skill, not in the audited repo, so `scripts/…` never resolves against that repo's cwd. Invoke
-by absolute path from the install location — usually `~/.claude/skills/eq-frontend-standards/scripts/` or `~/.agents/skills/…` — abbreviated below to `scripts/<name>.mjs`.
+**Adopt the CURRENT target state — this skill and today's starter; the MIGRATIONS map is for repos already on a recorded version, never a fresh adopter's reading list.**
+The scripts ship beside this skill, not in the audited repo, so `scripts/…` never resolves against that repo's cwd — invoke by absolute path from the install location, abbreviated below to `scripts/<name>.mjs`.
 
 1. **Profile the stack** — `scripts/profile-repo.mjs`. Facts only, no judgement.
 2. **Measure violations** — `scripts/measure-rules.mjs`. Per-rule counts, and the fix sequence.
