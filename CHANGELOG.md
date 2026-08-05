@@ -1,5 +1,22 @@
 # frontend-skills
 
+## 1.4.1
+
+### Patch Changes
+
+- [#22](https://github.com/everquint/frontend-skills/pull/22) [`d148f6c`](https://github.com/everquint/frontend-skills/commit/d148f6c1893527382ff4b96f78249e7739ddbe94) Thanks [@gokulsgr](https://github.com/gokulsgr)! - `standard-check` now asserts a CI workflow exists (`.github/workflows/*.yml`) in `--check` and
+  `--record`, alongside the `.claude/` policy files. Found violated in the wild: an adopting repo
+  carried hooks with no `.github` directory at all, so every gate was bypassable with `--no-verify`
+  while the repo read as compliant.
+
+- [#22](https://github.com/everquint/frontend-skills/pull/22) [`ec27469`](https://github.com/everquint/frontend-skills/commit/ec274697fb1b51fc49024fdcd74b1c825fd9d7c1) Thanks [@gokulsgr](https://github.com/gokulsgr)! - Starter files no longer overwhelm adopters with maintainer-facing commentary. Every file under
+  `starter/` is trimmed to a short header plus the one-line footgun warnings that must be seen at
+  edit time; the full rationale and measured failure modes move to the new
+  `references/starter-rationale.md`, updated in the same commit as any future starter change.
+  Behavior-neutral: the trimmed lint configs load the identical 226/168 rule counts with identical
+  diagnostics on a real adopted repo. Consumer repos can re-pull the files for the slimmer comments;
+  nothing forces it.
+
 ## 1.4.0
 
 ### Minor Changes
