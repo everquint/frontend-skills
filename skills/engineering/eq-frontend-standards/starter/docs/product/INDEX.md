@@ -1,12 +1,11 @@
 # Product knowledge — start here, load only what the task needs
 
-- `feature-inventory.md` — "does this already exist?" Check before proposing or scoping any new
-  capability.
-- `constraints.md` — "is this feasible?" Hard limits; check before accepting an issue or an
-  approach.
+- `../features/` — the feature docs, one file per shipped capability, named `<ticket>-<slug>.md`.
+  "Does this already exist?" is answered by listing this directory; the file answers what the
+  feature does and why. Format: `../features/README.md`.
+- `constraints.md` — "is this feasible?" Hard limits and the deliberate `NOT SUPPORTED` list;
+  check before accepting an issue or an approach.
 - `current-focus.md` — "does this fit the current priorities?"
-- `domains/<area>.md` — deep dive for the area being changed; read only the one the change
-  touches. A domain file is created the first time someone works in that domain, not up front.
 
-Issues link to sections here instead of restating them: the ticket is ephemeral, this is the
-record.
+Issues link to these files instead of restating them: the ticket is ephemeral, this is the record.
+Misled by a doc here? Fix it in the same session — that moment is when docs get corrected.

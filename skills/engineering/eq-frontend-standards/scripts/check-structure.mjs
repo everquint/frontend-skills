@@ -11,7 +11,7 @@
 //   4  no __tests__/ directories, no .spec.* test files
 //   5  a top-level style class selector is declared in exactly one file
 //   6  the git index and the filesystem agree on filename case (macOS/Windows rename trap)
-//   7  every code path cited in docs/product/feature-inventory.md exists
+//   7  every code path cited in docs/features/ and docs/product/ exists
 //
 // Exit codes:
 //   0  the scan completed and found no violations
@@ -442,27 +442,32 @@ for (const [cls, owners] of [...classOwners].sort(([a], [b]) => a.localeCompare(
     }
 }
 
-// ── rule 7: feature-inventory cited paths exist ──────────────────────────────
-// docs/product/feature-inventory.md cites each capability's code entry point. A cited path that no
-// longer exists is the inventory lying to every agent that reads it — the doc-rot failure the
-// same-PR rule (SKILL.md §8) exists to prevent, surfaced mechanically after a move slips past it.
-// Reads from cwd, not the walk root: the inventory is repo-level. No file, no findings — presence
-// is standard-check's policy gap, and a repo mid-migration must not fail structure over a doc it
-// has not adopted yet.
+// ── rule 7: product/feature docs cite paths that exist ───────────────────────
+// Feature docs cite each capability's code entry point. A cited path that no longer exists is the
+// doc lying to every agent that reads it — the doc-rot failure the same-PR rule (SKILL.md §8)
+// exists to prevent, surfaced mechanically after a move slips past it. The judgement half (stale
+// CLAIMS, not just stale paths) is the /doc-lint command. Reads from cwd, not the walk root: the
+// docs are repo-level. No docs, no findings — presence is standard-check's policy gap, and a repo
+// mid-migration must not fail structure over docs it has not adopted yet.
 {
-    const inventory = join(cwd, 'docs', 'product', 'feature-inventory.md');
-    if (existsSync(inventory)) {
-        let body = '';
-        try { body = readFileSync(inventory, 'utf8'); } catch (err) { readErrors.push(`docs/product/feature-inventory.md — ${err.code ?? err.message}`); }
-        // Backticked repo paths only, under the roots source lives in. The starter template's
-        // placeholder (`src/<entry-point>/`) carries angle brackets, which the character class
-        // excludes, so an unseeded template reports nothing.
-        for (const m of body.matchAll(/`((?:src|app|e2e|apps|packages)\/[A-Za-z0-9._/@-]*)`/g)) {
-            if (!existsSync(join(cwd, m[1].replace(/\/$/, '')))) {
-                violations.inventoryPath.push(
-                    `docs/product/feature-inventory.md — cites \`${m[1]}\`, which does not exist. The entry is stale: ` +
-                    `point it at where the capability's code moved, or delete the line if the capability was removed.`,
-                );
+    const docDirs = [join(cwd, 'docs', 'features'), join(cwd, 'docs', 'product')];
+    for (const dir of docDirs) {
+        let entries = [];
+        try { entries = readdirSync(dir).filter((f) => f.endsWith('.md')); } catch { continue; }
+        for (const f of entries) {
+            const relDoc = relative(cwd, join(dir, f));
+            let body = '';
+            try { body = readFileSync(join(dir, f), 'utf8'); } catch (err) { readErrors.push(`${relDoc} — ${err.code ?? err.message}`); continue; }
+            // Backticked repo paths only, under the roots source lives in. The starter templates'
+            // placeholders (`src/<path>`) carry angle brackets, which the character class
+            // excludes, so an unseeded template reports nothing.
+            for (const m of body.matchAll(/`((?:src|app|e2e|apps|packages)\/[A-Za-z0-9._/@-]*)`/g)) {
+                if (!existsSync(join(cwd, m[1].replace(/\/$/, '')))) {
+                    violations.inventoryPath.push(
+                        `${relDoc} — cites \`${m[1]}\`, which does not exist. The doc is stale: ` +
+                        `point it at where the capability's code moved, or delete the doc if the capability was removed.`,
+                    );
+                }
             }
         }
     }
@@ -476,7 +481,7 @@ const RULES = [
     ['testPlacement', '4. test placement — no __tests__/, no .spec.*'],
     ['styleCollision', '5. top-level style class declared in more than one file'],
     ['gitCaseDrift', '6. git index vs filesystem case drift'],
-    ['inventoryPath', '7. feature-inventory cited code paths exist'],
+    ['inventoryPath', '7. product/feature docs cite code paths that exist'],
 ];
 
 const total = Object.values(violations).reduce((n, v) => n + v.length, 0);

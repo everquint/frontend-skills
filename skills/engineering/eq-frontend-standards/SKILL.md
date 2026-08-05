@@ -192,8 +192,8 @@ hand-typed number. Keep instruction files under 200 lines and put procedures in 
 
 ## 8. Product knowledge — mandatory
 
-`docs/product/` answers what code cannot — "does this already exist?", "is this feasible?" — because
-a capability's absence is invisible in code. Four files, asserted by `standard-check`: INDEX.md,
-feature-inventory.md, constraints.md, current-focus.md. **A PR that adds or removes a user-facing
-capability updates feature-inventory.md in the same PR** — `/pre-pr` step 7 reports the gap, and
-`check-structure.mjs` rule 7 fails stale cited paths. Templates, seeding: `references/product-knowledge.md`.
+`docs/features/` — one doc per shipped capability, written by the shipping agent from the ticket —
+and `docs/product/` (constraints incl. the NOT SUPPORTED list, current focus) answer what code
+cannot: a capability's absence and intent are invisible in code. **A PR that adds, changes, or
+removes a capability writes, updates, or deletes its feature doc in that PR** — `/pre-pr` step 7
+reports the gap, rule 7 fails stale cited paths, `/doc-lint` audits claims. Format, seeding: `references/product-knowledge.md`.
