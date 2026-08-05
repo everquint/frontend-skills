@@ -87,6 +87,8 @@ Format: `<type>: <description>`, imperative mood, no trailing period. Enforced b
 
 Rules:
 
+- **A breaking change is marked**: `!` after the type (`feat!: …`) plus a `BREAKING CHANGE: <what
+  breaks, what to do>` footer — the footer is what a reader greps for when an upgrade fails.
 - **One logical change per commit.** A commit that touches two unrelated concerns is two commits.
 - **Never mix a refactor and a behaviour change in one commit.** A moved file plus a changed condition produces a diff where the condition is invisible, and reverting the bug reverts the refactor with it. Move first, change second, in separate commits.
 - Scopes (`feat(composer): …`) are optional. If used, be consistent within a package.
