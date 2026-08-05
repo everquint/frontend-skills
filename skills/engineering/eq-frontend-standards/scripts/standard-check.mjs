@@ -106,6 +106,12 @@ const MIGRATIONS = {
         'Copy `starter/.git-blame-ignore-revs` and list every past mechanical rewrap commit in it. `--check` now flags the file when missing, and flags any tsconfig with baseUrl.',
         'Merge `starter/AGENTS.md` into the repo\'s agent instructions (or copy it if none exist) so agents find the vendored standard, the gates, and the protected files.',
     ],
+    // Portable enforcement: agent hosts without a personal skill install (CI, cloud sandboxes,
+    // Cyrus, Claude Tag) must get the standard from the repo itself.
+    '1.6.0': [
+        'Vendor the standard if not already: `.claude/skills/` must hold byte-identical copies of the three skills — `--check` now flags a repo without them. init-greenfield.mjs vendors by default now (safe to re-run; it never overwrites).',
+        'Copy `starter/CLAUDE.md` (a one-line pointer at AGENTS.md for hosts that only load CLAUDE.md) and re-pull `starter/AGENTS.md` — it now declares itself the entry point for every environment.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
@@ -201,6 +207,20 @@ for (const f of existsSync(cwd) ? readdirSync(cwd).filter((n) => /^tsconfig.*\.j
             policyGaps.push(`${f} — sets "baseUrl", which makes oxlint-tsgolint silently skip ALL type-aware rules (measured: zero findings at exit 0, rules still counted as loaded). Delete it; the @/* alias needs only "paths".`);
         }
     } catch { /* unreadable file surfaces elsewhere */ }
+}
+
+// ── the vendored standard ────────────────────────────────────────────────────
+// The standard must be enforceable from the repo alone: a CI runner, a cloud sandbox, or an agent
+// host (Cyrus, Claude Tag, Codex) has no ~/.claude and no ~/.agents, so a repo that does not carry
+// the skill carries no standard there — AGENTS.md points at a path that does not exist and the CI
+// structure gate has no script to run. Content sentinels, not just the directory: an empty dir
+// satisfies existsSync and enforces nothing.
+for (const sentinel of ['SKILL.md', join('scripts', 'check-structure.mjs')]) {
+    const p = join(cwd, '.claude', 'skills', 'eq-frontend-standards', sentinel);
+    if (!existsSync(p)) {
+        policyGaps.push(`.claude/skills/eq-frontend-standards/${sentinel} — the standard is not vendored, so agent hosts and CI runners without a personal install enforce nothing. Fix: node <skill>/scripts/init-greenfield.mjs (vendors by default; safe on an existing repo — it never overwrites).`);
+        break;
+    }
 }
 
 // ── .git-blame-ignore-revs ───────────────────────────────────────────────────

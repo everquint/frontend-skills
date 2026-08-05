@@ -13,8 +13,8 @@
 // FOREIGN_LINTERS block for why keeping it silently disables the whole standard.
 //
 // .claude/ is treated as COMMITTED repo policy, not per-developer config, so the starter tree
-// carries the hooks, reviewer agents and commands and this script lands them in the repo. With
-// --vendor-skills the skill directories are copied in as REAL FILES rather than left as the
+// carries the hooks, reviewer agents and commands and this script lands them in the repo. By
+// default the skill directories are also copied in as REAL FILES rather than left as the
 // symlink `npx skills add` makes: git stores a symlink as its target path, so a committed symlink
 // hands every teammate a broken link into one machine's home directory.
 //
@@ -33,14 +33,14 @@
 // the blocks they live in for why a printed reminder is not sufficient.
 //
 // Usage, from the root of the new repo:
-//   node <path>/init-greenfield.mjs [--dry-run] [--vendor-skills]
+//   node <path>/init-greenfield.mjs [--dry-run] [--no-vendor-skills]
 //
 // Exit codes — distinct, because a wrapper has to tell "finish the setup" from "the run never
 // started", and the two need opposite responses:
 //   0  setup complete: everything landed and both verified gates are enforcing. Also EVERY --dry-run,
 //      including one that reports gaps — a dry run wrote nothing, so it cannot have failed, and
 //      `node … --dry-run && node …` has to reach the real run.
-//   1  the run did not happen: wrong directory, an incomplete skill install, --vendor-skills with
+//   1  the run did not happen: wrong directory, an incomplete skill install, vendoring with
 //      the sibling skills missing, or an unexpected throw. Nothing was written.
 //   2  files landed, but a verified gate is not enforcing: a pre-existing .oxlintrc.json is the base
 //      of the lint gate, the styling pipeline is unwired, and/or the release job would report a
@@ -57,7 +57,11 @@ const SKILLS_SRC = join(import.meta.dirname, '..', '..');
 const VENDORED_SKILLS = ['eq-frontend-standards', 'eq-frontend-workflow', 'eq-frontend-quality-bar'];
 const cwd = process.cwd();
 const dryRun = process.argv.includes('--dry-run');
-const vendorSkills = process.argv.includes('--vendor-skills');
+// Vendoring is the DEFAULT: the standard must be enforceable from the repo alone — a CI runner, a
+// cloud sandbox, Cyrus, or any agent host has no ~/.claude and no ~/.agents, so a repo that does
+// not carry the skills carries no standard there. --no-vendor-skills opts out for the rare repo
+// that cannot commit the tree; --vendor-skills is still accepted for older instructions.
+const vendorSkills = !process.argv.includes('--no-vendor-skills');
 
 if (!existsSync(join(cwd, 'package.json'))) {
     console.error('No package.json here. Run this from the root of the repo you are setting up.');
