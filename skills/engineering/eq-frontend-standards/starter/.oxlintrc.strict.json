@@ -13,7 +13,7 @@
 // `lint`. The measurement itself lives in references/hygiene.md — one copy, so the two cannot
 // drift apart and leave a reader unable to tell which number is current.
 //
-// MUST BE RUN WITH --type-aware. The three type-aware rules below are SILENTLY SKIPPED without it:
+// MUST BE RUN WITH --type-aware. Every type-aware rule below is SILENTLY SKIPPED without it:
 // exit 0, no warning, no diagnostic, and a floating promise ships. `npm run lint` passes the flag,
 // and CI additionally asserts on `number_of_rules` from `-f json` so a dropped flag goes RED rather
 // than green. It also needs the `oxlint-tsgolint` package, which is in devDependencies.
@@ -65,21 +65,73 @@
     "react-hooks-js/capitalized-calls": "error",
     "react-hooks-js/component-hook-factories": "error",
 
-    // ── §2 and §6, the type-aware rules. See the --type-aware warning in the header: these
-    // three are the ones that vanish without the flag.
+    // ── §2 and §6, the type-aware rules: the COMPLETE type-aware half of typescript-eslint's
+    // `recommended-type-checked` preset, all 23 rules — docs/adr/0011 in the standard repo. The
+    // standard started with only the three promise/duplication rules because oxlint-tsgolint
+    // covered a small subset; it now implements 59 of the preset's 61, so the remaining 20 were
+    // measured (14 of them at zero violations on a real adopted repo) and enabled together.
+    //
+    // ALL 23 ARE PINNED BY NAME even though oxlint's `correctness` category auto-loads some of
+    // them when --type-aware is passed — same reason as the base config's pins: a category
+    // re-sort upstream must not silently drop a rule the standard claims to enforce. See the
+    // --type-aware warning in the header: every one of these vanishes without the flag.
+    "typescript/await-thenable": "error",
+    "typescript/no-array-delete": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-duplicate-type-constituents": "error",
     "typescript/no-floating-promises": "error",
+    "typescript/no-for-in-array": "error",
+    "typescript/no-implied-eval": "error",
     "typescript/no-misused-promises": ["error", { "checksVoidReturn": { "attributes": false } }],
-    "typescript/no-duplicate-type-constituents": "error"
+    "typescript/no-redundant-type-constituents": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-unary-minus": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/require-await": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/restrict-template-expressions": "error",
+    "typescript/unbound-method": "error"
   },
 
   "overrides": [
     {
       // Config files run in Node and are not part of the app's type-checked project, so the
-      // type-aware promise rules have no type information to work from.
+      // type-aware rules have no reliable type information there — measured: vite.config.ts
+      // reports an unsafe-`any` spread that is really a missing type project, not a defect.
+      // The WHOLE type-aware set goes off, listed one by one because oxlint overrides cannot
+      // subtract by category. Keep this list in lockstep with the rules block above.
       "files": ["*.config.js", "*.config.ts", "*.config.mjs", "*.config.mts"],
       "rules": {
+        "typescript/await-thenable": "off",
+        "typescript/no-array-delete": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-duplicate-type-constituents": "off",
         "typescript/no-floating-promises": "off",
-        "typescript/no-misused-promises": "off"
+        "typescript/no-for-in-array": "off",
+        "typescript/no-implied-eval": "off",
+        "typescript/no-misused-promises": "off",
+        "typescript/no-redundant-type-constituents": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-enum-comparison": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/no-unsafe-unary-minus": "off",
+        "typescript/only-throw-error": "off",
+        "typescript/prefer-promise-reject-errors": "off",
+        "typescript/require-await": "off",
+        "typescript/restrict-plus-operands": "off",
+        "typescript/restrict-template-expressions": "off",
+        "typescript/unbound-method": "off"
       }
     }
   ]

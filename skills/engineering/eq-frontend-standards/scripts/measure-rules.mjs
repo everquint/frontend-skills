@@ -25,21 +25,18 @@ const STARTER = join(SKILL_DIR, 'starter');
 // PR a human can review and land. docs/adr/0002 owns the reasoning.
 const THRESHOLD = 300;
 
-// Measured on the starter config. A LOWER count than EXPECTED means rules were silently dropped
-// and the run enforces less than it claims, while still exiting 0 on a clean repo. The 193 case is
-// defensive: oxlint 1.77.0 hard-fails on a missing plugin, so a fail-soft bridge is the only way to
-// reach it. The 197 case is real and reachable today — verified by dropping the flag.
+// Measured on the starter config, on a real consumer repo at oxlint 1.77.0. A LOWER count than
+// EXPECTED means rules were silently dropped and the run enforces less than it claims, while still
+// exiting 0 on a clean repo. The 206 case is defensive: oxlint 1.77.0 hard-fails on a missing
+// plugin, so a fail-soft bridge is the only way to reach it. The 199 case is real and reachable
+// today — verified by dropping the flag.
 //
-// 214 = 194 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
-// the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute both halves
-// from a real run rather than copying the number forward — `npx oxlint --rules` prints nothing in
-// 1.77.0, so neither half is readable off the CLI without parsing:
+// 226 = 206 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
+// the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute from a
+// real run rather than copying the number forward — `npx oxlint --rules` prints nothing in 1.77.0,
+// so it is not readable off the CLI without parsing:
 //
-//   # 193 — enabled rules in the resolved config
-//   npx oxlint -c .oxlintrc.strict.json --type-aware --print-config \
-//     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.values(JSON.parse(s).rules).filter(v=>!["off","allow"].includes(Array.isArray(v)?v[0]:v)).length))'
-//
-//   # 214 — rules actually loaded by the run this script asserts on
+//   # 226 — rules actually loaded by the run this script asserts on
 //   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
 //     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
 //
@@ -48,11 +45,11 @@ const THRESHOLD = 300;
 // consuming repo where this script is absent, and this script runs from the skill where that
 // workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
 // .oxlintrc.strict.json moves both, and both are edited in the same commit.
-const EXPECTED_RULES = 214;
+const EXPECTED_RULES = 226;
 const KNOWN_SHORTFALL = new Map([
-    [197, '--type-aware was not passed: the 16 type-aware rules are SKIPPED, including typescript/no-floating-promises, no-misused-promises and no-duplicate-type-constituents.'],
-    [193, 'the jsPlugins bridge did not load: all 20 eslint-plugin-react-hooks rules were dropped.'],
-    [166, 'the fast config (.oxlintrc.json) ran instead of .oxlintrc.strict.json.'],
+    [199, '--type-aware was not passed: all 27 type-aware rules are SKIPPED — the full recommended-type-checked set, typescript/no-floating-promises included.'],
+    [206, 'the jsPlugins bridge did not load: all 20 eslint-plugin-react-hooks rules were dropped.'],
+    [168, 'the fast config (.oxlintrc.json) ran instead of .oxlintrc.strict.json.'],
 ]);
 
 // oxlint's diagnostic `code` is `plugin(rule)` using each plugin's DISPLAY name; its config and

@@ -14,16 +14,13 @@ env:
   # so it is identical for one file and for 2,185 of them. Raise it when you add rules; never lower
   # it to make a red build green.
   #
-  # 214 = 194 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
-  # the `jsPlugins` bridge resolves and so never appear in the resolved config. Recompute both
-  # halves from a real run rather than copying the number forward — `npx oxlint --rules` prints
-  # nothing in 1.77.0, so neither half is readable off the CLI without parsing:
+  # 226 = 206 native and type-aware rules + the 20 `react-hooks-js/*` rules, which exist only once
+  # the `jsPlugins` bridge resolves and so never appear in the resolved config. Measured on a real
+  # consumer repo at oxlint 1.77.0. Recompute from a real run rather than copying the number
+  # forward — `npx oxlint --rules` prints nothing in 1.77.0, so it is not readable off the CLI
+  # without parsing:
   #
-  #   # 193 — enabled rules in the resolved config
-  #   npx oxlint -c .oxlintrc.strict.json --type-aware --print-config \
-  #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.values(JSON.parse(s).rules).filter(v=>!["off","allow"].includes(Array.isArray(v)?v[0]:v)).length))'
-  #
-  #   # 214 — rules actually loaded by the run this job asserts on
+  #   # 226 — rules actually loaded by the run this job asserts on
   #   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
   #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
   #
@@ -32,7 +29,7 @@ env:
   # a consuming repo where that script is absent, and the script runs from the skill where this
   # workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
   # .oxlintrc.strict.json moves both, and both are edited in the same commit.
-  EXPECTED_OXLINT_RULES: 214
+  EXPECTED_OXLINT_RULES: 226
 
 jobs:
   verify:
@@ -79,8 +76,9 @@ jobs:
       #
       # This toolchain has three ways to enforce nothing while exiting 0, and all three were
       # observed, not theorised:
-      #   1. --type-aware missing => typescript/no-floating-promises, no-misused-promises and
-      #      no-duplicate-type-constituents are SILENTLY SKIPPED. No warning, no diagnostic.
+      #   1. --type-aware missing => ALL 27 type-aware rules — the full recommended-type-checked
+      #      set, typescript/no-floating-promises included — are SILENTLY SKIPPED. No warning,
+      #      no diagnostic.
       #   2. jsPlugins failing to resolve, or the alias being renamed, drops all 20
       #      eslint-plugin-react-hooks rules including the React Compiler suite.
       #   3. oxfmt's Tailwind sorter no-ops when it cannot resolve its stylesheet.
@@ -113,9 +111,9 @@ jobs:
           if [ "$loaded" -lt "${EXPECTED_OXLINT_RULES}" ]; then
             echo "::error::Lint gate is under-enforcing: $loaded rules loaded, expected at least ${EXPECTED_OXLINT_RULES}."
             echo "Measured causes, both of which exit 0 on their own:"
-            echo "  --type-aware dropped from scripts.lint ....... 197 rules (-16)"
-            echo "  jsPlugins react-hooks-js failed to resolve ... 193 rules (-20)"
-            echo "  .oxlintrc.strict.json not passed via -c ...... 166 rules (-47)"
+            echo "  --type-aware dropped from scripts.lint ....... 199 rules (-27)"
+            echo "  jsPlugins react-hooks-js failed to resolve ... 206 rules (-20)"
+            echo "  .oxlintrc.strict.json not passed via -c ...... 168 rules (-58)"
             exit 1
           fi
 
