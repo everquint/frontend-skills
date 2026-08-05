@@ -1,5 +1,9 @@
 # 0014 — product knowledge (docs/product/) is part of the standard
 
+> The inventory artifact below is superseded by [0015](0015-feature-docs-over-inventory.md)
+> (2026-08-05): feature-inventory.md was replaced by per-feature docs the same day. The decision
+> that product knowledge is mandatory, and the enforcement design, stand.
+
 Date: 2026-08-05
 
 ## Context

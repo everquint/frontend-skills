@@ -57,3 +57,8 @@ there is. The next person to meet this failure will reach for the same reimpleme
   secret rather than editing a workflow.
 - **A release is never lost to this.** The version branch is pushed before the failure, so opening that PR
   by hand recovers the release — which is how v1.1.0 shipped.
+
+> Status note (2026-08-05): the changesets/action step this ADR describes is currently
+> COMMENTED OUT in .github/workflows/release.yml pending a RELEASE_TOKEN secret — releases run
+> manually (AGENTS.md names the loop). The decision stands; the mechanism is dormant until the
+> secret exists.

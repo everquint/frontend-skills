@@ -78,7 +78,7 @@ summed-complexity budget are properties of the whole file, not of the hunk.
 From the repo root, reusing the `$EQ_STANDARD` resolved above:
 
 ```bash
-node "$EQ_STANDARD/scripts/check-structure.mjs"
+node "$EQ_STANDARD/scripts/check-structure.mjs" --dir .
 npx oxlint -c .oxlintrc.strict.json --type-aware <changed files>
 ```
 
