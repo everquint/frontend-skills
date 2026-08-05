@@ -13,7 +13,7 @@
     "link": "bash scripts/link-skills.sh",
     "validate": "node scripts/validate-skills.mjs && node scripts/validate-claims.mjs",
     "changeset": "changeset",
-    "version": "changeset version && node scripts/sync-standard-version.mjs",
+    "version": "changeset version && node scripts/sync-standard-version.mjs && node skills/engineering/eq-frontend-standards/starter/scripts/format-changelog.mjs",
     "release": "changeset tag"
   },
   "devDependencies": {

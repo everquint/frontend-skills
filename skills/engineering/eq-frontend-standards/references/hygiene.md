@@ -458,6 +458,25 @@ generated file is never hand-edited. An edit to `CHANGELOG.md` is overwritten by
 `changeset version`; the text belongs in a `.changeset/*.md` file, which is where the generator reads
 it from.
 
+### The changelog format is Keep a Changelog 1.1.0, produced by a formatter
+
+Raw `changeset version` output is not [Keep a Changelog](https://keepachangelog.com/en/1.1.0/): no
+dates, no linked `[x.y.z]` headings, no change-type sections, no `Unreleased`. `scripts.version`
+therefore runs `scripts/format-changelog.mjs` (shipped in the starter) after it, which canonically
+rebuilds the file: preamble, `## [Unreleased]` with a compare link, `## [X.Y.Z] - YYYY-MM-DD`
+headings dated from git tags, and version link references. It is idempotent, so re-running it — or a
+release rebuilding on top of an already-formatted file — changes nothing.
+
+Two things to know, both consequences of changesets grouping by **semver impact** where Keep a
+Changelog groups by **change type**:
+
+- The mapping is Major→`Changed`, Minor→`Added`, Patch→`Fixed`. It is exactly as accurate as the
+  changeset discipline (breaking→major, feature→minor, fix→patch); an entry that is really a
+  removal, a deprecation, or a security fix says so in its changeset text, which is what the reader
+  sees.
+- `Unreleased` content is the `.changeset/*.md` files — that is where an unreleased change exists
+  under changesets — so the section carries a compare link rather than duplicated text.
+
 Authoring one, per change that users can observe:
 
 ```bash

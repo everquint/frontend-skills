@@ -138,6 +138,12 @@ const MIGRATIONS = {
         'Re-pull starter/AGENTS.md, .claude/commands/pre-pr.md, and copy .claude/commands/doc-lint.md — the PR gate now expects a feature doc per capability change, and /doc-lint is the periodic claims audit.',
         'From now on, the agent that ships a capability writes its feature doc in the shipping PR, from the ticket material; whoever changes the behaviour updates the doc in that PR.',
     ],
+    // CHANGELOG.md now conforms to Keep a Changelog 1.1.0 (references/hygiene.md): a formatter
+    // rebuilds the raw changesets output after every `changeset version`.
+    '2.1.0': [
+        'Copy scripts/format-changelog.mjs from the skill starter into scripts/, and set package.json scripts.version to "changeset version && node scripts/format-changelog.mjs".',
+        'Run `node scripts/format-changelog.mjs` once if the repo already has a CHANGELOG.md — it reformats existing entries in place, dating each version from its git tag. Commit the rewrite.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
