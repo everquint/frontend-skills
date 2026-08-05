@@ -1,5 +1,29 @@
 # frontend-skills
 
+## 1.3.0
+
+### Minor Changes
+
+- [#18](https://github.com/everquint/frontend-skills/pull/18) [`817d6f9`](https://github.com/everquint/frontend-skills/commit/817d6f9010fded33b3aec1086fc6ef90f9d6b5e3) Thanks [@gokulsgr](https://github.com/gokulsgr)! - Indent moves from 4-space to 2-space (`tabWidth: 2`, `indent_size = 2`) — ADR 0009. Like
+  printWidth's 200, the 4 was inherited from the old `@stylistic/indent` config rather than decided,
+  and 2-space is the dominant JS/TS convention (Prettier default, Airbnb, Google, every mainstream
+  scaffold). `printWidth: 120` is kept — ADR 0007's width conclusion stands even though its
+  4-space-burns-columns clause is superseded. The YAML tabWidth override and the `.editorconfig` YAML
+  carve-out are retired (the global 2 is what YAML tooling assumes), and a fresh Vite scaffold's
+  indent now matches from the first file. Adopting repos: one mechanical `npm run format` commit,
+  listed in `.git-blame-ignore-revs` — the 1.3.0 migration entry names the steps.
+
+### Patch Changes
+
+- [#17](https://github.com/everquint/frontend-skills/pull/17) [`290c1ce`](https://github.com/everquint/frontend-skills/commit/290c1ce41d6bb62fbc9a2d0bf60dc0efce68ec4e) Thanks [@gokulsgr](https://github.com/gokulsgr)! - The over-width class-string ruling stays reviewer-enforced, now by measurement rather than by
+  default (ADR 0008). Spiked both mechanical routes: oxlint 1.77.0 does not implement
+  `no-restricted-syntax`, so no flag-only rule exists; and the ecosystem's wrapping autofix
+  (`better-tailwindcss/enforce-consistent-line-wrapping`, loaded through `jsPlugins`) converges in
+  isolation but oscillates forever against `sortTailwindcss`, which rejoins a wrapped string past any
+  `printWidth`. The sorter never merges separate `cn()` arguments — which is why the prescribed fix is
+  the `cn()` split, the one shape the whole pipeline leaves alone. `styling.md` §1 now states this
+  with the supersede conditions.
+
 ## 1.2.2
 
 ### Patch Changes
