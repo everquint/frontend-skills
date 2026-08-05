@@ -253,6 +253,8 @@ form produced a finding with no available fix.
 | a component folder has its `index.ts` barrel (§2) | yes — `index.tsx` counts as the barrel; `index.ts` stays the recommendation |
 | no `__tests__/`, no `.spec.*` (§1) | yes — the `.spec.` half is gated on `.ts/.tsx/.js/.jsx`, so an OpenAPI `orders.spec.yaml` is not a test |
 | a top-level class declared in one file (§7) | yes, with the limits below |
+| git index and filesystem agree on filename case (rule 6) | yes — the macOS/Windows case-only-rename trap; vacuously clean until the first commit |
+| product/feature docs cite code paths that exist (rule 7) | yes — backticked `src/…` paths in `docs/features/` and `docs/product/`; the judgement half is `/doc-lint` |
 
 **Rule 5's exact reach.** A class counts only when its selector starts at column 0, is the whole
 selector (`.foo {` or `.foo,`, not `.dark .foo`), and sits at brace depth 0. A leading UTF-8 BOM is

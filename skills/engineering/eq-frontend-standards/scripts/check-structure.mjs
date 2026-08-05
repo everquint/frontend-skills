@@ -206,9 +206,12 @@ const walk = (dir) => {
         let entryIsDir = e.isDirectory();
         if (e.isSymbolicLink()) {
             // A symlinked skills folder is the common case and following it audits someone
-            // else's tree. Record it as a file entry so casing still applies; never descend.
+            // else's tree. The link IS recorded as a directory entry so rule 1 still checks its
+            // NAME — a plain `continue` here made a PascalCase symlinked dir report clean, and
+            // recording it as a file failed the same way because rule 1 filters files on source
+            // extensions (both found in review) — but its contents are never descended into.
             try { entryIsDir = statSync(full).isDirectory(); } catch { continue; }
-            if (entryIsDir) continue;
+            if (entryIsDir) { dirs.push(full); continue; }
         }
         if (gitIgnored.has(full)) continue;
         if (entryIsDir) {

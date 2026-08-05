@@ -101,8 +101,7 @@ Rules:
 
 - History keeps **every individual commit**, so the local `commit-msg` hook genuinely protects the log. PR-title linting is redundant under this model — do not configure it, since the titles are not what lands.
 - Commit granularity matters far more than under a squash workflow. Under squash a sloppy intermediate commit disappears at merge; here it is permanent and will be read during a future bisect. Clean up the branch before the gate: `git rebase -i` to squash "fix typo" and "wip" commits into the commit they belong to.
-
-commitlint ignores merge commits by default (core `defaultIgnores`), so a `Merge branch …` message does not need to be conventional.
+- commitlint ignores merge commits by default (core `defaultIgnores`), so a `Merge branch …` message does not need to be conventional.
 
 ## When to open the PR
 
@@ -119,6 +118,7 @@ Run in this order and **stop at the first failure**. A type error makes every la
 | 3 | Tests for what changed | Always — the touched test files, not the whole suite |
 | 4 | `build` | UI or behaviour changed, or build config changed |
 
+In a repo on the frontend standard, `/pre-pr` is the superset of this table — it adds the structure, standard-version and feature-doc gates — and is what to run when present.
 **Never report "all green" for a step that did not run.** State which steps ran and what each returned. "Typecheck and lint pass; tests not run" is an acceptable report. "All green" when tests were skipped is not.
 
 ## PR body

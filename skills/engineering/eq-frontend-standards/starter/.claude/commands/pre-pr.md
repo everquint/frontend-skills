@@ -66,7 +66,7 @@ npm run build
 ## 5. Structure
 
 ```bash
-node "$EQ_STANDARD/scripts/check-structure.mjs"
+node "$EQ_STANDARD/scripts/check-structure.mjs" --dir .
 ```
 
 ## 6. Standard version

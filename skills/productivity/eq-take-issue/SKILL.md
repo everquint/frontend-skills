@@ -104,9 +104,10 @@ Under `../eq-frontend-workflow/SKILL.md` for branch, commits, and delegation, an
 Walk the acceptance criteria one at a time and state, per criterion, the test or command that proves
 it and what that returned. A criterion with no evidence is unmet — say so.
 
-Then run the gate and the two reviews from `../eq-frontend-workflow/SKILL.md`: typecheck, lint, the
-touched tests, build; conventions and correctness in parallel, both required, both by the agent that
-owns the whole change.
+Then run the full gate — `/pre-pr` where the repo has it, which adds the structure, standard-version
+and feature-doc checks on top of typecheck/lint/tests/build; otherwise the gate table in
+`../eq-frontend-workflow/SKILL.md` — and the two reviews from that skill: conventions and
+correctness in parallel, both required, both by the agent that owns the whole change.
 
 Add the third axis this skill makes possible: **does the diff match the ticket?** Three findings to
 look for — asked-for behaviour that is missing or partial, behaviour in the diff that nobody asked

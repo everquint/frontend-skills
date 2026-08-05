@@ -553,7 +553,7 @@ is already what YAML tooling assumes, which retires the override the 4-space era
 | `e2e/` | the one directory E2E specs live in; ships with a `.gitkeep` so the path exists on day one |
 
 **`.claude/` is repo policy, and it is committed.** The tree ships in `starter/.claude/` and
-`init-greenfield.mjs` lands it — settings, two hooks, the `code-reviewer` and `conventions-reviewer`
+`init-greenfield.mjs` lands it — settings, three hooks, the `code-reviewer` and `conventions-reviewer`
 agents that make the two-review gate runnable, and `commands/pre-pr.md`. Read those files for what
 each does. Two things a hand-copy forgets: `.claude/hooks/*` is chmod `0o755`, because a hook that
 is not executable does not run and reports nothing; and `--vendor-skills` copies the skills into
