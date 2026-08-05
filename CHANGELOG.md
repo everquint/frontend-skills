@@ -1,5 +1,17 @@
 # frontend-skills
 
+## 1.7.0
+
+### Minor Changes
+
+- [#32](https://github.com/everquint/frontend-skills/pull/32) [`07a7200`](https://github.com/everquint/frontend-skills/commit/07a7200eac7f97e1ec902596c448a1d99f790674) Thanks [@gokulsgr](https://github.com/gokulsgr)! - The >~300 suppressions branch gets its procedure — `references/eslint-branch.md`, derived from the
+  first real migration to take it: enable §2 rules in ESLint at error, `--fix`, `--suppress-all`,
+  protect the baseline in the guard hook, prune-ratchet, and adapt the oxlint-branch starter pieces
+  (.editorconfig mirrors the ACTIVE linter; AGENTS.md gate list rewritten; guard points at
+  eslint.config.js + eslint-suppressions.json). SKILL.md §3 resolves the "never parked"
+  contradiction: on the suppressions branch the baseline IS the sanctioned §2 debt record, pruned
+  first. Hygiene gains the cross-linter vendoring-ignore rule.
+
 ## 1.6.0
 
 ### Minor Changes
