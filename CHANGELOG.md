@@ -1,5 +1,17 @@
 # frontend-skills
 
+## 1.4.3
+
+### Patch Changes
+
+- [#26](https://github.com/everquint/frontend-skills/pull/26) [`07dc548`](https://github.com/everquint/frontend-skills/commit/07dc548175550fa66e3d69b61b9a5d736aaf1104) Thanks [@gokulsgr](https://github.com/gokulsgr)! - Two writing-for-agents alignment fixes. A claim validator now gates the build: every prefixed rule
+  name mentioned in skill prose must exist in the starter lint configs or be allowlisted with a
+  reason, and stale allowlist entries fail too — the sediment check the docs lacked. And a disclosure
+  pass moved maintainer-grade reference out of the three engineering SKILL.md files (rule-identifier
+  mapping and lost rules → hygiene.md §11, hook false-positive shapes → react-hooks-v7.md, CHANGELOG
+  enforcement mechanics → release-tooling.md, the ratchet config restatement → a pointer at the
+  starter file), freeing headroom under the 200-line cap: 199→189, 198→182, 198→197.
+
 ## 1.4.2
 
 ### Patch Changes
