@@ -43,9 +43,20 @@ process.stdin.on("end", () => {
         const p = JSON.parse(s);
         const cmd = String(p?.tool_input?.command ?? "");
         const FLAG_WITH_VALUE = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
-        const invokes = (sub) => cmd.split(/[;&|]+/).some((segment) => {
+        // Segments split on GROUPING characters too: `(git commit)`, `{ git commit; }` and
+        // `if …; then git commit; fi` glued the grouping token onto `git`, and the parser read
+        // "not git" — a silent bypass on the default branch (found in review). Shell keywords
+        // strip like wrappers for the same reason. Quoted spans are removed FIRST so a paren
+        // inside a string (`echo "(git commit)"`) cannot fabricate a segment; the flip side —
+        // `bash -c "git commit"` is not seen — is accepted and documented: this hook is
+        // defense-in-depth against accidents, not a security boundary against evasion.
+        // \u0027 is a single quote, spelled as an escape because this whole program sits
+        // inside a single-quoted shell string, where a literal one would terminate it.
+        const bare = cmd.replace(/"(?:[^"\\]|\\.)*"|\u0027[^\u0027]*\u0027/g, " ");
+        const WRAPPERS = new Set(["command", "env", "nohup", "time", "then", "do", "else", "elif", "if", "while", "until"]);
+        const invokes = (sub) => bare.split(/[;&|(){}]+/).some((segment) => {
             let t = segment.trim().split(/\s+/).filter(Boolean);
-            while (t.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]) || ["command", "env", "nohup", "time"].includes(t[0]))) t.shift();
+            while (t.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]) || WRAPPERS.has(t[0]))) t.shift();
             const bin = t[0] ?? "";
             if (bin !== "git" && !bin.endsWith("/git")) return false;
             let i = 1;
