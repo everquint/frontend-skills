@@ -6,7 +6,7 @@
   "description": "One canonical frontend engineering standard, as installable agent skills.",
   "plugins": [
     {
-      "name": "frontend-skills",
+      "name": "eq",
       "source": "./",
       "description": "Code conventions, delivery workflow, and the non-lintable quality bar for frontend TypeScript repos.",
       "category": "engineering",
