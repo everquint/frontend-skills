@@ -1,5 +1,11 @@
 # frontend-skills
 
+## 2.0.0
+
+### Major Changes
+
+- [#38](https://github.com/everquint/frontend-skills/pull/38) [`1617755`](https://github.com/everquint/frontend-skills/commit/16177558086ae2911b6e4b4431b993eea7ed0cc3) Thanks [@gokulsgr](https://github.com/gokulsgr)! - Product knowledge v2: per-feature docs replace the hand-maintained inventory. Each shipped capability gets `docs/features/<ticket>-<slug>.md` — written by the shipping agent in the shipping PR from the ticket material (why, behaviour, decisions, out of scope), updated by whoever changes the behaviour. The directory itself is the index ("does X exist?" = list it), so there is no inventory table to rot; `NOT SUPPORTED` rulings move into `docs/product/constraints.md`. New `/doc-lint` starter command audits the docs against the code (stale claims, contradictions, orphans) and fixes in place; CI rule 7 now scans `docs/features/` and `docs/product/` for cited paths that no longer exist. `/pre-pr` step 7, AGENTS.md, eq-create-issue and eq-take-issue re-pointed at feature docs. Breaking: `feature-inventory.md` removed from the starter and from the presence checks — migration 2.0.0 names the conversion; repos that never seeded an inventory skip it. Evidence and design: ADR 0015.
+
 ## 1.9.0
 
 ### Minor Changes
