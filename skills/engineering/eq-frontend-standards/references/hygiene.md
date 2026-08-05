@@ -570,8 +570,23 @@ chmod 755 .claude/hooks/*.sh                  # cp from a tarball install drops 
 git add .claude && git commit -m 'chore: install the agent-side repo policy'
 ```
 
-`standard-check.mjs` asserts all six files (and the hooks' executable bit) in both `--check` and
-`--record`, so a repo without the guard hook no longer records or reports as compliant.
+`standard-check.mjs` asserts all seven files (and the hooks' executable bit) in both `--check` and
+`--record`, so a repo without the guard hooks no longer records or reports as compliant.
+
+**`branch-guard.sh` guards the one git failure the file guards cannot.** Two interactive sessions
+in one checkout share HEAD: one session's `git checkout` retargets the other between the moment it
+reads its branch and the moment it commits, and the commit lands on the wrong branch with no error
+— measured reaching a protected default branch past its required status checks. No file is lost,
+so `guard-protected-files.sh` and the stash denial never fire. The hook records the branch at
+SessionStart, updates the record on the session's own `checkout`/`switch`/`worktree` calls
+(deliberate moves never false-positive), and blocks `git commit` (exit 2) when HEAD has drifted
+from the record or sits on the default branch. Deliberate override, greppable in history:
+prefix the command with `CLAUDE_BRANCH_GUARD_ALLOW=1`. Detached HEAD (rebase, bisect) is skipped —
+those commits are git's own machinery. State lives under `.git/claude-branch-guard/`, one file per
+session, pruned after seven days; worktrees each get their own via `rev-parse --git-dir`. Residual
+risk, accepted: when `origin/HEAD` is unset (unfetched remote, some CI checkouts, mirrors) the
+default-branch check falls back to treating `main` OR `master` as the default — a repo whose
+default branch has a third name gets drift protection but not the default-branch block there.
 
 **Renovate over Dependabot when an org has many repos.** Dependabot config is per-repo, so a policy
 change means editing every repository. Renovate reads one shared preset — `renovate.json` is
