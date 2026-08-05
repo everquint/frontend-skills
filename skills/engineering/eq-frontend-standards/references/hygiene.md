@@ -498,25 +498,23 @@ root = true
 charset = utf-8
 end_of_line = lf
 indent_style = space
-indent_size = 4
+indent_size = 2
 insert_final_newline = true
 trim_trailing_whitespace = true
 max_line_length = 120
 
 [*.md]
 trim_trailing_whitespace = false
-
-[*.{yml,yaml}]
-indent_size = 2
 ```
 
-`indent_size` matches oxfmt's `tabWidth: 4`, and `max_line_length` matches `printWidth: 120`
-(decided over the inherited 200 — [ADR 0007](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0007-printwidth-120-over-the-inherited-200.md)). That pair is the one to read carefully:
+`indent_size` matches oxfmt's `tabWidth: 2` — the JS/TS ecosystem norm, decided over the inherited 4
+(ADR 0009 in the standard repo) — and `max_line_length` matches `printWidth: 120` (decided over the
+inherited 200 — [ADR 0007](https://github.com/everquint/frontend-skills/blob/main/docs/adr/0007-printwidth-120-over-the-inherited-200.md)). That pair is the one to read carefully:
 `printWidth` is a wrap target, not a bound, so oxfmt will emit a line past 120 columns when there is
 nothing in it to break, and the editor guide is then stricter than the formatter. No lint rule backs
-it — `max-len` has no oxlint equivalent and the standard dropped it. YAML overrides to 2 because most
-YAML tooling assumes it; Markdown keeps trailing whitespace because two trailing spaces is a hard
-line break.
+it — `max-len` has no oxlint equivalent and the standard dropped it. Markdown keeps trailing
+whitespace because two trailing spaces is a hard line break. No YAML carve-out remains: the global 2
+is already what YAML tooling assumes, which retires the override the 4-space era needed.
 
 ## 9. Files every repo needs
 

@@ -83,6 +83,13 @@ const MIGRATIONS = {
         "Install the agent-side repo policy if missing: `cp -R <skill>/starter/.claude/. .claude/` (merge an existing settings.json by hand), then `chmod 755 .claude/hooks/*.sh` — a hook without the executable bit looks wired and never runs. Commit .claude/.",
         'This check now runs in --check and --record, so a repo without the guard hook no longer reads as compliant.',
     ],
+    // Indent moved 4 → 2 (docs/adr/0009): 4 was the old @stylistic value carried forward, and
+    // 2-space is the dominant JS/TS convention. printWidth stays 120.
+    '1.3.0': [
+        'Set `tabWidth: 2` in .oxfmtrc.json (and delete its now-redundant YAML override) and `indent_size = 2` in .editorconfig (delete the YAML carve-out) — or re-pull both from the starter.',
+        'Run `npm run format`, commit the rewrap as its own mechanical commit, and list it in `.git-blame-ignore-revs` — this one touches most indented lines, so the ignore-revs entry is not optional.',
+        'Re-check `max-lines` after the rewrap: indent changes do not alter code-line counts, but any file already flagged at 120 columns stays flagged — the §1 coupling note applies to width, not indent.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
