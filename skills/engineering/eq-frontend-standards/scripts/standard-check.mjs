@@ -90,6 +90,15 @@ const MIGRATIONS = {
         'Run `npm run format`, commit the rewrap as its own mechanical commit, and list it in `.git-blame-ignore-revs` — this one touches most indented lines, so the ignore-revs entry is not optional.',
         'Re-check `max-lines` after the rewrap: indent changes do not alter code-line counts, but any file already flagged at 120 columns stays flagged — the §1 coupling note applies to width, not indent.',
     ],
+    // The lint gate grew from 3 type-aware rules to the full recommended-type-checked set (23,
+    // docs/adr/0011 — the old subset was a tsgolint coverage ceiling that no longer exists), plus
+    // import/no-cycle in the fast config (docs/adr/0012). The asserted rule count moved 214 → 226.
+    '1.4.0': [
+        'Re-pull .oxlintrc.json and .oxlintrc.strict.json from the starter (or add the 20 new type-aware pins, the widened config-file override, and `import/no-cycle`).',
+        'Update `EXPECTED_OXLINT_RULES` in .github/workflows/ci.yml to 226 — the lint job goes red on the old number, by design.',
+        'Run `npm run lint` and triage: `import/no-cycle` findings are real load-order bugs, fix by extracting the shared piece; type-aware findings are measured debt — fix the cheap ones, ratchet the rest per the migration doctrine, never blanket-suppress.',
+        'Optional but recommended: re-pull .vscode/settings.json — it now maps .oxlintrc*.json/.oxfmtrc.json to JSONC so the editor stops flagging their comments.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

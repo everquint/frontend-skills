@@ -241,7 +241,7 @@ handled in what ships:
 - **`ignorePatterns` is not inherited through `extends`.** `.oxlintrc.json` ignores `.claude/skills`;
   `.oxlintrc.strict.json` extends it and does not, so `npm run lint` — the strict config — reported
   124 `no-console` errors against the vendored skills' own Node scripts. `scripts.lint` therefore
-  passes `--ignore-pattern .claude/skills`. Verified: exit 0, `number_of_rules` still 214, and a
+  passes `--ignore-pattern .claude/skills`. Verified: exit 0, `number_of_rules` unchanged (the full count CI asserts on — see `EXPECTED_OXLINT_RULES` in the starter workflow), and a
   planted `console.log` under `src/` is still reported.
 - **oxfmt would format the vendored tree, so every format command excludes it.** oxfmt honours
   `.gitignore`, and `.claude/skills` is deliberately committed rather than ignored — so without the
