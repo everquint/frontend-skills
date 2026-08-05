@@ -19,8 +19,11 @@ second is what installs the skills:
 
 ```
 /plugin marketplace add everquint/frontend-skills
-/plugin install frontend-standards@frontend-standards
+/plugin install frontend-skills@everquint
 ```
+
+The first argument is a GitHub `owner/repo`; the second is `<plugin>@<marketplace>` as declared in
+`.claude-plugin/`, which is why the order looks inverted.
 
 For maintainers of this repo, `npm run link` symlinks every skill into `~/.claude/skills` and
 `~/.agents/skills`, so a `git pull` updates them in place.

@@ -167,6 +167,19 @@ for (const p of onDisk.filter((p) => !declared.includes(p))) {
 for (const p of declared.filter((p) => !onDisk.includes(p))) {
     errors.push(`.claude-plugin/plugin.json: 'skills' lists '${p}', which holds no SKILL.md`);
 }
+// `/plugin install <plugin>@<marketplace>` resolves the plugin by the name the *marketplace* entry
+// gives it, then loads the manifest that entry points at. If the two names disagree the install
+// argument documented in the README refers to something that cannot be found, and the error names
+// only the argument — never the mismatch. Neither name is the GitHub slug; both are chosen here.
+const CATALOGUE = join(import.meta.dirname, '..', '.claude-plugin', 'marketplace.json');
+const catalogue = JSON.parse(readFileSync(CATALOGUE, 'utf8'));
+const entry = catalogue.plugins?.find((p) => p.source === './');
+if (!entry) {
+    errors.push(".claude-plugin/marketplace.json: no plugins[] entry with source './' — this repo is its own plugin");
+} else if (entry.name !== manifest.name) {
+    errors.push(`.claude-plugin: marketplace entry name '${entry.name}' != plugin.json name '${manifest.name}'`);
+}
+
 // Third copy of the version, bumped by sync-standard-version.mjs at release time for the same
 // reason as standard-check.mjs's constant: `changeset version` only touches package.json.
 if (manifest.version !== pkgVersion) {
