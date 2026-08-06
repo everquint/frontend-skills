@@ -11,9 +11,11 @@
 #   PostToolUse  Bash     — this session's OWN checkout/switch/worktree updates the record, so
 #                           deliberate branch changes never false-positive
 #   PreToolUse   Bash     — a `git commit` is blocked (exit 2) when the current branch differs
-#                           from the session's record (another session moved HEAD), or when it is
+#                           from the session's record (another session moved HEAD), when it is
 #                           the default branch (never commit to the default branch — workflow
-#                           SKILL.md). Everything else passes untouched.
+#                           SKILL.md), or when the branch name violates the naming format
+#                           (measured: a session adopted Linear's suggested
+#                           <username>/<id>-<full-title> name wholesale). All else passes.
 #
 # Escape hatch, deliberate and greppable: prefix the command with CLAUDE_BRANCH_GUARD_ALLOW=1.
 # State lives under the checkout's real git dir (rev-parse --git-dir, so worktrees each get their
@@ -157,6 +159,21 @@ Blocked by branch-guard: this session last set or observed branch '$recorded', b
 '$current' — another session sharing this checkout has moved it. Committing now would land the
 work on '$current' silently. Decide which branch this commit belongs on, switch to it explicitly
 (git switch <branch> — that updates this guard's record), and re-run.
+Deliberate override (rare, must be explicit): prefix the command with CLAUDE_BRANCH_GUARD_ALLOW=1.
+EOF
+    exit 2
+fi
+
+# The naming rule is machine-checked here because the measured failure is silent: trackers hand
+# agents a ready-made branch name (Linear: <username>/<id>-<full-title-slug>) and it wins over a
+# rule that is not in context. Types mirror the workflow SKILL.md commit-type table; the ticket
+# ID keeps its tracker case (EQ-142).
+if ! printf '%s' "$current" | grep -Eq '^(feat|fix|refactor|perf|docs|test|build|ci|chore|style|revert)/[A-Za-z0-9._-]+$'; then
+    cat >&2 <<EOF
+Blocked by branch-guard: branch '$current' does not match the standard's branch format
+<type>/<ticket>-<short-slug> (workflow SKILL.md, Branch naming). A tracker's suggested name —
+Linear's <username>/<id>-<full-title> — is NOT the format. Rename, then re-run:
+    git branch -m <type>/<TICKET>-<three-word-slug>
 Deliberate override (rare, must be explicit): prefix the command with CLAUDE_BRANCH_GUARD_ALLOW=1.
 EOF
     exit 2
