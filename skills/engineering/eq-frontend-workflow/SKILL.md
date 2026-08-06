@@ -1,15 +1,25 @@
 ---
 name: eq-frontend-workflow
-description: Delivery workflow — branch or worktree, commits, PRs, review, merge, release, rollback, and how to split work between a primary agent and subagents. Use when starting work, briefing a subagent, writing a commit message, opening a PR, running the pre-push gate, deciding whether a change is mergeable, or reverting.
+description: Delivery workflow — branch model, branch or worktree, commits, PRs, review, merge, release, rollback, and how to split work between a primary agent and subagents. Use when starting work, briefing a subagent, writing a commit message, opening a PR, running the pre-push gate, deciding whether a change is mergeable, or reverting.
 ---
 
 # Frontend Delivery Workflow
 
+## Branch model
+
+Trunk-based — one long-lived branch, the default branch; the why and the two measured incidents
+behind it: ADR 0016 in the `frontend-skills` repo. Every other branch is short-lived: branched off
+the default branch, merged back via a PR with the required checks, deleted on merge. No `develop`,
+no permanent release or environment branches — `release/<major>.x` exists only when a consumer
+needs a fix on a previous major (cut from that major's last tag, cherry-picks only, deleted when
+that major's support ends). **Never commit to the default branch; create the work branch before
+the first edit.** Protection on the remote is verifiable, not assumed —
+`gh api repos/<owner>/<repo>/branches/<default>/protection` is the protection state, unqueryable
+means absent, and required checks bind an admin's direct pushes only with `enforce_admins` on (`../eq-frontend-standards/references/hygiene.md` §6).
+
 ## Branch vs worktree
 
-Default to a **branch**. The working tree already has `node_modules`, editor state, and build caches warm.
-
-A **git worktree** is a second checkout of the same repository on its own branch, in its own directory. It costs a dependency install: a fresh worktree has no `node_modules` — **assume a full reinstall per worktree** (minutes and gigabytes on a large repo) unless a shared store is verified for this repo.
+Default to a **branch** — the working tree already has `node_modules`, editor state, and build caches warm. A **git worktree** is a second checkout of the same repository on its own branch, in its own directory. It costs a dependency install: a fresh worktree has no `node_modules` — **assume a full reinstall per worktree** (minutes and gigabytes on a large repo) unless a shared store is verified for this repo.
 
 | Situation | Use | Why |
 |---|---|---|
@@ -18,7 +28,6 @@ A **git worktree** is a second checkout of the same repository on its own branch
 | Risky or disposable spike | Worktree | Delete the directory to discard everything, no branch surgery |
 | Long-lived work needing frequent switching back to the default branch | Worktree | Avoids repeated rebuild of the primary checkout |
 | Hotfix while a feature is mid-flight and uncommitted | Worktree | Do not stash; stash is invisible state that gets lost |
-| Task is one file or a doc edit | Branch | Install cost dominates the task |
 
 **Two interactive sessions in one checkout fail silently.** Branches do not isolate them: HEAD is
 shared, so session B's `git checkout` retargets session A between reading its branch and
@@ -69,8 +78,6 @@ including this one. Precedence, and the losses that produced these rules: `refer
 
 `feat/AB-1420-inline-citations`, `fix/AB-1533-stale-composer-focus`, `chore/AB-1601-bump-vite`
 
-**Never commit to the default branch.** Create the branch before the first edit. Reviewer-enforced unless branch protection is configured on the remote — configure it.
-
 ## Commits
 
 Format: `<type>: <description>`, imperative mood, no trailing period. Enforced by **commitlint** in a `commit-msg` git hook with `@commitlint/config-conventional`.
@@ -105,7 +112,7 @@ Rules:
 
 ## When to open the PR
 
-Push the branch and open a **draft PR after the first meaningful commit**, not at the end. Draft PRs run CI, which surfaces environment-only failures early, and they make in-flight work visible so two people do not build the same thing. Mark **ready for review** only once the gate below passes locally and CI is green.
+Push the branch and open a **draft PR after the first meaningful commit**, not at the end. Draft PRs run CI, which surfaces environment-only failures early, and make in-flight work visible so two people do not build the same thing. Mark **ready for review** only once the gate below passes locally and CI is green.
 
 ## The gate before pushing
 
@@ -126,17 +133,10 @@ In a repo on the frontend standard, `/pre-pr` is the superset of this table — 
 Diff narration belongs here, never in code comments. Four sections, all required:
 
 ```md
-## What changed and why
-The behaviour before, the behaviour after, and the reason. Link the ticket.
-
-## How it was verified
-Real commands and real output. Paste it.
-
-## Risk and rollback
-What breaks if this is wrong, who notices first, and the revert command.
-
-## Deliberately left out
-Scope cut, follow-up tickets, known gaps.
+## What changed and why       — behaviour before, behaviour after, the reason. Link the ticket.
+## How it was verified        — real commands and real output. Paste it.
+## Risk and rollback          — what breaks if this is wrong, who notices first, the revert command.
+## Deliberately left out      — scope cut, follow-up tickets, known gaps.
 ```
 
 **Paste real command output. Never claim a test passed without showing the run.** An unverifiable claim in a PR body is worse than an admitted gap, because it removes the reviewer's reason to check.
