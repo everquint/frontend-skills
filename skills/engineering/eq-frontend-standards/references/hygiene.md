@@ -197,8 +197,16 @@ reflex the rest of this document exists to prevent. It is a real gap, not a good
 maintainer's work reaches `main` unreviewed by another human. **Turn the approval requirement on as
 soon as a second maintainer exists**, and treat that as the condition rather than a preference.
 
-For the same reason `enforce_admins` starts off. Turn it on together with the approval requirement;
-before then it locks the only maintainer out of their own default branch.
+`enforce_admins` is different: turn it **on from day one**. Required status checks gate PR merges
+and non-admin pushes; an admin's direct push bypasses them unless `enforce_admins` applies the
+rules to admins too (measured: a direct push landed on a protected default branch past its
+required checks — `frontend-skills` ADR 0016). With no approval requirement configured it locks
+nobody out of PR merges, so the single-maintainer lockout argument above does not apply to it.
+
+Protection is **verifiable, not assumed**: the protection state is whatever
+`gh api repos/<owner>/<repo>/branches/<default>/protection` returns, and protection that cannot
+be queried is treated as absent. Run the query after configuring, and re-run it when auditing a
+repo — a rule that exists only in someone's memory of the settings page protects nothing.
 
 ### The three gates that had machinery and no caller
 
