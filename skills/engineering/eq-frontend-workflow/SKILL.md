@@ -72,11 +72,11 @@ outranks any document. Precedence and the losses behind these rules: `references
 
 `<type>/<ticket>-<short-slug>`
 
-- `type` is one of the commit types below.
-- `ticket` is the tracker ID for the work. Every branch maps to exactly one ticket.
-- `slug` is lowercase kebab-case, three words or fewer.
+- `type` is one of the commit types below; `slug` is lowercase kebab-case, three words or fewer; `ticket` is the tracker ID for the work — every branch maps to exactly one ticket.
 
 `feat/AB-1420-inline-citations`, `fix/AB-1533-stale-composer-focus`, `chore/AB-1601-bump-vite`
+
+**A tracker's suggested branch name is not the format** — Linear hands agents `<username>/<id>-<full-title>` ready-made; rename to the format above before the first commit (branch-guard blocks commits on non-conforming names).
 
 ## Commits
 

@@ -169,6 +169,9 @@ const MIGRATIONS = {
         'Merge starter/.claude/settings.json\'s three branch-guard hook entries (SessionStart, PreToolUse Bash, PostToolUse Bash) into your .claude/settings.json — keep your existing entries.',
         '--check now asserts the hook file, so a repo without it reads as non-compliant. What it blocks and the escape hatch: references/hygiene.md §5.',
     ],
+    '2.9.0': [
+        'Re-copy starter/.claude/hooks/branch-guard.sh over .claude/hooks/branch-guard.sh (keep 755) — it now also blocks commits on branch names outside <type>/<ticket>-<slug>, the measured failure being Linear\'s suggested <username>/<id>-<full-title> name adopted wholesale.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

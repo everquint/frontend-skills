@@ -591,13 +591,18 @@ reads its branch and the moment it commits, and the commit lands on the wrong br
 so `guard-protected-files.sh` and the stash denial never fire. The hook records the branch at
 SessionStart, updates the record on the session's own `checkout`/`switch`/`worktree` calls
 (deliberate moves never false-positive), and blocks `git commit` (exit 2) when HEAD has drifted
-from the record or sits on the default branch. Deliberate override, greppable in history:
+from the record, sits on the default branch, or carries a branch name outside the standard's
+`<type>/<ticket>-<slug>` format — the measured naming failure is a session adopting Linear's
+suggested `<username>/<id>-<full-title>` branch name wholesale. Deliberate override, greppable in history:
 prefix the command with `CLAUDE_BRANCH_GUARD_ALLOW=1`. Detached HEAD (rebase, bisect) is skipped —
 those commits are git's own machinery. State lives under `.git/claude-branch-guard/`, one file per
 session, pruned after seven days; worktrees each get their own via `rev-parse --git-dir`. Residual
 risk, accepted: when `origin/HEAD` is unset (unfetched remote, some CI checkouts, mirrors) the
 default-branch check falls back to treating `main` OR `master` as the default — a repo whose
 default branch has a third name gets drift protection but not the default-branch block there.
+The naming check is likewise coarse by design: it enforces the `<type>/` prefix and legal
+characters, not lowercase slugs or a ticket-shaped token — the full format stays
+reviewer-enforced; the hook only has to stop the wholesale tracker-name failure.
 
 **Renovate over Dependabot when an org has many repos.** Dependabot config is per-repo, so a policy
 change means editing every repository. Renovate reads one shared preset — `renovate.json` is
