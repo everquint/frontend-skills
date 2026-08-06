@@ -1,0 +1,349 @@
+/* ==========================================================================
+   Design token system — four layers, one file.
+
+     1. Brand primitives   (:root, top block)  raw values. THE ONLY LAYER
+                                               EDITED TO REBRAND.
+     2. Semantic tokens    (:root, below)      what a thing is FOR. Every
+                                               value is var(--primitive).
+     3. Theme overrides    (.dark)             the second declaration of a
+                                               semantic token, plus the shadow
+                                               knob. Never a new name.
+     4. Tailwind mapping   (@theme inline)     aliases that generate the
+                                               utilities components write.
+
+   Components reference layer 4 utilities (bg-background, text-muted-foreground)
+   or layer 2 variables (var(--card)) in a stylesheet. Never a literal.
+
+   Every colour below is a PLACEHOLDER. Replace layer 1 with the brand's
+   values and leave layers 2-4 alone.
+   ========================================================================== */
+
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+    /* ── 1. BRAND PRIMITIVES — the only layer edited to rebrand ─────────── */
+
+    /* Brand ramp. 100 = lightest tint … 400 = darkest shade. 300 is the brand. */
+    --primary-100: #eef2f6;
+    --primary-200: #d6e0ea;
+    --primary-300: #35618c; /* the brand colour */
+    --primary-400: #24445f;
+
+    /* Neutral ramp. 100 = near-white … 800 = near-black. */
+    --neutral-100: #fafafa;
+    --neutral-200: #f4f4f5;
+    --neutral-300: #ededee;
+    --neutral-400: #e0e0e2;
+    --neutral-500: #c8c8cb;
+    --neutral-600: #62626a;
+    --neutral-700: #2c2c31;
+    --neutral-800: #18181b;
+
+    /* Fixed and status colours. Each contrast-checked against the surface it
+       sits on — see references/dark-mode.md before changing one. */
+    --white: #ffffff;
+    --black: #000000;
+    --status-red: #d92d20;
+    --status-red-light: #fdecea;
+    --status-amber: #b54708;
+    --status-amber-light: #fdf3e7;
+    --status-green: #15803d;
+    --status-green-light: #eaf6ee;
+    --status-blue: #0b5cad;
+    --status-blue-light: #e8f1fb;
+
+    /* Status hues for dark surfaces. A separate primitive rather than a hex in
+       the .dark block: layer 2 and layer 3 both stay free of literals, so a
+       rebrand still only touches this layer. */
+    --status-red-bright: #f97066;
+    --status-amber-bright: #f79009;
+    --status-green-bright: #47cd89;
+    --status-blue-bright: #53b1fd;
+
+    /* Font stacks. The framework injects the real families onto these names
+       (next/font variables on <html>, or an @font-face block). */
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-heading: var(--font-sans);
+
+    /* Base scales. Every step in layer 4 derives from these. */
+    --radius: 0.5rem;
+    --spacing-value: 0.25rem;
+    --letter-spacing: 0em;
+    --scrollbar-size: 6px;
+
+    /* Parametric shadow inputs. Layer 4 composes the elevation set from them,
+       so one knob moves every shadow in the app. */
+    --shadow-color: #000000;
+    --shadow-opacity: 0.08;
+    --shadow-blur: 8px;
+    --shadow-spread: -2px;
+    --shadow-offset-x: 0px;
+    --shadow-offset-y: 4px;
+
+    /* ── 2. SEMANTIC TOKENS — named for purpose, valued by reference ─────── */
+
+    /* Surfaces and text */
+    --background: var(--neutral-200);
+    --foreground: var(--neutral-800);
+    --card: var(--white);
+    --card-foreground: var(--neutral-800);
+    --popover: var(--white);
+    --popover-foreground: var(--neutral-800);
+    --surface-hover: var(--neutral-300);
+
+    /* Intents */
+    --primary: var(--primary-300);
+    --primary-foreground: var(--white);
+    --secondary: var(--neutral-300);
+    --secondary-foreground: var(--neutral-800);
+    --muted: var(--neutral-300);
+    --muted-foreground: var(--neutral-600);
+    --accent: var(--primary-100);
+    --accent-foreground: var(--primary-400);
+
+    /* Status */
+    --destructive: var(--status-red);
+    --destructive-foreground: var(--white);
+    --destructive-subtle: var(--status-red-light);
+    --warning: var(--status-amber);
+    --warning-foreground: var(--white);
+    --warning-subtle: var(--status-amber-light);
+    --success: var(--status-green);
+    --success-foreground: var(--white);
+    --success-subtle: var(--status-green-light);
+    --info: var(--status-blue);
+    --info-foreground: var(--white);
+    --info-subtle: var(--status-blue-light);
+
+    /* Lines and focus */
+    --border: var(--neutral-400);
+    --border-strong: var(--neutral-500);
+    --input: var(--neutral-400);
+    --ring: var(--primary-300);
+
+    /* Charts. Ordered by first use, distinguishable in both themes. */
+    --chart-1: var(--primary-300);
+    --chart-2: var(--status-blue);
+    --chart-3: var(--status-amber);
+    --chart-4: var(--status-green);
+    --chart-5: var(--neutral-600);
+
+    /* Sidebar. shadcn/ui ships its own family; keep the names. */
+    --sidebar: var(--neutral-100);
+    --sidebar-foreground: var(--neutral-800);
+    --sidebar-primary: var(--primary-300);
+    --sidebar-primary-foreground: var(--white);
+    --sidebar-accent: var(--primary-100);
+    --sidebar-accent-foreground: var(--primary-400);
+    --sidebar-border: var(--neutral-400);
+    --sidebar-ring: var(--primary-300);
+
+    /* Scrollbar. Consumed by the optional starter/scrollbar.css. */
+    --track-background: var(--neutral-300);
+    --thumb-background: var(--neutral-500);
+    --thumb-background-hover: var(--neutral-600);
+
+    /* Stacking ladder. A raw z-index in a component is a token candidate. */
+    --z-raised: 10;
+    --z-sticky: 100;
+    --z-overlay: 1000;
+    --z-toast: 10000;
+
+    color-scheme: light;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── 3. DARK THEME — the second declaration of a semantic token ──────────
+   Only names already declared above appear here. A token that first appears
+   in this block does not exist in light mode; scripts/check-tokens.mjs fails
+   the build on one. Overrides that are not a straight ramp flip carry the
+   reason inline. */
+.dark {
+    --background: var(--neutral-800);
+    --foreground: var(--neutral-100);
+    --card: var(--neutral-700);
+    --card-foreground: var(--neutral-100);
+    --popover: var(--neutral-700);
+    --popover-foreground: var(--neutral-100);
+    --surface-hover: var(--neutral-600);
+
+    --primary: var(--primary-200); /* the 300 brand loses contrast on near-black */
+    --primary-foreground: var(--neutral-800);
+    --secondary: var(--neutral-600);
+    --secondary-foreground: var(--neutral-100);
+    --muted: var(--neutral-600);
+    --muted-foreground: var(--neutral-500);
+    --accent: var(--neutral-600);
+    --accent-foreground: var(--neutral-100);
+
+    /* Status hues lighten: the AA-on-white values are unreadable on dark. */
+    --destructive: var(--status-red-bright);
+    --destructive-foreground: var(--neutral-800);
+    --destructive-subtle: color-mix(in srgb, var(--status-red-bright) 16%, transparent);
+    --warning: var(--status-amber-bright);
+    --warning-foreground: var(--neutral-800);
+    --warning-subtle: color-mix(in srgb, var(--status-amber-bright) 16%, transparent);
+    --success: var(--status-green-bright);
+    --success-foreground: var(--neutral-800);
+    --success-subtle: color-mix(in srgb, var(--status-green-bright) 16%, transparent);
+    --info: var(--status-blue-bright);
+    --info-foreground: var(--neutral-800);
+    --info-subtle: color-mix(in srgb, var(--status-blue-bright) 16%, transparent);
+
+    --border: var(--neutral-600);
+    --border-strong: var(--neutral-500);
+    --input: var(--neutral-600);
+    --ring: var(--primary-200);
+
+    --chart-1: var(--primary-200);
+    --chart-2: var(--status-blue-bright);
+    --chart-3: var(--status-amber-bright);
+    --chart-4: var(--status-green-bright);
+    --chart-5: var(--neutral-500);
+
+    --sidebar: var(--neutral-700);
+    --sidebar-foreground: var(--neutral-100);
+    --sidebar-primary: var(--primary-200);
+    --sidebar-primary-foreground: var(--neutral-800);
+    --sidebar-accent: var(--neutral-600);
+    --sidebar-accent-foreground: var(--neutral-100);
+    --sidebar-border: var(--neutral-600);
+    --sidebar-ring: var(--primary-200);
+
+    --track-background: color-mix(in srgb, var(--white) 8%, transparent);
+    --thumb-background: color-mix(in srgb, var(--white) 20%, transparent);
+    --thumb-background-hover: color-mix(in srgb, var(--white) 32%, transparent);
+
+    /* Shadows read as depth on light surfaces and as dirt on dark ones.
+       Deepen the colour and drop the opacity rather than removing them. */
+    --shadow-opacity: 0.4;
+
+    color-scheme: dark;
+}
+
+/* ── 4. TAILWIND MAPPING — an alias here is what generates a utility ─────
+   A token declared above with no alias here has NO class. `bg-surface-hover`
+   without `--color-surface-hover` emits no rule at all and fails silently. */
+@theme inline {
+    /* Semantic colours → bg-*, text-*, border-*, ring-*, fill-*, … */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-surface-hover: var(--surface-hover);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-subtle: var(--destructive-subtle);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-subtle: var(--warning-subtle);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-subtle: var(--success-subtle);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-subtle: var(--info-subtle);
+    --color-border: var(--border);
+    --color-border-strong: var(--border-strong);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    /* Primitive escape hatch: bg-neutral-300, text-primary-400. Two uses of
+       the same one means it wanted a semantic token instead. */
+    --color-neutral-100: var(--neutral-100);
+    --color-neutral-200: var(--neutral-200);
+    --color-neutral-300: var(--neutral-300);
+    --color-neutral-400: var(--neutral-400);
+    --color-neutral-500: var(--neutral-500);
+    --color-neutral-600: var(--neutral-600);
+    --color-neutral-700: var(--neutral-700);
+    --color-neutral-800: var(--neutral-800);
+    --color-primary-100: var(--primary-100);
+    --color-primary-200: var(--primary-200);
+    --color-primary-300: var(--primary-300);
+    --color-primary-400: var(--primary-400);
+
+    /* Fonts → font-sans, font-serif, font-mono, font-heading */
+    --font-sans: var(--font-sans);
+    --font-serif: var(--font-serif);
+    --font-mono: var(--font-mono);
+    --font-heading: var(--font-heading);
+
+    /* Radius steps, all derived from the single --radius base. */
+    --radius-xs: calc(var(--radius) * 0.25);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+    --radius-pill: 9999px;
+    --radius-circle: 50%;
+
+    /* Spacing unit and tracking */
+    --spacing: var(--spacing-value);
+    --tracking-normal: var(--letter-spacing);
+
+    /* Elevation set, composed from the parametric inputs in layer 1. */
+    --shadow-xs: 0 1px 2px 0 color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 60%), transparent);
+    --shadow-sm: var(--shadow-offset-x) var(--shadow-offset-y) var(--shadow-blur) var(--shadow-spread)
+        color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+    --shadow-md: var(--shadow-offset-x) calc(var(--shadow-offset-y) * 2) calc(var(--shadow-blur) * 2)
+        calc(var(--shadow-spread) * 2)
+        color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+    --shadow-lg: var(--shadow-offset-x) calc(var(--shadow-offset-y) * 3) calc(var(--shadow-blur) * 3)
+        var(--shadow-spread) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+    --shadow-xl: var(--shadow-offset-x) calc(var(--shadow-offset-y) * 4) calc(var(--shadow-blur) * 4)
+        var(--shadow-spread) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 130%), transparent);
+    --shadow-2xl: 0 5px 20px 0 color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 160%), transparent);
+}
+
+@layer base {
+    * {
+        border-color: var(--border);
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+        font-family: var(--font-sans);
+        letter-spacing: var(--letter-spacing);
+    }
+
+    /* Focus is a token, not a per-component decision. */
+    :focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+}

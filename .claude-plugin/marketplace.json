@@ -8,7 +8,7 @@
     {
       "name": "eq",
       "source": "./",
-      "description": "Code conventions, delivery workflow, and the non-lintable quality bar for frontend TypeScript repos.",
+      "description": "Code conventions, the design token system, delivery workflow, and the non-lintable quality bar for frontend TypeScript repos.",
       "category": "engineering",
       "keywords": [
         "frontend",
@@ -17,7 +17,9 @@
         "oxfmt",
         "tdd",
         "code-review",
-        "conventions"
+        "conventions",
+        "design-system",
+        "design-tokens"
       ]
     }
   ]

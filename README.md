@@ -43,10 +43,15 @@ For maintainers of this repo, `npm run link` symlinks every skill into `~/.claud
 | Skill | Loads when |
 |---|---|
 | `eq-frontend-standards` | writing or reviewing code; setting up lint; auditing a repo against the standard; judging whether a finding is a real defect |
+| `eq-design-system` | scaffolding a project's theme file; rebranding; adding dark mode; adding or renaming a token; auditing for hardcoded colours, radii and shadows |
 | `eq-frontend-workflow` | starting a feature; choosing branch vs worktree; writing commits; opening a PR; merging; releasing; reverting |
 | `eq-frontend-quality-bar` | writing tests; wiring coverage gates; adding error reporting; setting bundle budgets; verifying accessibility; reviewing code that renders untrusted HTML |
 | `eq-create-issue` | filing a Linear issue for work about to start, or for work already shipped that has no ticket; writing acceptance criteria |
 | `eq-take-issue` | picking up a Linear issue — reading it against the codebase, settling the approach with a human, then building it |
+
+`eq-design-system` is the boilerplate half of styling — the token file itself, its names, and the
+procedures that change it. `eq-frontend-standards` keeps the rules for *using* a token from a
+component; the two cross-reference rather than restate.
 
 The last two close the loop: a ticket's ID is what `eq-frontend-workflow` names the branch after, and
 implementing one finishes by filing the deferred work back as new tickets. `docs/adr/0005-*` records
