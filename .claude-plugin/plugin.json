@@ -1,7 +1,7 @@
 {
   "name": "eq",
   "description": "Frontend engineering standards: code conventions, the design token system, delivery workflow, and the quality bar (TDD, observability, performance, accessibility, security).",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "license": "MIT",
   "author": {
     "name": "gokulsgr"
