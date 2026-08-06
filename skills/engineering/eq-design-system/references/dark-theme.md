@@ -57,8 +57,15 @@ can.
 
 ## 5. Contrast, in both themes
 
-Every `-foreground`/surface pair is checked against WCAG AA — 4.5:1 for body text, 3:1 for large text
-and for the boundary of an interactive control — **in both themes**. The pairs that fail most often:
+**This is machine-checked now.** `scripts/check-tokens.mjs` derives every pair from the token file and
+computes the WCAG ratio in both themes — 4.5:1 for text, 3:1 for `--input` and `--ring` under WCAG
+1.4.11 — and fails on anything under its floor. Run it after any layer-1 or `.dark` edit; a colour
+change that looks fine in light mode is exactly the change that breaks the dark pair.
+
+The checker reads `oklch()` and hex directly, so it needs no browser and no build. What it cannot
+evaluate — a `color-mix()` in a paired slot — it reports rather than skips.
+
+The pairs that fail most often, and are worth looking at first when it does fail:
 
 - `--muted-foreground` on `--muted`. It is the token most often picked by eye for "quieter", and
   quieter is exactly what pushes it under 4.5:1.
@@ -68,15 +75,18 @@ and for the boundary of an interactive control — **in both themes**. The pairs
   is wrong there, which is why the starter inverts them to the near-black neutral.
 - The focus ring against **both** the surface it sits on and the fill it surrounds.
 
-Contrast is a reviewer check with an automated assist: an axe pass over the primary flows, run once
-per theme (`../eq-frontend-quality-bar/SKILL.md` §4). A pass in one theme certifies nothing about the
-other.
+What the token checker **cannot** see: contrast of text over an image or gradient, a colour applied
+by a component outside the token system, and any pairing the design uses that the derivation does not
+predict — `--foreground` on `--accent`, say. Those stay with an axe pass over the primary flows, run
+once per theme (`../eq-frontend-quality-bar/SKILL.md` §4). A pass in one theme certifies nothing about
+the other, and neither tool judges whether a passing colour is *legible* at the size it is used.
 
 ## 6. Verification checklist
 
 Before calling a dark theme done:
 
-1. `node scripts/check-tokens.mjs src` exits 0 — no `dark-only-token`, no `derived-literal`.
+1. `node scripts/check-tokens.mjs src` exits 0 — no `dark-only-token`, no `derived-literal`, and no
+   `contrast` finding in either theme.
 2. Every screen renders in both themes with no white block and no black block that was not designed.
    The unconverted-literal failure looks like a rendering glitch, not like a missing token.
 3. Toggle mid-session on a screen with an open popover, dropdown and modal. Portalled content
@@ -84,4 +94,5 @@ Before calling a dark theme done:
    it.
 4. Reload on each of the three settings, and change the OS setting while `system` is active.
 5. Form controls, native scrollbars and the canvas behind a short page — the `color-scheme` set.
-6. Contrast spot-check of the pairs in §5, in the dark theme specifically.
+6. Text over any image, gradient or video — the one contrast case the checker structurally cannot
+   reach, and the one dark mode breaks most often.

@@ -54,6 +54,11 @@ different order of operations: `references/adoption.md`.
 The names are fixed across projects so that a layer-2 mapping transfers unchanged from one repo to
 the next, and so shadcn/ui components drop in without edits.
 
+- **Colour format is OKLCH**, matching Tailwind v4's default palette and shadcn/ui's v4 themes.
+  `oklch(L C H)` — set the 300 step's chroma and hue from the brand colour, then derive tints and
+  shades by shifting L alone. Steps come out perceptually even and `color-mix()` between them
+  interpolates cleanly, which hex and HSL ramps do not. Dark-theme brightening is the same C and H
+  at a lifted L. Keep the source hex as a trailing comment for whoever holds the brand guidelines.
 - **Brand ramp**: `--primary-100` … `--primary-400`. 100 is the lightest tint, 400 the darkest
   shade, **300 is the brand colour**. Four steps, not ten — a ramp wider than the number of
   decisions it feeds invites picking by appearance.
@@ -127,17 +132,15 @@ and how to test a theme: `references/dark-theme.md`.
 ## 7. Primitives and components
 
 The token system is what a component library consumes; it is not the component library. This
-standard names no primitive library (`../eq-frontend-standards/references/styling.md` §1.1), and the
-starter installs none. What the token system guarantees is that a shadcn/ui component copied in
-renders correctly with no edit, because the names it reads are the names declared here.
-
-Where a variant's colours live, what belongs in `components/ui/` versus a feature folder, and why a
-generated primitive is never hand-edited: `references/primitives.md`.
+standard names no primitive library (`../eq-frontend-standards/references/styling.md` §1.1) and the
+starter installs none. What the tokens guarantee is that a shadcn/ui component copied in renders
+correctly unedited, because the names it reads are the names declared here. Where a variant's
+colours live, and why a generated primitive is never hand-edited: `references/primitives.md`.
 
 ## 8. What is machine-enforced
 
-`scripts/check-tokens.mjs` — six checks, all in files oxlint never opens or in class strings no lint
-rule inspects. Exit 0 clean, **2** on findings, 1 when the run could not start.
+`scripts/check-tokens.mjs` — seven checks, all in files oxlint never opens or in class strings no
+lint rule inspects. Exit 0 clean, **2** on findings, 1 when the run could not start.
 
 | Check | Catches |
 |---|---|
@@ -147,20 +150,41 @@ rule inspects. Exit 0 clean, **2** on findings, 1 when the run could not start.
 | `derived-literal` | a themed token valued with a literal instead of a primitive reference |
 | `broken-alias` | a layer-4 alias pointing at a custom property nothing declares |
 | `arbitrary-value` | `bg-[#…]`, `rounded-[10px]`, `p-[13px]` — a scale step, restated |
+| `contrast` | a token pair under its WCAG floor **in either theme**, and a `-foreground` no pair covers |
 
 Run it over `src/`, or over a path list. `--tokens <file>` names the token file when the repo has
 more than one stylesheet declaring `@theme`. A deliberate finding is suppressed with a
 `ds-ok: <reason>` comment on the line; the reason is required, so every suppression is reviewable.
 
+**The contrast pairs are derived, never listed.** Every `--x-foreground` is checked against `--x`,
+page and muted text against `--background` and `--card`, and `--input` and `--ring` against both
+surfaces at the 3:1 non-text floor (WCAG 1.4.11). A `-foreground` the derivation cannot pair is
+itself a finding — so adding a token to the file cannot quietly escape the audit, which is the
+failure mode a hand-maintained pair list has. `--border` is a decorative separator and is
+deliberately not held to 3:1. A value the checker cannot evaluate, such as a `color-mix()`, fails
+closed and says so rather than being skipped.
+
 Not detected, and therefore reviewer-enforced: a token named for its appearance rather than its
-purpose, a `-foreground` that fails contrast against its surface, a semantic token nothing uses, a
-primitive utility used twice where a semantic token belonged, and a dark override that is a
-different colour rather than the same colour re-toned.
+purpose, a semantic token nothing uses, a primitive utility used twice where a semantic token
+belonged, and a dark override that is a different colour rather than the same colour re-toned.
 
 `grid-cols-[repeat(…)]`, `max-h-[calc(100vh-4rem)]` and `w-[280px]` compute a shape rather than
 restate a scale, and are not findings.
 
-## 9. Universal, and stack-specific
+## 9. Scope — CSS is the source of truth
+
+There is **no JSON token layer and no build step**. The W3C Design Tokens Community Group format
+reached its first stable version (2025.10), backed by Adobe, Google, Figma, Salesforce and Shopify
+and consumed by Style Dictionary — the industry direction for tokens with more than one consumer.
+This system skips it deliberately: for a web-only product it is indirection with nothing on the
+other end.
+
+**Adopt DTCG when a second consumer exists** — Figma variable round-tripping, a native app, any
+non-CSS platform. Layer 1 maps one-to-one onto DTCG `color`, `dimension` and `shadow` types and
+layers 2–4 become transforms, so the migration is additive rather than a rewrite. Full argument:
+`references/token-architecture.md`.
+
+## 10. Universal, and stack-specific
 
 Universal in any component-based frontend: the four-layer split, one editable brand layer, semantic
 names owned by purpose, both themes declaring every themed name, and no literal below layer 1.
