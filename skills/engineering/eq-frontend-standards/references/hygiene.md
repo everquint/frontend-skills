@@ -331,6 +331,9 @@ crafted name would execute. Verified: `feat/AB-1420-a;rm -rf x` exits 1 and crea
 
 The release row of the §1 table. Three pieces ship in the starter and `init-greenfield.mjs` lands all
 three: `.changeset/config.json`, the `changeset` / `version` / `release` scripts, and this workflow.
+All three are **library machinery** — an app skipping the semver changelog (workflow skill, Release
+"Scoped by consumer") removes all three together; keeping the workflow without the config
+half-installs a release job that can only fail.
 
 **Read this before your first release, because two failures are waiting there and both were hit for
 real.** Neither appears on an ordinary push: the release job only versions when a changeset is pending,

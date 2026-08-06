@@ -34,7 +34,7 @@ shared, so session B's `git checkout` retargets session A between reading its br
 committing — the commit lands on B's branch with no error (measured: a fix-branch commit reached
 main past its required checks). Worktree per interactive session, and re-check
 `git branch --show-current` immediately before every commit regardless. A worktree isolates HEAD
-and the working tree ONLY — `~/.claude/settings.json`, plugin registrations, and everything else
+and the working tree ONLY — `~/.claude/settings.json`, plugin registrations, and everything
 outside the repo stay shared and clobberable.
 
 Claude Code subagents accept `isolation: "worktree"` natively — the agent gets its own worktree and it is cleaned up automatically if nothing changed. Use it for parallel agent fan-out, not for a single sequential task. Remove a finished worktree with `git worktree remove <path>`; inspect with `git worktree list`.
@@ -61,12 +61,12 @@ The primary agent edits directly in exactly three cases: a one-line or trivially
 
 ## Before writing it: look it up
 
-Three rules, all facts rather than judgement, so all looked up rather than assumed. **Does it already
-exist** — search the registry and the org's repos before hand-rolling, and justify any new dependency in
-the PR body. **Does the API behave as you assume** — read its docs at the pinned version, via a
-docs-retrieval tool such as Context7 when one is mounted, otherwise the installed package's own `.d.ts`
-and `CHANGELOG`. **Can the runtime answer instead** — then measure; a probe outranks any document,
-including this one. Precedence, and the losses that produced these rules: `references/looking-it-up.md`.
+Three rules, all facts rather than judgement, so all looked up rather than assumed. **Does it
+already exist** — search the registry and the org's repos before hand-rolling; justify any new
+dependency in the PR body. **Does the API behave as you assume** — read its docs at the pinned
+version, via a docs-retrieval tool such as Context7 when mounted, otherwise the installed
+package's own `.d.ts` and `CHANGELOG`. **Can the runtime answer instead** — then measure; a probe
+outranks any document. Precedence and the losses behind these rules: `references/looking-it-up.md`.
 
 ## Branch naming
 
@@ -98,8 +98,7 @@ Format: `<type>: <description>`, imperative mood, no trailing period. Enforced b
 
 Rules:
 
-- **A breaking change is marked**: `!` after the type (`feat!: …`) plus a `BREAKING CHANGE: <what
-  breaks, what to do>` footer — the footer is what a reader greps for when an upgrade fails.
+- **A breaking change is marked**: `!` after the type (`feat!: …`) plus a `BREAKING CHANGE: <what breaks, what to do>` footer — the footer is what a reader greps for when an upgrade fails.
 - **One logical change per commit.** A commit that touches two unrelated concerns is two commits.
 - **Never mix a refactor and a behaviour change in one commit.** A moved file plus a changed condition produces a diff where the condition is invisible, and reverting the bug reverts the refactor with it. Move first, change second, in separate commits.
 - Scopes (`feat(composer): …`) are optional. If used, be consistent within a package.
@@ -157,7 +156,7 @@ A conventions pass is **not** a bug hunt, and a bug hunt is not a conventions pa
 Two bars every finding must clear:
 
 1. **A concrete failure scenario** — specific inputs or state leading to wrong output, a crash, or data loss. "This is unconventional", "this could be cleaner", and "consider extracting" are not findings.
-2. **Verified at source before publishing.** Re-read the cited `file:line`. Grep the repo before claiming anything is unused, dead, or never called. Say plainly which findings were not individually verified rather than implying uniform confidence.
+2. **Verified at source before publishing.** Re-read the cited `file:line`. Grep the repo before claiming anything is unused, dead, or never called. State which findings were not individually verified rather than implying uniform confidence.
 
 Both bars are reviewer-enforced; no tool checks them.
 
@@ -168,7 +167,7 @@ Mergeable when all of these hold:
 - CI green: typecheck, lint, tests, build.
 - Both reviews complete, with every Critical and High either fixed or explicitly accepted in a PR comment.
 - Branch up to date with the default branch (merge the default branch in, or rebase — either is fine before the merge commit).
-- A changeset present if published behaviour changed.
+- A changeset present if published behaviour changed (libraries — see Release below).
 - PR out of draft.
 
 The PR author merges, after approval. Do not merge someone else's PR for them — they know what is still in flight.
@@ -177,16 +176,17 @@ The PR author merges, after approval. Do not merge someone else's PR for them �
 
 ## Release
 
+**Scoped by consumer.** A **library** — code other repos install and upgrade — requires everything below: Changesets, semver, the generated `CHANGELOG.md`, the release job. An **app** — deployed to users, upgraded by nobody — may skip it all: its history is the merged PRs, its release notes live with its deploys, and opting in anyway means following the library rules.
+
 Versioning uses **Changesets**. A PR that changes published behaviour includes a changeset file, human-authored, naming the packages and the bump level (`patch` / `minor` / `major`) with a one-line consumer-facing summary. Add it with the changesets CLI; the file lands in the PR and is reviewed like code.
 
 Changesets rather than semantic-release because the bump is a human decision about consumer impact, reviewable per PR, rather than inferred from commit messages — and `feat:` versus `fix:` is routinely wrong at commit time on a branch that later grows. Full comparison: `references/release-tooling.md`.
 
-**A release job is required, and it owns the version and `CHANGELOG.md`.** It consumes the
-changesets, bumps the versions, regenerates the changelog, and tags — none of that is done by hand,
-and `CHANGELOG.md` is never hand-written or hand-edited. It lives in
-`.github/workflows/release.yml`; `hygiene.md` §1 carries the gate row and §6 the wiring. Why
-hand-bumps and hand-edits fail, and which half of this is machine-enforced:
-`references/release-tooling.md`, "CHANGELOG.md is a build output".
+**A library's release job owns the version and `CHANGELOG.md`.** It consumes the changesets,
+bumps the versions, regenerates the changelog, and tags — none of that is done by hand, and
+`CHANGELOG.md` is never hand-written or hand-edited. It lives in `.github/workflows/release.yml`;
+`hygiene.md` §1 carries the gate row and §6 the wiring. Why hand-bumps and hand-edits fail, and
+which half of this is machine-enforced: `references/release-tooling.md`, "CHANGELOG.md is a build output".
 
 ## Rollback
 
