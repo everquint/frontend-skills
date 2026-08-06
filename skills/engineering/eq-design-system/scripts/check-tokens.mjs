@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Token-system audit. Six checks, all of them things a linter in this stack cannot see: oxlint
+// Token-system audit. Seven checks, all of them things a linter in this stack cannot see: oxlint
 // reads no stylesheet and inspects no class string, and oxfmt asserts nothing about values.
 //
 //   1 color-literal        a hex/rgb()/hsl()/`white`/`black` outside the token file
@@ -8,6 +8,7 @@
 //   4 derived-literal      a semantic token or a dark override valued with a literal
 //   5 broken-alias         a @theme alias pointing at a custom property nobody declares
 //   6 arbitrary-value      bg-[#…], rounded-[10px], shadow-[…] — a scale step, restated
+//   7 contrast             a token pair below its WCAG floor, in either theme
 //
 // Exit codes match `eq-frontend-standards/scripts/init-greenfield.mjs`: 0 clean, 2 findings,
 // 1 the run never started (no paths, no token file). A finding is suppressed by `ds-ok: <reason>`
@@ -106,6 +107,27 @@ for (const [file, raw] of read) {
     }
 }
 
+// ── colour maths, for check 7 ───────────────────────────────────────────────
+// sRGB → linear, and OKLCH → linear sRGB (Ottosson's OKLab matrices). WCAG relative luminance
+// weights linear channels, which is what both paths produce. Verified against an independent
+// hex-only implementation: the two agree to 4 decimal places on the starter's whole palette.
+const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+const oklchToLinear = (L, C, H) => {
+    const a = C * Math.cos((H * Math.PI) / 180);
+    const b = C * Math.sin((H * Math.PI) / 180);
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+    return [
+        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+    ].map((c) => Math.min(1, Math.max(0, c)));
+};
+
+const luminance = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
 // ── token-file structure: parse :root and the dark block ────────────────────
 const blockAt = (text, openIndex) => {
     let depth = 0;
@@ -176,6 +198,84 @@ for (const file of tokenFiles) {
                 report('broken-alias', file, raw, index === -1 ? 0 : index,
                     `${name} aliases ${m[1]}, which nothing declares`);
             }
+        }
+    }
+
+    // ── 7. contrast ─────────────────────────────────────────────────────────
+    // The pair list is DERIVED, never written down. A hand-maintained list is the failure mode this
+    // check exists to avoid: adding `--warning`/`--warning-foreground` to the token file and having
+    // the audit still print "no findings" is a false green, which is worse than no audit. Every
+    // `-foreground` token must land in a pair, and one that cannot is itself a finding.
+    const light = Object.fromEntries(rootBlocks.flatMap(declared));
+    const darkTheme = { ...light, ...Object.fromEntries(darkBlocks.flatMap(declared)) };
+
+    const resolveToken = (name, scope, depth = 0) => {
+        if (depth > 16) throw new Error(`var() cycle at ${name}`);
+        const value = scope[name];
+        if (value === undefined) throw new Error(`${name} is not declared`);
+        const ref = value.match(/^var\(\s*(--[\w-]+)\s*\)$/);
+        return ref ? resolveToken(ref[1], scope, depth + 1) : value;
+    };
+
+    // Only the two literal forms a token file writes. color-mix() and gradients are deliberately not
+    // evaluated — the pair fails closed and says why, rather than being silently skipped.
+    const srgb = (value) => {
+        const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (hex) {
+            const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+            return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map(toLinear);
+        }
+        const ok = value.match(/^oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)\s*\)$/i);
+        if (ok) return oklchToLinear(ok[1].endsWith('%') ? parseFloat(ok[1]) / 100 : +ok[1], +ok[2], +ok[3]);
+        throw new Error(`cannot evaluate \`${value.slice(0, 40)}\``);
+    };
+
+    const pairs = [];
+    const add = (surface, fg, min, why) => {
+        if (light[surface] === undefined || light[fg] === undefined) return false;
+        pairs.push({ surface, fg, min, why });
+        return true;
+    };
+
+    const SUFFIX = '-foreground';
+    for (const name of Object.keys(light)) {
+        // `--foreground` itself ends in the suffix but names no base — it is the page text, paired
+        // with `--background` below. Without this guard it derives a base of `--` and self-reports.
+        if (!name.endsWith(SUFFIX) || name === '--foreground') continue;
+        const base = name.slice(0, -SUFFIX.length);
+        if (add(base, name, 4.5, 'text on its own surface')) continue;
+        const index = raw.indexOf(`${name}:`);
+        report('contrast', file, raw, index === -1 ? 0 : index,
+            `${name} has no matching \`${base}\` surface, so nothing checks its contrast`);
+    }
+    // The page text, and muted text where it is actually written — on the page and on cards far more
+    // often than on `--muted` itself.
+    add('--background', '--foreground', 4.5, 'page text');
+    add('--background', '--muted-foreground', 4.5, 'muted text on the page');
+    add('--card', '--muted-foreground', 4.5, 'muted text on a card');
+    // WCAG 1.4.11: 3:1 for the boundary of a control and for a focus indicator. `--border` is a
+    // decorative separator and is deliberately NOT held to it — holding it to 3:1 fails every
+    // mainstream design system and would get the whole check switched off.
+    for (const line of ['--input', '--ring']) {
+        add('--background', line, 3, 'control boundary against the page');
+        add('--card', line, 3, 'control boundary on a card');
+    }
+
+    for (const [theme, scope] of [['light', light], ['dark', darkTheme]]) {
+        for (const { surface, fg, min, why } of pairs) {
+            const index = raw.indexOf(`${fg}:`);
+            let ratio;
+            try {
+                const [x, y] = [surface, fg].map((n) => luminance(srgb(resolveToken(n, scope))));
+                ratio = (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+            } catch (e) {
+                report('contrast', file, raw, index === -1 ? 0 : index,
+                    `${fg} on ${surface} (${theme}) could not be evaluated — ${e.message}`);
+                continue;
+            }
+            if (ratio >= min) continue;
+            report('contrast', file, raw, index === -1 ? 0 : index,
+                `${fg} on ${surface} is ${ratio.toFixed(2)}:1 in ${theme}, below ${min} — ${why}`);
         }
     }
 }

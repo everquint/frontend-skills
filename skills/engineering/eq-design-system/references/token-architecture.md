@@ -25,7 +25,38 @@ the first theme.
 Each layer earns its place by removing one class of edit. The cost is one indirection per lookup,
 paid once when reading the token file and never when writing a component.
 
-## 2. Ramp design
+## 2. Colour format — OKLCH, and what it buys
+
+Every colour in layer 1 is `oklch(L C H)`: lightness 0–1, chroma, hue in degrees. The source hex sits
+in a trailing comment, because that is the number on the brand guidelines and the one a designer will
+say out loud.
+
+Three things follow, and none of them are available from hex or HSL:
+
+- **A ramp is one decision, not four.** Fix C and H from the brand colour and move L. The steps come
+  out perceptually even, so the gap between 100 and 200 looks like the gap between 300 and 400. An
+  evenly-spaced *hex* ramp is not evenly spaced to the eye, which is why hand-picked ramps bunch up
+  in the mid-tones.
+- **`color-mix()` interpolates cleanly.** Mixing two hex or HSL colours travels through a desaturated
+  middle — the muddy-midpoint problem. In OKLCH the path stays in gamut and in hue, which matters
+  because the starter composes the `-subtle` status fills and the dark scrollbar colours with
+  `color-mix()`.
+- **Dark-theme brightening is mechanical.** The `-bright` status primitives are the same C and H at a
+  higher L. That is a repeatable operation rather than four colours picked by eye, and it survives a
+  rebrand: change the hue once and the dark variants follow.
+
+HSL fails the first two outright — its "lightness" is not perceptual, so `hsl(60 100% 50%)` (yellow)
+and `hsl(240 100% 50%)` (blue) claim identical lightness and differ by roughly 8:1 in luminance.
+
+This matches where the ecosystem landed: Tailwind v4's default palette is OKLCH, and shadcn/ui
+converted its themes from HSL to OKLCH for v4. A repo copying a shadcn block into a hex token file is
+mixing two colour models in one `@theme`.
+
+**Chroma has a gamut ceiling.** A high C at an extreme L is not representable in sRGB and gets
+clamped on render, so two "different" steps can display identically. When a ramp's ends look flat,
+that is the cause — lower C as L approaches 0 or 1.
+
+## 3. Ramp design
 
 **Four brand steps, eight neutral steps.**
 
@@ -60,7 +91,7 @@ ramp produces a well-spaced dark theme with no second ramp to maintain.
 expressions, and a brand swap must not move them. They sit in layer 1 as their own primitives, in
 pairs: the AA-on-white value, and a `-bright` value for dark surfaces.
 
-## 3. Derived scales — one knob, whole set
+## 4. Derived scales — one knob, whole set
 
 **Radius.** One `--radius` base in layer 1; every step in layer 4 is a `calc()` multiple of it. The
 whole app's corner language moves by editing one number, and no step can drift out of proportion
@@ -79,7 +110,7 @@ layer 4 with `color-mix()` into the elevation set. Two properties follow from th
 derive from it. Changing it rescales the whole layout rhythm coherently — which is also why a raw
 `p-[13px]` is a defect: it is the one value that does not move.
 
-## 4. Beyond colour — the families a token system owns
+## 5. Beyond colour — the families a token system owns
 
 Colour is the family people remember. The others fail the same way and are enforced identically:
 
@@ -96,7 +127,7 @@ The stacking ladder is worth naming explicitly because it is the family most oft
 rungs, widely spaced, and a component picks a rung rather than a number. The failure it prevents is
 not visual drift — it is a modal rendering behind its own overlay, discovered in production.
 
-## 5. Multi-brand and white-label
+## 6. Multi-brand and white-label
 
 One build, several brands: layer 1 moves out of `:root` and into a per-brand attribute selector.
 Layers 2, 3 and 4 do not change at all, which is the whole return on the layering.
@@ -123,10 +154,39 @@ Scope the layer-3 overrides to that container rather than reaching for `!importa
 overriding the custom properties on the container makes every descendant follow, including the
 components that never knew they were being themed.
 
-## 6. Where the boundary sits
+## 7. Where the boundary sits
 
 The token file owns values and their names. It does not own layout, component structure, or which
 CSS layer expresses a given property — that is
 `../eq-frontend-standards/references/styling.md` §1, and it is a separate decision procedure. A
 token file that starts declaring `.card { padding: … }` has absorbed a component, and the next
 person to need a different card padding will fork the class rather than edit the shared one.
+
+## 8. Why there is no DTCG/JSON layer
+
+The W3C Design Tokens Community Group format module reached its **first stable version, 2025.10**,
+developed by 20+ editors with Adobe, Google, Meta, Microsoft, Figma, Salesforce, Shopify and others
+represented, and Style Dictionary consumes it. It is a Community Group publication rather than a
+formal W3C Recommendation, and it is the clear industry direction. This system does not use it.
+
+**The reason is that a token pipeline pays off per consumer, and a web-only product has one.** JSON
+as the source means a build step, a generated CSS artifact that must not be hand-edited, a watch task
+in local development, and a second place to look when a value is wrong. Against that, the return is
+the ability to emit the same tokens as Swift, XML, or Figma variables — worth a great deal at two or
+more consumers, and nothing at one.
+
+**The trigger to adopt it is a second consumer appearing**, not a repo reaching some size:
+
+- a native app, or any platform that cannot read CSS;
+- Figma variables round-tripping, where design owns the palette and expects to publish it;
+- a component library published to more than one application with its own release cycle.
+
+**The migration is additive, which is what makes deferring it safe.** Layer 1 is already a flat set
+of named primitives, so it maps one-to-one onto DTCG's `color`, `dimension` and `shadow` types.
+Layers 2–4 — semantic aliasing, theme overrides, framework mapping — are what Style Dictionary calls
+transforms and formats. Nothing about the four-layer split has to be undone; the CSS stops being
+hand-written and starts being generated from the same shape.
+
+What would be a mistake is adopting the pipeline *now* on the argument that it is the standard. The
+standard describes an interchange format. With nothing to interchange with, the build step is cost
+with no counterparty.

@@ -28,7 +28,14 @@ Read the distribution, not just the total. Three shapes call for different treat
 
 Copy `starter/index.css` to `src/index.css` (or merge into the existing entry stylesheet, keeping
 the `@import "tailwindcss"` and `@custom-variant` lines at the top) and fill layer 1 with the
-brand's **current** values, read off the existing app.
+brand's **current** values, read off the existing app — converted to `oklch()`, with the source hex
+kept in a trailing comment.
+
+Expect the contrast check to fail on this first commit, and **do not fix it by loosening anything**.
+An app that has never had a contrast gate almost always has a failing `--muted-foreground` or an
+input border under 3:1; those are real defects the migration has just made visible for the first
+time. They belong in step 1 or 2 below, as their own commit, described as the accessibility fixes
+they are.
 
 This is the step people skip, and skipping it inverts the work: without a complete token set,
 converting a component means inventing a token, and tokens invented one component at a time end up

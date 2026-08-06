@@ -416,8 +416,10 @@ in a file oxlint *does* read — a `bg-[#1a1a1a]` inside a `.tsx` — is uncaugh
 stylesheets and the class strings, and fails on a colour literal outside the token file (§5.1, §5.3),
 a `var(--x, <literal>)` (§5.2), a token declared in the dark block and not in `:root` (§5.2's
 one-theme-only shape), a themed token valued with a literal, a `@theme` alias pointing at nothing
-(§5.4), and a colour, radius or spacing arbitrary value (§5.5). It is installed with that skill
-rather than with this one, and it is not wired into `npm run validate` here. Two §5 shapes stay
+(§5.4), a colour, radius or spacing arbitrary value (§5.5), and — pairs derived from the token file
+rather than listed — any `-foreground`/surface combination under its WCAG floor in either theme. It
+is installed with that skill rather than with this one, and it is not wired into `npm run validate`
+here. Two §5 shapes stay
 reviewer-only: a raw `px` **inside a stylesheet declaration** rather than in a class, and a token
 picked for its appearance instead of its meaning. The `max-lines` budget in
 `SKILL.md` §1 does not reach a stylesheet for the same reason: a 900-line `.scss` is never read by the
