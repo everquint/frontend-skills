@@ -42,11 +42,13 @@ Trunk-based development, for this repo and for every repo on the standard:
   This repo has no such consumer today, so no release branch exists.
 - **Branch protection must be verifiable, not assumed.** The protection state is whatever
   `gh api repos/<owner>/<repo>/branches/<default>/protection` returns; protection that cannot be
-  queried is treated as absent. Required status checks gate PR merges only — a direct push
-  bypasses them unless `enforce_admins` (or an equivalent ruleset) makes the rules apply to
-  admins too. `enforce_admins` on is compatible with a single maintainer: with no approval
-  requirement configured it locks nobody out, it only closes the direct-push bypass measured
-  above. Changes to a live repo's settings remain the owner's call.
+  queried is treated as absent. Required status checks gate PR merges and non-admin pushes; an
+  **admin's** direct push bypasses them unless `enforce_admins` (or an equivalent ruleset) makes
+  the rules apply to admins too. `enforce_admins` on is compatible with a single maintainer: with
+  no approval requirement configured it locks nobody out of PR merges, it only closes the
+  admin direct-push bypass measured above — this corrects `references/hygiene.md`'s earlier
+  claim that it locks a solo maintainer out, updated alongside this ADR. Changes to a live
+  repo's settings remain the owner's call.
 
 ## Consequences
 
