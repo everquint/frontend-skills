@@ -1,6 +1,6 @@
 # Agent instructions — frontend-skills
 
-This repo IS the everquint frontend standard: five installable skills under `skills/`, their
+This repo IS the everquint frontend standard: six installable skills under `skills/`, their
 starter files, and the docs that argue the decisions. Editing them is the normal work here; the
 gates below are what protect the machinery around them.
 

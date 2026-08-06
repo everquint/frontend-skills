@@ -1,0 +1,52 @@
+/* ==========================================================================
+   Optional. Append to index.css only when the app styles its own scrollbars.
+
+   Consumes tokens declared there and adds none of its own: --scrollbar-size
+   (layer 1), --track-background / --thumb-background / --thumb-background-hover
+   (layer 2, overridden in .dark). No literal length or colour appears below,
+   so the whole treatment retunes from those four names.
+   ========================================================================== */
+
+.scrollbar-controller {
+    overflow: auto;
+}
+
+.scrollbar-controller::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+}
+
+.scrollbar-controller::-webkit-scrollbar-track {
+    background: var(--track-background);
+    border-radius: calc(var(--scrollbar-size) / 2);
+}
+
+.scrollbar-controller::-webkit-scrollbar-thumb {
+    background: var(--thumb-background);
+    border-radius: calc(var(--scrollbar-size) / 2);
+}
+
+.scrollbar-controller::-webkit-scrollbar-thumb:hover {
+    background: var(--thumb-background-hover);
+}
+
+/* Axis variants, for elements that scroll one way only. */
+.scrollbar-horizontal::-webkit-scrollbar {
+    height: var(--scrollbar-size);
+}
+
+.scrollbar-vertical::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+}
+
+/* Firefox has no ::-webkit-scrollbar and takes the standard properties
+   instead. Declaring scrollbar-width in Chromium suppresses the rules above,
+   so it is fenced behind a support query rather than declared outright. */
+@supports not selector(::-webkit-scrollbar) {
+    .scrollbar-controller,
+    .scrollbar-horizontal,
+    .scrollbar-vertical {
+        scrollbar-width: thin;
+        scrollbar-color: var(--thumb-background) var(--track-background);
+    }
+}

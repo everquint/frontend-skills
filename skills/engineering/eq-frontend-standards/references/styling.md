@@ -238,6 +238,11 @@ a media query adds no specificity, so the reset must be repeated on the modifier
 and it cuts across layers 2, 3 and 4 alike: a color, a spacing step, a radius, a shadow or a font
 weight is a token reference, never a literal.
 
+This section is the rule for *using* a token. The token **file** — how the set is structured, the
+names it declares, the starter to copy, and the rebrand, dark-theme and audit procedures — is the
+`eq-design-system` skill, whose starter lands at the `src/index.css` that `starter/.oxfmtrc.json`
+already points its class sorter at.
+
 **The mechanism, in the prescribed stack.** One CSS `@theme` block declares the token set as
 `--foo` custom properties. Tailwind generates a semantic utility (`bg-card`, `text-muted-foreground`,
 `border-border`) for each token the theme block aliases under the family prefix Tailwind reads —
@@ -401,14 +406,20 @@ about which layer a declaration belongs in. Everything
 else in this file is **reviewer-enforced**: nothing mechanical detects a layer chosen wrongly, a
 static value in `style`, a redeclared `display: flex`, a hand-written `@media`, a `$breakpoints` map
 drifted from `@theme`, an arbitrary-**property** class standing in for a stylesheet (§1.2), a `.module.scss`
-appearing in the tree, or a hand-edit to a CLI-generated primitive. **Every rule in §5 is
-reviewer-enforced too**, and the `var()` fallback rule is the one to look for first: a hex literal in
-a stylesheet, a `var(--x, #hex)`, a `#fff`, a raw `px` spacing value and a hand-written `box-shadow`
-are all in files oxlint never opens. The one §5 case that lands in a file oxlint *does* read — a
-`bg-[#1a1a1a]` inside a `.tsx` — is still uncaught, because no rule in `starter/.oxlintrc.json`
-inspects the contents of a class string. `grep -rnE '#[0-9a-fA-F]{3,8}\b|rgba?\(' src` finds the
-literals; nothing finds a token that exists in one theme block and not the other, which is why §5.2
-is a review item and not a script. The `max-lines` budget in
+appearing in the tree, or a hand-edit to a CLI-generated primitive. **No rule in either linter
+reaches §5**: a hex literal in a stylesheet, a `var(--x, #hex)`, a `#fff`, a raw `px` spacing value
+and a hand-written `box-shadow` are all in files oxlint never opens, and the one §5 case that lands
+in a file oxlint *does* read — a `bg-[#1a1a1a]` inside a `.tsx` — is uncaught too, because no rule in
+`starter/.oxlintrc.json` inspects the contents of a class string.
+
+**A separate gate does cover most of §5**: `../eq-design-system/scripts/check-tokens.mjs` reads the
+stylesheets and the class strings, and fails on a colour literal outside the token file (§5.1, §5.3),
+a `var(--x, <literal>)` (§5.2), a token declared in the dark block and not in `:root` (§5.2's
+one-theme-only shape), a themed token valued with a literal, a `@theme` alias pointing at nothing
+(§5.4), and a colour, radius or spacing arbitrary value (§5.5). It is installed with that skill
+rather than with this one, and it is not wired into `npm run validate` here. Two §5 shapes stay
+reviewer-only: a raw `px` **inside a stylesheet declaration** rather than in a class, and a token
+picked for its appearance instead of its meaning. The `max-lines` budget in
 `SKILL.md` §1 does not reach a stylesheet for the same reason: a 900-line `.scss` is never read by the
 linter that would have flagged it.
 
