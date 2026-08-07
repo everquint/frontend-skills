@@ -175,6 +175,9 @@ const MIGRATIONS = {
     '2.10.0': [
         'Re-pull starter/.claude/commands/pre-pr.md — it gains step 8 (commit granularity): a single commit mixing unrelated concerns, or wip/typo noise commits, now fail the gate before the PR goes ready.',
     ],
+    '2.10.1': [
+        'Re-pull starter/commitlint.config.mjs (or set `body-max-line-length` to 0 in your own): config-conventional\'s 100-character body cap cannot be met by a machine-written body, so it failed every Dependabot/Renovate PR against a required commit-message check.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment
