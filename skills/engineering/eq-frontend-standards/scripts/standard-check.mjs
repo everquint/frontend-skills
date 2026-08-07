@@ -178,6 +178,9 @@ const MIGRATIONS = {
     '2.10.1': [
         'Re-pull starter/commitlint.config.mjs (or set `body-max-line-length` to 0 in your own): config-conventional\'s 100-character body cap cannot be met by a machine-written body, so it failed every Dependabot/Renovate PR against a required commit-message check.',
     ],
+    '2.11.0': [
+        'Apps only: copy starter/.github/release.yml, tag each deploy, and use GitHub\'s Generate release notes — the app path for a changelog now that changesets are library-only. Libraries ignore the file; their CHANGELOG.md stays generated from changesets.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

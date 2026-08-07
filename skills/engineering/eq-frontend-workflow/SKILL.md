@@ -176,7 +176,7 @@ The PR author merges, after approval. Do not merge someone else's PR for them �
 
 ## Release
 
-**Scoped by consumer.** A **library** — code other repos install and upgrade — requires everything below: Changesets, semver, the generated `CHANGELOG.md`, the release job. An **app** — deployed to users, upgraded by nobody — may skip it all: its history is the merged PRs, its release notes live with its deploys, and opting in anyway means following the library rules.
+**Scoped by consumer.** A **library** — code other repos install and upgrade — requires everything below: Changesets, semver, the generated `CHANGELOG.md`, the release job. An **app** — deployed to users, upgraded by nobody — skips all of it and keeps a changelog the generated way instead: tag each deploy, then GitHub's **Generate release notes** lists every PR merged since the previous tag (grouping via `.github/release.yml`, in the starter). No file to maintain, no merge conflicts, and the deploy history is the record. Opting an app into the library machinery means following the library rules.
 
 Versioning uses **Changesets**. A PR that changes published behaviour includes a changeset file, human-authored, naming the packages and the bump level (`patch` / `minor` / `major`) with a one-line consumer-facing summary. Add it with the changesets CLI; the file lands in the PR and is reviewed like code.
 

@@ -798,6 +798,17 @@ if (skipped.includes(CHANGESET_CONFIG)) {
 // name the wrong file and demand a change that fixes nothing — that repo gets the note below instead.
 const workflowRunsChangesets = landed(RELEASE_WORKFLOW) && (readTextFile(join(cwd, RELEASE_WORKFLOW)) ?? '').includes('changesets/action');
 
+// Both changelog mechanisms land in the copy loop, and only one applies per repo — say so, or a
+// library maintainer finds an unexplained .github/release.yml (found in review).
+releaseNotes.push([
+    'Two changelog mechanisms shipped; keep the one that matches this repo.',
+    'LIBRARY (other repos install it): .changeset/ + .github/workflows/release.yml generate',
+    'CHANGELOG.md — delete .github/release.yml.',
+    'APP (deployed, nobody upgrades it): .github/release.yml groups GitHub\'s generated release',
+    'notes per tagged deploy — delete .changeset/, the release workflow, and the version/release',
+    'scripts. Workflow SKILL.md, Release "Scoped by consumer".',
+].join('\n    '));
+
 if (workflowRunsChangesets) {
     for (const key of ['version', 'release']) {
         const mine = pkg.scripts?.[key];
