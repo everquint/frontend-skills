@@ -172,6 +172,9 @@ const MIGRATIONS = {
     '2.9.0': [
         'Re-copy starter/.claude/hooks/branch-guard.sh over .claude/hooks/branch-guard.sh (keep 755) — it now also blocks commits on branch names outside <type>/<ticket>-<slug>, the measured failure being Linear\'s suggested <username>/<id>-<full-title> name adopted wholesale.',
     ],
+    '2.10.0': [
+        'Re-pull starter/.claude/commands/pre-pr.md — it gains step 8 (commit granularity): a single commit mixing unrelated concerns, or wip/typo noise commits, now fail the gate before the PR goes ready.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

@@ -91,6 +91,25 @@ If it does not, report the missing doc as a failure and name the capability it s
 diff of bug fixes, refactors, styling, or performance work inside existing behaviour owes nothing
 here.
 
+## 8. Commit granularity
+
+```bash
+git log --oneline origin/HEAD..HEAD
+```
+
+One logical change per commit (workflow SKILL.md, Commits) — and this repo merges with merge
+commits, so every commit here is permanent history. A single commit whose diff mixes unrelated
+concerns (a refactor plus a behaviour change, two unrelated features, code plus an unrelated
+config) fails this step: name the concerns and split before the PR goes ready
+(`git rebase -i origin/HEAD`, or `git reset origin/HEAD` and re-commit in slices). One commit is
+fine when the diff genuinely is one concern; "fix typo"/"wip" noise commits fail in the other
+direction — squash them into the commit they amend.
+
+The message must be readable, not exhaustive: subject says the one change; the body, when needed,
+is a few plain sentences on why — never a bullet inventory of every touched file (the diff already
+says that) and never a pasted task transcript. A body longer than the diff is worth reading is a
+failure here.
+
 ## Report
 
 Name every step, whether it ran, and what it returned.
