@@ -62,8 +62,15 @@ The exclusions are not decoration, and both tools need their own: oxlint does no
 excludes (see §6) — and oxfmt honours `.gitignore` but `.claude/skills` is deliberately committed, so
 without the negated globs the formatter rewrites every vendored file on the first commit, and the
 vendored copy silently stops being byte-identical to the standard it records.
-`commitlint.config.js` is one line —
-`export default { extends: ['@commitlint/config-conventional'] };`
+`commitlint.config.mjs` extends `@commitlint/config-conventional` and turns off exactly one rule:
+`body-max-line-length`. Its 100-character cap cannot be met by a machine-written body — Dependabot
+and Renovate emit long release-notes URLs, and a URL has no wrap point — so with a required
+commit-message check every bot PR is unmergeable: measured on a consumer repo's first Dependabot
+run, 4 of 5 PRs red on this rule alone while lint, tests and build were green. A human pasting a
+stack trace hits the same wall. Disabling the rule is deliberately narrower than commitlint's
+`ignores`, which would exempt a matched commit from the WHOLE rule set (and can only match on
+message text, so it catches human commits that merely mention the bot). Body readability is judged
+in `/pre-pr` step 8; a wrap cap never measured it.
 
 ## 4. Why `tsc -b --force`
 
