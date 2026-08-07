@@ -476,6 +476,12 @@ generated file is never hand-edited. An edit to `CHANGELOG.md` is overwritten by
 `changeset version`; the text belongs in a `.changeset/*.md` file, which is where the generator reads
 it from.
 
+**An app has no `CHANGELOG.md` at all** — it has no consumers upgrading it, so a hand-maintained
+file is bookkeeping nobody reads and a recurring merge conflict. Its changelog is generated at
+deploy time: tag the deploy, then GitHub's *Generate release notes* lists every PR merged since the
+previous tag, grouped by `starter/.github/release.yml`. The scope rule is the workflow skill's
+Release section; the mechanism above is library-only.
+
 ### The changelog format is Keep a Changelog 1.1.0, produced by a formatter
 
 Raw `changeset version` output is not [Keep a Changelog](https://keepachangelog.com/en/1.1.0/): no
