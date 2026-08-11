@@ -1,6 +1,6 @@
 ---
 name: eq-frontend-quality-bar
-description: The non-lintable half of frontend quality — tests and coverage ratchets, error reporting, performance budgets, accessibility, client-side security. Use when writing tests, wiring a coverage gate, adding error reporting, setting a bundle budget, verifying accessibility, or reviewing untrusted HTML or secret handling.
+description: The non-lintable half of frontend quality — tests and diff-coverage gates, error reporting, performance budgets, accessibility, client-side security. Use when writing tests, wiring a coverage gate, adding error reporting, setting a bundle budget, verifying accessibility, or reviewing untrusted HTML or secret handling.
 ---
 
 # Frontend Quality Bar
@@ -61,28 +61,45 @@ consequence** instead — changed code is covered:
 
 | Mechanism | Enforces | How |
 |---|---|---|
-| **Diff coverage** | new/changed lines are tested | CI fails when changed lines fall below the floor |
-| **Coverage ratchet** | total coverage never drops | `coverage.thresholds.autoUpdate` |
+| **Diff coverage** — the gate | the lines this change ADDS are tested | `diff-cover coverage/lcov.info --fail-under=90` |
+| **Project floors** — a backstop | no wholesale collapse | `coverage.thresholds`, set once by a human and frozen |
 | **Test-file presence** | every new source module has a test | reviewer-enforced, unless the repo supplies its own checker script — nothing off the shelf does this |
 | **Local loop** | fast feedback while writing | `vitest --changed` / `vitest related <files>` |
 
-This is the honest framing: test-first is a **practice**, reviewer-enforced; "changed code is
-covered" is the **gate**, machine-enforced. Do not claim the gate proves the practice.
+Honest framing: test-first is a **practice**, reviewer-enforced; "changed code is covered" is the
+**gate**, machine-enforced. Do not claim the gate proves the practice.
 
-### The ratchet
+### Diff coverage is the gate; a global percentage cannot be
 
-Vitest writes current coverage back into the config as the new floor: `thresholds.autoUpdate: true`
-with all four floors starting at 0, and `npx vitest run --coverage` fails when coverage drops below
-the recorded floor. The canonical config is the standards skill's `starter/vitest.config.ts` — copy
-it, never retype it. Two constraints, both real: `autoUpdate` applies only when **all** tests ran (a
-filtered run leaves the floors alone), and it requires a real config **file**, because it rewrites
-that file. Same shape as a suppressions baseline: record where you are, then only allow improvement
-— a repo with almost no tests adopts at its current floor on day one and cannot regress.
+`diff-cover` fails a branch whose ADDED lines are under **90%** covered — Google's stated lower bound for
+per-commit coverage (upper 99%); SonarQube's built-in gate uses 80% on new code, Chromium's per-CL check
+70%. So 90% is at the strict end of normal, not beyond it. A global percentage cannot: depending on how far the floor lags actual coverage it demands ~100% of a
+large diff or waves hundreds of uncovered lines through a big repo, its grip loosening as the repo grows.
+Measured with floors pinned at achieved coverage — a change adding 19 lines with one uncovered defensive
+branch was rejected on three metrics, while `diff-cover` scored it 94.7% and passed.
 
-### `include` must cover the whole codebase
+**Use the tool, do not write one.** A hand-rolled equivalent was built and deleted: 391 lines, and a review
+found four ways it reported green on untested code (renames, quoted paths, a non-root cwd, a stale report).
+`diff-cover` gave identical numbers from one command. Codecov's hosted `patch` status is the other standard
+answer, defaulted against only because it sends a private repo's coverage offsite.
 
-A coverage config scoped to one directory reports a healthy number while the rest of the app is
-unmeasured. Check what `coverage.include` actually covers before trusting any percentage.
+`lcov` must be in `coverage.reporter`, and the run must be **unfiltered** — a filtered run marks unimported
+modules uncovered and fails an innocent branch, which is why `coverage:diff` runs the whole suite.
+`coverage.include` must span the codebase; it doubles as this gate's exclusion list. Known limit:
+diff-cover measures LINES, so an untested `else` on an executed line passes.
+
+### The project floors are a backstop, and they no longer move themselves
+
+Set each floor **once**, to achieved rounded down minus 1, then leave it; a new repo starts at 0.
+`thresholds.autoUpdate` is gone — it also rewrote floors on a **failed** run (vitest 4.1.10: a zero-test
+run exits 1 and still writes them, including a vacuous `branches: 100`) and rewrote them in the discarded
+CI working tree. A floor that edits itself is not a decision anyone made. What the floors do catch is what
+diff coverage cannot: tests deleted for untouched code. A large enough deletion fits inside the headroom,
+so that hole stays reviewer-enforced — deleted test files are conspicuous in a diff.
+
+**Coverage cannot tell whether a test asserts anything**, now the main gap: an agent writing tests to
+satisfy a gate produces assertion-free tests at a rate no human would. Mutation testing is the only tool
+that measures it — `references/mutation-testing.md`.
 
 ### What to test, and what not to
 

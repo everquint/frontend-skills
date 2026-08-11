@@ -7,7 +7,8 @@ gate) enforce the standard during day-to-day work. Read the standard's SKILL.md 
 task is about the standard itself — judging a lint finding, migrating, or auditing the tooling.
 
 - Gates: `npm run lint` (strict, type-aware — CI's gate), `npm run lint:fast` (the editor loop),
-  `npm run typecheck`, `npm run format:check`, `npm run test:coverage`, `npm run build`.
+  `npm run typecheck`, `npm run format:check`, `npm run test:coverage`, `npm run coverage:diff`,
+  `npm run build`.
 - Before any PR: run `/pre-pr` if available; otherwise run the gates above in that order and stop
   at the first failure.
 - The lint/format configs, CI workflows, and the standard's folder are protected files — change

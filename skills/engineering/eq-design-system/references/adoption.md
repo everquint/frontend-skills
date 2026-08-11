@@ -81,8 +81,11 @@ pending work, and generates bug reports that are really progress reports.
 
 ## 5. Ratchet the count
 
-The audit is the gate. Wire it the same way the coverage ratchet works
-(`../eq-frontend-quality-bar/SKILL.md` §1): record where the repo is, then allow only improvement.
+The audit is the gate. Wire it the same way the `noUncheckedIndexedAccess` error-count baseline works
+(`../eq-frontend-standards/references/hygiene.md`): record where the repo is, then allow only
+improvement. Coverage used to be the example here and no longer is — a floor that rewrites itself to
+current coverage silently demands ~100% of all new code, which is why coverage moved to a per-change
+gate (`../eq-frontend-quality-bar/SKILL.md` §1).
 
 ```bash
 # fails when the finding count rises above the recorded floor
