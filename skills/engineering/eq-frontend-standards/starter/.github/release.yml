@@ -1,7 +1,8 @@
-# Release-note grouping for GitHub's "Generate release notes" — the app path for a changelog
-# (workflow SKILL.md, Release "Scoped by consumer"). An app has no consumers upgrading it, so its
-# notes are generated from the PRs merged since the previous tag rather than maintained in a file.
-# A LIBRARY ignores this file: its CHANGELOG.md is generated from changesets by the release job.
+# Release-note grouping for GitHub's "Generate release notes" — the FALLBACK path for a changelog
+# (workflow SKILL.md, Release "Scoped by readership"), for a repo whose notes nobody reads: an
+# internal tool, a spike, a continuously-deployed service. It lists PR titles, which describe code,
+# so it cannot explain behaviour to a user. Any repo with readers — library OR app — deletes this
+# file and generates CHANGELOG.md from changeset fragments via the release job instead.
 #
 # Grouping keys off labels, so it only reads well if PRs carry them; the catch-all keeps unlabelled
 # PRs visible instead of silently dropping them. ORDER MATTERS — GitHub files each PR under the

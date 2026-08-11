@@ -179,7 +179,16 @@ const MIGRATIONS = {
         'Re-pull starter/commitlint.config.mjs (or set `body-max-line-length` to 0 in your own): config-conventional\'s 100-character body cap cannot be met by a machine-written body, so it failed every Dependabot/Renovate PR against a required commit-message check.',
     ],
     '2.11.0': [
-        'Apps only: copy starter/.github/release.yml, tag each deploy, and use GitHub\'s Generate release notes — the app path for a changelog now that changesets are library-only. Libraries ignore the file; their CHANGELOG.md stays generated from changesets.',
+        'SUPERSEDED BY 2.12.0 below — read that step and skip this one. It said: apps only, copy starter/.github/release.yml, tag each deploy, and use GitHub\'s Generate release notes, changesets being library-only.',
+    ],
+    // 2.11.0's ruling above is REVERSED here, so a repo migrating straight from ≤2.10.1 will read
+    // both entries in order. That is deliberate: the ordering makes the reversal visible rather than
+    // silently rewriting history, and the 2.12.0 step is the one that decides the outcome.
+    '2.12.0': [
+        'REVERSES 2.11.0 for any repo whose release notes someone reads — an app with users included. Generated PR-title notes cannot explain behaviour, so the default is again .changeset/ + the changesets release workflow generating CHANGELOG.md, and .github/release.yml is deleted.',
+        'App adopting it: add @changesets/cli, copy starter/.changeset/config.json (privatePackages.tag MUST be true or changeset tag silently tags nothing), copy starter/.github/workflows/release.yml, and add the version/release scripts from starter/package.fragment.json.',
+        'Keep the generated-notes fallback only for a repo whose notes nobody reads: an internal tool, a spike, a continuously-deployed service.',
+        'Re-pull starter/.claude/commands/pre-pr.md — step 9 now fails a user-facing diff with no changeset, and fails a fragment whose summary is just the commit subject.',
     ],
 };
 
