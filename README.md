@@ -141,10 +141,22 @@ each one actually means.** Custom rules and bespoke tooling are a last resort �
 maintenance you inherit, and the ecosystem outlives any internal library.
 
 **Ratchet, never big-bang.** No repo passes a new standard on day one. Every gate adopts at the
-repo's current level and only allows improvement: Vitest `thresholds.autoUpdate` for coverage, a
-committed error-count baseline for the strict-typing flags, and — on the one migration branch that
-still runs ESLint — its bulk suppressions. New code complies immediately; existing debt ratchets
-down. A standard that requires a week of cleanup before it can be installed never gets installed.
+repo's current level and only allows improvement: a committed error-count baseline for the
+strict-typing flags, and — on the one migration branch that still runs ESLint — its bulk suppressions.
+New code complies immediately; existing debt ratchets down. A standard that requires a week of cleanup
+before it can be installed never gets installed.
+
+Coverage is the exception, and it is instructive. It shipped as a ratchet — Vitest's
+`thresholds.autoUpdate` — until the arithmetic was worked out: a floor rewritten to whatever coverage
+happened to be makes the effective requirement on new code equal to current coverage, so a well-tested
+repo silently demands ~100% of every change while the config claims otherwise. Coverage now adopts the
+same way in spirit but asks the question directly, per change, with **`diff-cover`**: existing debt is
+left alone, and the lines a branch ADDS must be tested at 90%.
+
+The same episode produced the other rule worth stating: **buy the mechanism, keep the policy.** The
+first version of that gate was 391 lines of our own, and a review found four ways it reported green on
+untested code. `diff-cover` returned identical numbers from one command, so the script was deleted. What
+belongs here is the decision — 90% of changed lines — not an implementation of it.
 
 **A rule parked at `warn` can never be ratcheted** and will sit green forever, so nothing is staged
 at `warn`. The corollary is tool-specific: ESLint's suppressions apply only to `error`-severity

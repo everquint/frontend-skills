@@ -190,6 +190,15 @@ const MIGRATIONS = {
         'Keep the generated-notes fallback only for a repo whose notes nobody reads: an internal tool, a spike, a continuously-deployed service.',
         'Re-pull starter/.claude/commands/pre-pr.md — step 9 now fails a user-facing diff with no changeset, and fails a fragment whose summary is just the commit subject.',
     ],
+    '2.13.0': [
+        'Coverage enforcement changed shape. The gate is now diff coverage — `diff-cover` on the lines a branch ADDS, at 90% — and the global floors are only a backstop. Why: a floor pinned to achieved coverage silently demands ~100% of all new code (measured: a change with one uncovered defensive branch in 19 added lines was rejected on three metrics).',
+        'Remove `thresholds.autoUpdate` from vitest.config.ts and delete the `test:coverage:ratchet` script. Set each floor ONCE to your current achieved percentage rounded down minus 1, then leave it; they no longer move themselves.',
+        'Add `lcov` to `coverage.reporter` in vitest.config.ts — diff-cover reads coverage/lcov.info.',
+        'Add the `coverage:diff` script from starter/package.fragment.json, and the "Diff coverage" step from starter/.github/workflows/ci.yml. That step needs `fetch-depth: 0` on the checkout, because the comparison is against the merge base.',
+        'diff-cover is a PYTHON tool: `pipx install diff-cover` locally (CI installs it itself). Without it `npm run coverage:diff` exits with `command not found`, and a local gate that always errors is a local gate nobody runs.',
+        'Re-pull starter/.claude/commands/pre-pr.md — step 9 runs the diff-coverage gate locally, step 10 is the changeset check that was step 9.',
+        'Optional, and read the reference before adopting: eq-frontend-quality-bar references/mutation-testing.md. Coverage cannot tell whether a test asserts anything, which matters more when an agent writes the tests.',
+    ],
 };
 
 // Compares MAJOR.MINOR.PATCH, ignoring any prerelease tail. A naive `Number` on each dot-segment

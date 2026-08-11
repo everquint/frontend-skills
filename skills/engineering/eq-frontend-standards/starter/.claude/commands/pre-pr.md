@@ -110,7 +110,27 @@ is a few plain sentences on why — never a bullet inventory of every touched fi
 says that) and never a pasted task transcript. A body longer than the diff is worth reading is a
 failure here.
 
-## 9. Changeset — when the diff changes user-visible behaviour, and this repo has a `.changeset/`
+## 9. Diff coverage — when the diff touches measured source
+
+```bash
+npm run coverage:diff
+```
+
+The gate on new code: at least 90% of the LINES this branch adds must be covered. `diff-cover` is a
+Python tool — `pipx install diff-cover` once per machine — and the script runs the full coverage suite
+first, which both produces `coverage/lcov.info` and guarantees it describes the current code.
+
+The run must not be filtered: coverage reports every file in `coverage.include`, so a partial run marks
+unimported modules uncovered and fails an innocent branch.
+
+Read the output, not just the exit code — it names the missing lines per file, and those line numbers
+are the work. It measures lines only, so an untested `else` on a line the tests execute will pass here;
+that gap belongs to mutation testing, not to this step. For a line that genuinely cannot be reached,
+mark it at the source with `/* v8 ignore next -- <reason> */` rather than lowering the threshold.
+
+Skip only when the diff touches no file under `coverage.include` — docs, workflows, config.
+
+## 10. Changeset — when the diff changes user-visible behaviour, and this repo has a `.changeset/`
 
 ```bash
 ls .changeset/*.md 2>/dev/null

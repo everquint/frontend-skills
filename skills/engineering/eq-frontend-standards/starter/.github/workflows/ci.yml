@@ -36,6 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # REQUIRED by the diff-coverage step below: it compares against the merge base, and a shallow
+          # clone has no history to find one in.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -131,34 +135,34 @@ jobs:
           # Only now does the lint result itself decide the step.
           exit "$lint_exit"
 
-      # THE COVERAGE RATCHET, not a coverage report.
+      # COVERAGE, not a coverage report.
       #
-      # `npm test` is `vitest run`, which measures NO coverage — so a job running it satisfies the
-      # test row of the gate table and leaves the coverage row unenforced. `test:coverage` is
-      # `vitest run --coverage`, and the floors it enforces live in vitest.config.ts with
-      # `thresholds.autoUpdate: true`.
+      # `npm test` measures NO coverage, so a job running it leaves the coverage row unenforced while
+      # looking tested. This enforces the project floors and writes coverage/lcov.info for the next step.
       #
-      # Measured on a scaffolded consumer repo, so the direction of the ratchet is not theoretical:
-      # a full run at 42.85% lines rewrote the floors from 0 to the measured numbers and exited 0;
-      # adding one untested module dropped lines to 30% and the same command exited 1 with
-      # "Coverage for lines (30%) does not meet global threshold (42.85%)" WITHOUT lowering the
-      # recorded floor. A filtered run (`vitest run --coverage <one file>`) also exited 1 and left
-      # the floors untouched, which is why only the unfiltered command belongs in CI.
-      - name: Test with the coverage ratchet
+      # MUST BE UNFILTERED: coverage reports every file in `coverage.include`, including files no test
+      # imported, so a filtered run marks whole modules uncovered and fails the diff gate on an innocent
+      # branch. Which is also why that gate cannot run off `vitest related`.
+      - run: npm run test:coverage
+
+      # THE GATE ON NEW CODE, and the step that fails a PR. The project floors above are a backstop
+      # against wholesale regression; diff-cover asks whether the lines this branch ADDS are tested.
+      #
+      # diff-cover rather than a script of our own: it is the established tool for this, and it already
+      # handles the parts that silently break — renames, quoted paths, merge-base selection. `...`
+      # notation is its default, so the comparison is against the merge base, which needs fetch-depth: 0.
+      #
+      # On a push to the default branch the base IS this ref, so the diff is empty and it reports 100%.
+      # That is only acceptable under branch protection requiring a PR.
+      - name: Diff coverage
         run: |
           set -euo pipefail
-          npm run test:coverage
-
-          # autoUpdate rewrites vitest.config.ts IN THE RUNNER when coverage improved, and a runner's
-          # working tree is thrown away — so the gain is only locked in once that file is committed.
-          # A notice, not a failure: a PR that adds tests must not be blocked for having improved the
-          # number. Left uncommitted, the slack it leaves is what a later regression fits through.
-          if ! git diff --quiet -- vitest.config.ts; then
-            # Single-quoted: a backtick inside double quotes is command substitution, so the prose
-            # markup this repo's comments use everywhere would be executed here.
-            echo '::notice::Coverage improved, so autoUpdate raised the floors in vitest.config.ts. Run `npm run test:coverage` locally and commit that file to lock the gain in.'
-            git --no-pager diff -- vitest.config.ts
-          fi
+          # Pinned: this decides whether a PR merges, and a gate tool that floats can change its
+          # verdict without a commit. Bump it deliberately.
+          pipx install 'diff-cover==10.5.0'
+          diff-cover coverage/lcov.info \
+            --compare-branch="origin/${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}" \
+            --fail-under=90
 
       - run: npm run build
 

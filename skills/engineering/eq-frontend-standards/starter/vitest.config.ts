@@ -1,18 +1,14 @@
 import type { UserConfigFn } from 'vite';
-/* The coverage ratchet: `thresholds.autoUpdate` rewrites the floors upward in THIS file, so the
- * file is the gate — delete it and `npm run test:coverage` measures nothing. Full rationale:
- * eq-frontend-standards references/starter-rationale.md. */
+/* The floors here are a BACKSTOP against wholesale regression, not the gate. "Are the lines this change
+ * adds tested?" is asked per change by `diff-cover` in CI (`npm run coverage:diff`) — a global
+ * percentage cannot answer it, and pinning the floors to achieved coverage silently demands ~100% of all
+ * new code. Reasoning: eq-frontend-quality-bar SKILL.md.
+ *
+ * `lcov` must stay in `reporter`: it writes coverage/lcov.info, which is what diff-cover reads.
+ *
+ * `thresholds.autoUpdate` is deliberately absent. Set each floor once, to achieved rounded down minus 1,
+ * then leave it; a new repo starts at 0 and relies on diff coverage from the first commit. */
 import { defineConfig, mergeConfig } from 'vitest/config';
-
-/* autoUpdate is gated behind COVERAGE_RATCHET because vitest rewrites the floors even on a FAILED
- * run (measured, vitest 4.1.10: a zero-test run exits 1 and still writes floors, including a
- * vacuous branches:100). With the flag unset, every ordinary run — `npm run test:coverage` locally
- * red or green, and CI — ENFORCES the recorded floors and never mutates this file. Only
- * `npm run test:coverage:ratchet` may move them, run deliberately after a green suite. Any
- * non-empty value enables it; the ratchet script's inline `COVERAGE_RATCHET=1` assignment is
- * unix-shell syntax — no cross-env dependency is worth carrying for a script humans run on
- * purpose. */
-const ratchet = !!process.env.COVERAGE_RATCHET;
 
 /* The `.ts` extension is required: Vite's native config loader will not resolve it extensionless. */
 import viteConfig from './vite.config.ts';
@@ -33,16 +29,13 @@ export default mergeConfig(
             setupFiles: ['./src/test/setup.ts'],
             coverage: {
                 provider: 'v8',
-                reporter: ['text-summary', 'json-summary'],
-                /* Coverage must see the whole codebase: widen when source moves out of src/, never narrow
-                 * to raise the percentage — the ratchet would lock the flattering number in. */
+                reporter: ['text-summary', 'json-summary', 'lcov'],
+                /* Must see the whole codebase: widen when source moves out of src/, never narrow to
+                 * raise the percentage. Also the diff gate's exclusion list — a file absent from the
+                 * report is skipped there too. */
                 include: ['src/**/*.{ts,tsx,js,jsx}'],
                 exclude: ['src/**/*.test.{ts,tsx,js,jsx}', 'src/**/*.d.ts', 'src/test/**'],
-                /* Floors are rewritten upward only by the ratchet script (filtered runs and
-                 * ordinary runs leave them alone — see the gate above). Lowering one by hand is
-                 * how the ratchet stops being one. */
                 thresholds: {
-                    autoUpdate: ratchet,
                     lines: 0,
                     functions: 0,
                     branches: 0,

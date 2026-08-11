@@ -116,13 +116,20 @@ changes the file.
   rewrites `url("…")` and `@import "…"` — legal, but not what any stylesheet in the ecosystem
   looks like.
 
-## vitest.config.ts — the coverage ratchet
+## vitest.config.ts — coverage, and where the gate actually is
 
-- `eq-frontend-quality-bar` SKILL.md §1 makes `coverage.thresholds.autoUpdate` the coverage gate,
-  and autoUpdate needs a real config FILE because it rewrites that file. Delete the file and
-  `npm run test:coverage` measures nothing.
-- Floors start at 0 and are rewritten upward by every full run; an adopting repo starts at its own
-  number on day one and cannot regress — same shape as the noUncheckedIndexedAccess baseline.
+- **The gate is diff coverage, not these floors.** `eq-frontend-quality-bar` SKILL.md explains why a
+  global percentage cannot answer a per-change question. Enforcement is `diff-cover`, which fails a
+  branch whose ADDED lines fall below 90%. The floors here are a backstop against wholesale regression
+  only.
+- **`coverage.thresholds.autoUpdate` is deliberately absent.** It rewrote the floors to whatever
+  coverage happened to be, and a floor equal to achieved coverage silently demands ~100% of all new
+  code — measured on a consumer repo, a change with one uncovered defensive branch out of 19 added
+  lines was rejected on three metrics at once. It also rewrote them on a FAILED run, and rewrote them
+  in the CI runner whose working tree is discarded.
+- Floors start at 0 in a new repo, because there is nothing to protect yet and diff coverage guards new
+  code from the first commit. Set them ONCE, to achieved rounded down minus 1, when a real suite
+  exists; after that they move only when a human edits them.
 - The `.ts` extension on `./vite.config.ts` is required: Vite's `configLoader: 'native'` warns on
   an extensionless relative import of a TS config and will not resolve it.
 - VITEST LOADS THIS FILE INSTEAD OF vite.config.ts — it does not merge the two. `resolve.alias`
@@ -134,17 +141,19 @@ changes the file.
   `include`). `UserConfigFn` is the widest, so passing through a parameter of that type is a sound
   widening, NOT a cast — a cast would also suppress a genuinely wrong config shape. A Promise
   export still reaches `mergeConfig` and throws loudly.
-- `coverage.include` must see the whole codebase: scoped to a slice it reports a flattering number
-  the ratchet then locks in. Widen when source moves out of `src/`; never narrow to raise the
-  percentage.
+- `coverage.include` must see the whole codebase: scoped to a slice it reports a flattering number.
+  It is also the diff gate's exclusion list — a changed file absent from the report is skipped there —
+  so narrowing it quietly removes files from the gate as well. Widen when source moves out of `src/`;
+  never narrow to raise the percentage.
 - `src/test/**` is excluded as test harness: counting it inflates the number with lines no
   production path runs.
-- Thresholds are rewritten only by FULL runs — a filtered run (`-t`, a path argument, `--changed`)
-  leaves them alone, so a local narrow run cannot silently lower the floor. A metric with nothing
-  to measure records as 100, not 0: the first partially-covered `if` in a branch-free codebase
-  fails the gate, which is the ratchet working.
-- Reporters: `text-summary` is what a human reads in the job log; `json-summary` is the artifact a
-  diff-coverage step or badge reads.
+- THE COVERAGE RUN MUST BE UNFILTERED, and that is now a correctness requirement rather than a
+  preference. Coverage reports every file in `include`, including files no test imported, so a
+  filtered run (`-t`, a path argument, `--changed`) marks whole modules uncovered and the diff gate
+  then fails an innocent branch. This is also why the gate cannot be driven from `vitest related`.
+- Reporters: `text-summary` is what a human reads in the job log; `json-summary` feeds a badge; and
+  **`lcov` is required** — it writes `coverage/lcov.info`, which `diff-cover` reads. Without it the
+  step fails on a missing file rather than passing silently.
 
 ## src/test/setup.ts
 

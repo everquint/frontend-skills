@@ -159,6 +159,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:coverage
+      # Abridged. Copy the real step from starter/.github/workflows/ci.yml — it also needs
+      # `fetch-depth: 0` on the checkout, installs the tool, and guards the ref for pushes to main.
+      - run: diff-cover coverage/lcov.info --compare-branch="origin/${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}" --fail-under=90
       - run: npm run build
       - run: node "$EQ_STANDARD/scripts/check-structure.mjs" --dir .
 
@@ -221,19 +224,31 @@ Each of these was documented, shipped a mechanism, and was invoked by nothing.
 
 **Coverage runs `test:coverage`, never `test`.** `npm test` is `vitest run`, which measures no
 coverage at all, so a job running it leaves the coverage row of the §1 table unenforced while looking
-tested. `test:coverage` is `vitest run --coverage`, and the floors live in `starter/vitest.config.ts`
-under `thresholds.autoUpdate: true` — `autoUpdate` rewrites the config file, so it needs that file to
-exist and throws without one. Measured on a scaffolded consumer repo: a full run at 42.85% lines
-rewrote the floors from `0` to the measured numbers and exited 0; adding one untested module dropped
-lines to 30% and the same command exited 1 without lowering the recorded floor; a filtered run
-(`vitest run --coverage <one file>`) also exited 1 and left the floors untouched, which is why only
-the unfiltered command belongs in CI. `coverage.include` covers all of `src/`, because a config scoped
-to one directory locks in a flattering number for a slice and never moves when untested code lands
-outside it.
+tested. `test:coverage` is `vitest run --coverage`. It does two jobs: it enforces the project floors in
+`starter/vitest.config.ts`, and — because `lcov` is in `coverage.reporter` — it writes
+`coverage/lcov.info`, which the next step reads. THE RUN MUST BE UNFILTERED. Coverage reports
+every file in `include`, including files no test imported, so a filtered run (`-t`, a path argument,
+`--changed`) marks whole modules uncovered; under the old ratchet that merely left the floors alone,
+but the diff gate below would fail an innocent branch on it. `coverage.include` covers all of `src/`,
+because a config scoped to one directory reports a flattering number for a slice — and, now, quietly
+drops the excluded files from the diff gate too.
 
-CI prints a `::notice::` when `autoUpdate` raised the floors, since the runner's working tree is
-discarded — the gain is only locked in once `vitest.config.ts` is committed. It is a notice and not a
-failure: a PR must not be blocked for having improved coverage.
+**The gate on new code is `diff-cover`, and it is the step that fails a PR.** The project floors are a
+backstop against wholesale regression; this asks whether the lines the branch ADDS are tested, at 90%.
+It needs `fetch-depth: 0`, because `...` notation compares against the merge base. It reads
+`coverage/lcov.info`, so `lcov` must be in `coverage.reporter`.
+
+Not a script of ours, deliberately. The first version was 391 lines of local code and a review found
+four ways it reported green on untested code — renames excluded by `--diff-filter`, quoted paths,
+a non-root working directory, a stale report. `diff-cover` produced identical numbers from one command,
+so it was deleted. Codecov's hosted `patch` status is the other standard option, declined only because
+it means sending a private repo's coverage to a third party.
+
+`thresholds.autoUpdate` was removed in the same change and CI's `::notice::` step with it. A floor
+rewritten to whatever coverage happened to be makes the effective requirement on new code equal to
+current coverage — ~100% on a well-tested repo, while the config claims otherwise — and it rewrote the
+floors on a FAILED run and inside a discarded runner working tree. Floors now move only when a human
+edits them.
 
 **The structure gate requires the standard vendored into the repo.** `scripts/check-structure.mjs`
 ships with the skill, not with the consumer repo, so the step resolves three locations in the same
@@ -584,7 +599,7 @@ is already what YAML tooling assumes, which retires the override the 4-space era
 | `.env.example` | every variable the app reads, with dummy values |
 | `.claude/` | the shared agent config — settings, hooks, reviewer agents, commands, vendored skills |
 | `.vscode/extensions.json` + `.vscode/settings.json` | the two editor files a clone inherits (the rest of `.vscode/*` is gitignored): recommend oxc + EditorConfig, mark the Prettier extensions unwanted, and route ts/tsx saves to oxfmt via per-language blocks — a workspace-level default loses to a user-level `[language]` block, so the per-language spelling is required to win. The editor's type-aware lint opt-in is a commented block in settings.json |
-| `vitest.config.ts` | the coverage ratchet has nowhere to write its floors without a real config file |
+| `vitest.config.ts` | the project floors and the `lcov` reporter the diff-coverage gate reads both live in it |
 | `playwright.config.ts` | `testDir`, `forbidOnly` in CI, and a `webServer` on the production build |
 | `e2e/` | the one directory E2E specs live in; ships with a `.gitkeep` so the path exists on day one |
 
@@ -656,7 +671,7 @@ The rest of `starter/.gitignore.fragment` is test-run output — `coverage`, `te
 `playwright-report`, `blob-report`, `playwright/.cache`, `oxlint-report.json` — which is the opposite
 case and must be ignored. oxfmt honours `.gitignore` (measured: a gitignored `dist/` is never visited),
 so an unignored generated report makes `format:check` fail on a machine-written file. A committed
-`coverage/` is worse than noise: it is a floor nobody measured sitting next to the ratchet that reads it.
+`coverage/` is worse than noise: it is a committed `lcov.info` is a stale INPUT to the diff gate, which then judges against code that has moved.
 
 `.claude/skills` is **not** on that list, and its absence is the decision: skills are vendored as real
 copied files by `init-greenfield.mjs --vendor-skills`, so the standard a clone gets is the one
