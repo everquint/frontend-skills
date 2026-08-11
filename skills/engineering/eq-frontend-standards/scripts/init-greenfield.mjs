@@ -802,11 +802,12 @@ const workflowRunsChangesets = landed(RELEASE_WORKFLOW) && (readTextFile(join(cw
 // library maintainer finds an unexplained .github/release.yml (found in review).
 releaseNotes.push([
     'Two changelog mechanisms shipped; keep the one that matches this repo.',
-    'LIBRARY (other repos install it): .changeset/ + .github/workflows/release.yml generate',
-    'CHANGELOG.md — delete .github/release.yml.',
-    'APP (deployed, nobody upgrades it): .github/release.yml groups GitHub\'s generated release',
-    'notes per tagged deploy — delete .changeset/, the release workflow, and the version/release',
-    'scripts. Workflow SKILL.md, Release "Scoped by consumer".',
+    'DEFAULT, library or app — anyone reads the notes: .changeset/ + .github/workflows/release.yml',
+    'generate CHANGELOG.md from per-PR prose fragments. Delete .github/release.yml.',
+    'FALLBACK, nobody reads the notes (internal tool, spike, continuous deploy):',
+    '.github/release.yml groups GitHub\'s generated PR-title list per tagged deploy — delete',
+    '.changeset/, the release workflow, and the version/release scripts.',
+    'Workflow SKILL.md, Release "Scoped by readership".',
 ].join('\n    '));
 
 if (workflowRunsChangesets) {

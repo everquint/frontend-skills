@@ -110,6 +110,20 @@ is a few plain sentences on why — never a bullet inventory of every touched fi
 says that) and never a pasted task transcript. A body longer than the diff is worth reading is a
 failure here.
 
+## 9. Changeset — when the diff changes user-visible behaviour, and this repo has a `.changeset/`
+
+```bash
+ls .changeset/*.md 2>/dev/null
+git diff --name-only origin/HEAD...HEAD
+```
+
+Skip this step entirely if the repo has no `.changeset/` directory — it uses the generated-notes
+fallback and owes no fragment. Otherwise a diff that changes what a user can do, or fixes something
+a user noticed, must add a fragment. A fragment whose summary is the commit subject again fails
+this step: it must be two or three sentences of prose about behaviour, understandable by someone
+who will never read the diff (workflow SKILL.md, Release). Refactors, build config, test-only and
+internal-tooling diffs owe nothing here.
+
 ## Report
 
 Name every step, whether it ran, and what it returned.

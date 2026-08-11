@@ -338,9 +338,9 @@ crafted name would execute. Verified: `feat/AB-1420-a;rm -rf x` exits 1 and crea
 
 The release row of the §1 table. Three pieces ship in the starter and `init-greenfield.mjs` lands all
 three: `.changeset/config.json`, the `changeset` / `version` / `release` scripts, and this workflow.
-All three are **library machinery** — an app skipping the semver changelog (workflow skill, Release
-"Scoped by consumer") removes all three together; keeping the workflow without the config
-half-installs a release job that can only fail.
+All three move together. A repo taking the generated-notes fallback instead (workflow skill, Release
+"Scoped by readership" — a repo whose notes nobody reads, not simply any app) removes all three;
+keeping the workflow without the config half-installs a release job that can only fail.
 
 **Read this before your first release, because two failures are waiting there and both were hit for
 real.** Neither appears on an ordinary push: the release job only versions when a changeset is pending,
@@ -476,11 +476,23 @@ generated file is never hand-edited. An edit to `CHANGELOG.md` is overwritten by
 `changeset version`; the text belongs in a `.changeset/*.md` file, which is where the generator reads
 it from.
 
-**An app has no `CHANGELOG.md` at all** — it has no consumers upgrading it, so a hand-maintained
-file is bookkeeping nobody reads and a recurring merge conflict. Its changelog is generated at
-deploy time: tag the deploy, then GitHub's *Generate release notes* lists every PR merged since the
-previous tag, grouped by `starter/.github/release.yml`. The scope rule is the workflow skill's
-Release section; the mechanism above is library-only.
+**An app keeps this mechanism too** — the earlier ruling here, that an app has no `CHANGELOG.md`
+because nobody upgrades it, was wrong about who the file is for. Keep a Changelog addresses any
+project that cuts releases, not registry consumers specifically, and the fragment-per-PR tools built
+around it — Google's release-please, Python's towncrier — are used by applications as much as by
+libraries; Zed ships a maintained changelog for software installed from nowhere. What an app's users
+want is prose about behaviour, and GitHub's *Generate release notes* cannot produce that: it lists
+PR titles, which describe code. The
+tag-plus-generated-notes path — `starter/.github/release.yml` — remains the fallback for a repo whose
+notes nobody reads: an internal tool, a spike, a continuously-deployed service. The scope rule is the
+workflow skill's Release section.
+
+Two consequences for an app that adopts it. The version number is an ordering device rather than a
+consumer contract, so its bump level is a judgement call about the size of the release, not a
+compatibility claim — pick `minor` for ordinary work and reserve `major` for a release worth
+announcing. And `privatePackages.tag` must be `true`, or `changeset tag` filters the package out and
+exits 0 having tagged nothing; §6's release workflow asserts this before running, because a private
+package is exactly the case an app is.
 
 ### The changelog format is Keep a Changelog 1.1.0, produced by a formatter
 

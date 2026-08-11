@@ -167,7 +167,7 @@ Mergeable when all of these hold:
 - CI green: typecheck, lint, tests, build.
 - Both reviews complete, with every Critical and High either fixed or explicitly accepted in a PR comment.
 - Branch up to date with the default branch (merge the default branch in, or rebase — either is fine before the merge commit).
-- A changeset present if published behaviour changed (libraries — see Release below).
+- A changeset present if user-visible behaviour changed (see Release below).
 - PR out of draft.
 
 The PR author merges, after approval. Do not merge someone else's PR for them — they know what is still in flight.
@@ -176,13 +176,13 @@ The PR author merges, after approval. Do not merge someone else's PR for them �
 
 ## Release
 
-**Scoped by consumer.** A **library** — code other repos install and upgrade — requires everything below: Changesets, semver, the generated `CHANGELOG.md`, the release job. An **app** — deployed to users, upgraded by nobody — skips all of it and keeps a changelog the generated way instead: tag each deploy, then GitHub's **Generate release notes** lists every PR merged since the previous tag (grouping via `.github/release.yml`, in the starter). No file to maintain, no merge conflicts, and the deploy history is the record. Opting an app into the library machinery means following the library rules.
+**Scoped by readership, not by library-versus-app.** Any repo with discrete releases and someone who reads them — a published library, or an app with users — requires everything below: Changesets, the generated `CHANGELOG.md`, the release job. Semver's *meaning* differs (a library's major is a consumer break; an app's is a judgement call about how large the release is) but the machinery is identical, and [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) is written for applications first. Only a repo whose notes nobody reads — an internal tool, a spike, a continuously-deployed service where the deploy log *is* the record — may skip it and rely on tagging plus GitHub's **Generate release notes** (grouped by `.github/release.yml`, in the starter). Choosing that path because writing notes is work is how a product arrives at launch with no changelog.
 
-Versioning uses **Changesets**. A PR that changes published behaviour includes a changeset file, human-authored, naming the packages and the bump level (`patch` / `minor` / `major`) with a one-line consumer-facing summary. Add it with the changesets CLI; the file lands in the PR and is reviewed like code.
+Versioning uses **Changesets**. A PR that changes user-visible behaviour includes a changeset file, human-authored, naming the packages and the bump level (`patch` / `minor` / `major`). Its summary is **prose about behaviour** — two or three sentences someone outside the diff would understand, saying what is now possible and why that matters — never the commit subject pasted in again. A changelog assembled from commit titles explains nothing, which is the whole reason the fragment is written at PR time by the person who built the thing, not reconstructed from `git log` at release time. Add it with the changesets CLI; the file lands in the PR and is reviewed like code.
 
 Changesets rather than semantic-release because the bump is a human decision about consumer impact, reviewable per PR, rather than inferred from commit messages — and `feat:` versus `fix:` is routinely wrong at commit time on a branch that later grows. Full comparison: `references/release-tooling.md`.
 
-**A library's release job owns the version and `CHANGELOG.md`.** It consumes the changesets,
+**The release job owns the version and `CHANGELOG.md`.** It consumes the changesets,
 bumps the versions, regenerates the changelog, and tags — none of that is done by hand, and
 `CHANGELOG.md` is never hand-written or hand-edited. It lives in `.github/workflows/release.yml`;
 `hygiene.md` §1 carries the gate row and §6 the wiring. Why hand-bumps and hand-edits fail, and
