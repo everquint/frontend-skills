@@ -201,8 +201,8 @@ const MIGRATIONS = {
     ],
     '2.14.0': [
         'Add `"unicorn"` to `plugins` and `"unicorn/filename-case": ["error", { "case": "kebabCase" }]` to `rules` in .oxlintrc.json. Kebab-case names were enforced only by review and by check-structure.mjs; oxlint has shipped the rule all along and flags it in the editor with a rename suggestion.',
-        'Update `EXPECTED_OXLINT_RULES` in .github/workflows/ci.yml to 227 — the lint job goes red on the old number, by design.',
-        'The `unicorn` plugin brings 13 correctness rules besides filename-case, but .oxlintrc.strict.json was already loading all 13, so the CI gate gains exactly one rule and the fast config gains 14. This closes a divergence: `lint:fast`, the editor and pre-commit were enforcing less than CI. Measured on a 1,104-file app, zero new violations — any your repo reports are real findings, so fix them rather than dropping the plugin.',
+        'Then RE-MEASURE `EXPECTED_OXLINT_RULES` in .github/workflows/ci.yml — do not paste a number from here. The starter goes 226 to 227; a repo whose config adds rules of its own has a HIGHER number and must keep it, because that constant is a floor and lowering it silently weakens the gate. Run `node <path>/measure-rules.mjs` and use what it reports.',
+        'The gate gains only that one rule: .oxlintrc.strict.json was already loading the 13 other unicorn correctness rules the plugin brings. The fast config gains all 14, which closes a divergence where `lint:fast`, the editor and pre-commit enforced less than CI. Measured on a 1,104-file app, zero new violations — any your repo reports are real findings, so fix them rather than dropping the plugin.',
         'check-structure.mjs rule 1 stays: unicorn/filename-case ignores directory names and oxlint never opens .css/.scss. The two are complements, not duplicates.',
     ],
 };
