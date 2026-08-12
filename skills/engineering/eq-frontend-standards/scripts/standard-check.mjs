@@ -32,7 +32,7 @@ const has = (f) => process.argv.includes(f);
 // failure this script exists to prevent, so it must not be possible.
 //
 // `npm run validate` asserts this equals the repo's package.json version, so the two cannot drift.
-const STANDARD_VERSION = '2.14.1';
+const STANDARD_VERSION = '2.14.2';
 const standardVersion = STANDARD_VERSION;
 
 // Each entry names what a consumer must DO to move between versions. A version bump that changes
