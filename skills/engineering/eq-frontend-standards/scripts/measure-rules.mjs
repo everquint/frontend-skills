@@ -47,11 +47,11 @@ const THRESHOLD = 300;
 // consuming repo where this script is absent, and this script runs from the skill where that
 // workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
 // .oxlintrc.strict.json moves both, and both are edited in the same commit.
-const EXPECTED_RULES = 226;
+const EXPECTED_RULES = 227;
 const KNOWN_SHORTFALL = new Map([
-    [199, '--type-aware was not passed: all 27 type-aware rules are SKIPPED — the full recommended-type-checked set, typescript/no-floating-promises included.'],
-    [206, 'the jsPlugins bridge did not load: all 20 eslint-plugin-react-hooks rules were dropped.'],
-    [168, 'the fast config (.oxlintrc.json) ran instead of .oxlintrc.strict.json.'],
+    [200, '--type-aware was not passed: all 27 type-aware rules are SKIPPED — the full recommended-type-checked set, typescript/no-floating-promises included.'],
+    [207, 'the jsPlugins bridge did not load: all 20 eslint-plugin-react-hooks rules were dropped.'],
+    [182, 'the fast config (.oxlintrc.json) ran instead of .oxlintrc.strict.json.'],
 ]);
 
 // oxlint's diagnostic `code` is `plugin(rule)` using each plugin's DISPLAY name; its config and

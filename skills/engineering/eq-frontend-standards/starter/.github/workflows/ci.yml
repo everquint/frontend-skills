@@ -20,7 +20,7 @@ env:
   # forward — `npx oxlint --rules` prints nothing in 1.77.0, so it is not readable off the CLI
   # without parsing:
   #
-  #   # 226 — rules actually loaded by the run this job asserts on
+  #   # 227 — rules actually loaded by the run this job asserts on
   #   npx oxlint -c .oxlintrc.strict.json --type-aware -f json src \
   #     | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).number_of_rules))'
   #
@@ -29,7 +29,7 @@ env:
   # a consuming repo where that script is absent, and the script runs from the skill where this
   # workflow is absent, so neither side can import the other. A rule added to .oxlintrc.json or
   # .oxlintrc.strict.json moves both, and both are edited in the same commit.
-  EXPECTED_OXLINT_RULES: 226
+  EXPECTED_OXLINT_RULES: 227
 
 jobs:
   verify:
@@ -115,9 +115,9 @@ jobs:
           if [ "$loaded" -lt "${EXPECTED_OXLINT_RULES}" ]; then
             echo "::error::Lint gate is under-enforcing: $loaded rules loaded, expected at least ${EXPECTED_OXLINT_RULES}."
             echo "Measured causes, both of which exit 0 on their own:"
-            echo "  --type-aware dropped from scripts.lint ....... 199 rules (-27)"
-            echo "  jsPlugins react-hooks-js failed to resolve ... 206 rules (-20)"
-            echo "  .oxlintrc.strict.json not passed via -c ...... 168 rules (-58)"
+            echo "  --type-aware dropped from scripts.lint ....... 200 rules (-27)"
+            echo "  jsPlugins react-hooks-js failed to resolve ... 207 rules (-20)"
+            echo "  .oxlintrc.strict.json not passed via -c ...... 182 rules (-45)"
             exit 1
           fi
 
