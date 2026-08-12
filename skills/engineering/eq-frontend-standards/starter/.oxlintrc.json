@@ -7,7 +7,7 @@
 {
     "$schema": "./node_modules/oxlint/configuration_schema.json",
 
-    "plugins": ["react", "typescript", "oxc", "import", "jsx_a11y"],
+    "plugins": ["react", "typescript", "oxc", "import", "jsx_a11y", "unicorn"],
 
     "categories": { "correctness": "error" },
 
@@ -19,6 +19,7 @@
         "no-console": ["error", { "allow": ["error"] }],
         "typescript/no-explicit-any": "error",
         "no-nested-ternary": "error",
+        "unicorn/filename-case": ["error", { "case": "kebabCase" }],
 
         // §1 budgets — no function-length limit on purpose.
         "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],

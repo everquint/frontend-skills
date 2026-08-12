@@ -240,6 +240,8 @@ if (sourceFiles.length === 0) {
 const violations = { casing: [], hooksFolder: [], barrel: [], testPlacement: [], styleCollision: [], gitCaseDrift: [], inventoryPath: [] };
 
 // ── rule 1: kebab-case ───────────────────────────────────────────────────────
+// Overlaps oxlint's unicorn/filename-case on .ts/.tsx and is kept anyway: that rule ignores
+// DIRECTORY names, oxlint never opens .css/.scss, and a repo still migrating on ESLint has neither.
 // Checked segment by segment on the dot-separated name, so `<name>.types.ts`, `<name>.test.tsx`
 // and `<name>.d.ts` pass without an allowlist of companion suffixes to keep in sync — every
 // segment simply has to be lowercase kebab. A leading `_` (SCSS partial) and a leading `.` are
