@@ -25,6 +25,7 @@
     "./skills/engineering/eq-frontend-workflow",
     "./skills/engineering/eq-frontend-quality-bar",
     "./skills/productivity/eq-create-issue",
-    "./skills/productivity/eq-take-issue"
+    "./skills/productivity/eq-take-issue",
+    "./skills/productivity/eq-code-graph"
   ]
 }
