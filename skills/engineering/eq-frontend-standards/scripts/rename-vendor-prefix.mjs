@@ -237,4 +237,11 @@ if (stale.length) {
     process.exit(dryRun ? 0 : 2);
 }
 
+// `.agents/skills` is generated FROM these names, so a rename leaves it pointing at directories that
+// no longer exist — and the hosts that read only that path are the ones with no other copy.
+if (existsSync(join(cwd, '.agents', 'skills'))) {
+    console.log(`\n.agents/skills exists and was NOT touched: it is generated. Regenerate it now, or the hosts that read only that path (Zed, Codex CLI, Gemini CLI) follow the old names:`);
+    console.log(`    node <skill>/scripts/adapt-hosts.mjs\n  (standard-check --check flags this until you do.)`);
+}
+
 console.log(`\n${dryRun ? 'Dry run — nothing was written.' : 'Done. Commit .claude/skills as one rename commit.'}\n`);

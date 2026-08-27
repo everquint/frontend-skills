@@ -20,7 +20,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { MANIFEST_REL, readManifest, vendoredDir } from './vendor-names.mjs';
+import { AGENTS_SKILLS_ROOT, MANIFEST_REL, exposureState, readManifest, vendoredDir } from './vendor-names.mjs';
 
 const MARKER = '.eq-frontend-skills.json';
 const cwd = process.cwd();
@@ -362,6 +362,44 @@ if (vendorManifest?.corrupt) {
             policyGaps.push(`${standardDir}/${sentinel} — the standard is not vendored${vendorManifest?.prefix ? ` under the recorded prefix '${vendorManifest.prefix}'` : ''}, so agent hosts and CI runners without a personal install enforce nothing. Fix: node <skill>/scripts/init-greenfield.mjs --prefix <short> (safe on an existing repo — it never overwrites).`);
             break;
         }
+    }
+}
+
+// ── the other hosts' view of the same skills ─────────────────────────────────
+// `.agents/skills` is how Zed, Codex CLI and Gemini CLI see this repo's skills at all (they read
+// nothing under `.claude/`). It is DERIVED, so it goes stale silently: a bridge file still naming the
+// pre-rename directory, or a mirrored copy left behind by an edit to the real tree. Either way those
+// hosts are following a skill this repo no longer ships — checked here because nothing else looks.
+// A repo with NO manifest has no vendored set to compare against, so nothing here is an orphan —
+// a hand-authored .agents/skills/my-skill is the repo's own business. Without this the check called
+// every such directory 'left over from a prefix rename' and refused --record.
+if (existsSync(join(cwd, AGENTS_SKILLS_ROOT)) && vendorManifest && !vendorManifest.corrupt) {
+    const expected = Object.values(vendorManifest?.skills ?? {});
+    for (const dir of expected) {
+        const state = exposureState(cwd, dir);
+        if (state?.stale) {
+            policyGaps.push(`${join(AGENTS_SKILLS_ROOT, dir)} — ${state.reason}. Hosts that read only .agents/skills follow this copy. Fix: node <skill>/scripts/adapt-hosts.mjs --agents-skills ${state.mode === 'mirror' ? 'mirror' : 'bridge'}`);
+        }
+    }
+    // A directory here that the manifest does NOT name is what a prefix rename leaves behind: the
+    // renamed skills have no exposure at all, and the old names still do. Zed, Codex CLI and Gemini
+    // CLI read nothing else, so they keep following the copy the repo stopped shipping — and the
+    // per-skill loop above cannot see it, because it only looks for names the manifest still lists.
+    let present = [];
+    // Directories only: a README.md sitting there is not a skill, and reporting it as an orphan is
+    // the kind of false positive that gets a gate switched off.
+    try {
+        present = readdirSync(join(cwd, AGENTS_SKILLS_ROOT))
+            .filter((d) => !d.startsWith('.'))
+            .filter((d) => statSync(join(cwd, AGENTS_SKILLS_ROOT, d), { throwIfNoEntry: false })?.isDirectory());
+    } catch { /* unreadable: nothing to compare */ }
+    const orphans = present.filter((d) => !expected.includes(d));
+    const missing = expected.filter((d) => !present.includes(d));
+    if (orphans.length) {
+        policyGaps.push(`${AGENTS_SKILLS_ROOT} holds ${orphans.join(', ')}, which the vendor manifest does not name — left over from a prefix rename. Delete them and regenerate: node <skill>/scripts/adapt-hosts.mjs`);
+    }
+    if (missing.length && present.length) {
+        policyGaps.push(`${AGENTS_SKILLS_ROOT} has no entry for ${missing.join(', ')}, so hosts that read only that path do not see ${missing.length === 1 ? 'it' : 'them'} at all. Fix: node <skill>/scripts/adapt-hosts.mjs`);
     }
 }
 

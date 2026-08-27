@@ -43,7 +43,10 @@ process.stdin.on("data", (d) => { s += d; });
 process.stdin.on("end", () => {
     try {
         const p = JSON.parse(s);
-        const cmd = String(p?.tool_input?.command ?? "");
+        // Hosts disagree here too: tool_input.command (Claude Code, Codex, Copilot, Devin Local,
+        // and Cursor for Shell calls) vs tool_info.command_line (Windsurf Cascade).
+        const ti = p?.tool_input ?? p?.tool_info ?? {};
+        const cmd = String(ti.command ?? ti.command_line ?? ti.commandLine ?? "");
         const FLAG_WITH_VALUE = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
         // Segments split on GROUPING characters too: `(git commit)`, `{ git commit; }` and
         // `if …; then git commit; fi` glued the grouping token onto `git`, and the parser read
@@ -70,8 +73,21 @@ process.stdin.on("end", () => {
             return sub.includes(t[i] ?? "") && (t[i] ?? "") !== "";
         });
         const line = (v) => String(v ?? "").replace(/\n/g, " ");
-        process.stdout.write(line(p?.hook_event_name) + "\n");
-        process.stdout.write(line(p?.session_id) + "\n");
+        // The event name is host-specific and the shell below dispatches on it, so it is normalised
+        // HERE to pre/post/start. Wired on Cursor as `beforeShellExecution` and on Gemini as
+        // `BeforeTool`, an un-normalised name fell through to the catch-all and exited 0 — the guard
+        // loaded, reported as active, and blocked nothing.
+        const raw = line(p?.hook_event_name);
+        const phase = /^(PreToolUse|beforeShellExecution|BeforeTool|PermissionRequest|beforeMCPExecution)$/.test(raw) ? "pre"
+            : /^(PostToolUse|afterShellExecution|AfterTool|afterFileEdit)$/.test(raw) ? "post"
+            : /^(SessionStart|sessionStart|workspaceOpen)$/.test(raw) ? "start"
+            : "other";
+        process.stdout.write(phase + "\n");
+        // Every host names the session differently, and an EMPTY id used to mean exit 0 — i.e. no
+        // guard at all. A shared fallback bucket is weaker than per-session state and far better than
+        // none: the failure it prevents (a commit landing on a branch another session moved to) cannot
+        // be undone.
+        process.stdout.write(line(p?.session_id ?? p?.conversation_id ?? p?.sessionId ?? "shared") + "\n");
         process.stdout.write((invokes(["commit"]) ? "1" : "0") + (invokes(["checkout", "switch", "worktree"]) ? "1" : "0") + "\n");
         process.stdout.write(JSON.stringify(cmd));
     } catch { /* not JSON: emit nothing, the shell no-ops */ }
@@ -85,7 +101,7 @@ flags=$(printf '%s\n' "$parsed" | sed -n 3p)
 cmd=$(printf '%s\n' "$parsed" | sed -n 4p)
 is_commit=${flags:0:1}
 is_branch_move=${flags:1:1}
-[ -n "$session" ] || exit 0
+[ -n "$session" ] || session=shared
 
 git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
 state_dir="$git_dir/claude-branch-guard"
@@ -100,24 +116,24 @@ record() {
 }
 
 case "$event" in
-    SessionStart)
+    start)
         record
         exit 0
         ;;
-    PostToolUse)
+    post)
         # The session's own branch moves keep the record honest. A re-record after a FAILED
         # checkout is harmless: it stores the CURRENT branch, which is the truth.
         [ "$is_branch_move" = "1" ] && record
         exit 0
         ;;
-    PreToolUse)
+    pre)
         ;;
     *)
         exit 0
         ;;
 esac
 
-# PreToolUse below. Only real `git … commit` invocations are guarded (detected in the node parse
+# The pre-tool phase below. Only real `git … commit` invocations are guarded (detected in the node parse
 # above), so `gh pr create --title "…commit…"` and `git log | grep commit` pass untouched.
 case "$cmd" in
     *CLAUDE_BRANCH_GUARD_ALLOW=1*) exit 0 ;;

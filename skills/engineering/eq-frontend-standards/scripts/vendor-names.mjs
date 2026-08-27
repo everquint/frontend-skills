@@ -8,8 +8,9 @@
 // to load (name/directory mismatch), or a cross-reference that resolves to nothing. Three rules in
 // one file is the only version of this that cannot drift.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 // The vendored tree records what it is. Without it a later script cannot tell `eq-cc-frontend-standards`
 // (vendored, prefix `cc`) from a skill someone happens to have named that way, and re-prefixing would
@@ -96,4 +97,54 @@ export const vendoredDir = (cwd, sourceName) => {
     const manifest = readManifest(cwd);
     const mapped = manifest && !manifest.corrupt ? manifest.skills?.[sourceName] : null;
     return join('.claude', 'skills', mapped ?? sourceName);
+};
+
+// ── the .agents/skills exposure ──────────────────────────────────────────────
+// Claude Code loads skills only from `.claude/skills`; Zed, Codex CLI and Gemini CLI load them only
+// from `.agents/skills`. adapt-hosts.mjs therefore exposes the vendored tree there, either as a
+// POINTER file (bridge) or as a real copy (mirror). Both go stale silently — a bridge after a prefix
+// rename, a mirror after any edit to the real tree — so both are checkable, and standard-check does.
+export const AGENTS_SKILLS_ROOT = join('.agents', 'skills');
+
+const walkFiles = (dir, base = dir) => readdirSync(dir).flatMap((e) => {
+    const p = join(dir, e);
+    const st = statSync(p, { throwIfNoEntry: false });
+    if (!st) return [];
+    return st.isDirectory() ? walkFiles(p, base) : [relative(base, p)];
+});
+
+// Content hash over the whole tree: file paths AND bytes, sorted, so it is order-independent and
+// notices a deletion as readily as an edit.
+export const treeHash = (dir) => {
+    if (!existsSync(dir)) return null;
+    const hash = createHash('sha256');
+    for (const file of walkFiles(dir).sort()) {
+        hash.update(file);
+        try { hash.update(readFileSync(join(dir, file))); } catch { hash.update('<unreadable>'); }
+    }
+    return hash.digest('hex');
+};
+
+// null = no exposure for this skill. Otherwise { mode, stale, reason }.
+export const exposureState = (cwd, vendoredDirName) => {
+    const exposed = join(cwd, AGENTS_SKILLS_ROOT, vendoredDirName);
+    if (!existsSync(exposed)) return null;
+    const real = join(cwd, '.claude', 'skills', vendoredDirName);
+    const skillFile = join(exposed, 'SKILL.md');
+    let body = null;
+    try { body = readFileSync(skillFile, 'utf8'); } catch { /* unreadable: reported below */ }
+    if (body === null) return { mode: 'unknown', stale: true, reason: `${join(AGENTS_SKILLS_ROOT, vendoredDirName)}/SKILL.md is missing or unreadable` };
+
+    // A bridge is a pointer: it names the real path and carries no references/ of its own.
+    const isBridge = body.includes('This is a POINTER');
+    if (isBridge) {
+        const pointsAt = body.includes(join('.claude', 'skills', vendoredDirName));
+        return {
+            mode: 'bridge',
+            stale: !pointsAt,
+            reason: pointsAt ? null : `points at a path that is not ${join('.claude', 'skills', vendoredDirName)} — a prefix rename since it was generated`,
+        };
+    }
+    const same = treeHash(real) === treeHash(exposed);
+    return { mode: 'mirror', stale: !same, reason: same ? null : 'the mirrored copy no longer matches the vendored tree' };
 };
