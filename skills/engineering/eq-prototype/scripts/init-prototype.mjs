@@ -58,6 +58,11 @@ const SHARED_FILES = [
     'src/test/setup.ts',
     // The formatter hook. Free per edit, and it keeps graduation from becoming a formatting diff.
     '.claude/hooks/lint-fix.sh',
+    // The protected-files guard. It costs nothing per edit and it defends exactly the files whose
+    // quiet edit hollows the two gates this mode keeps: the lint config, the leaf tsconfigs, the
+    // formatter config, the settings file itself. The init-time verification below runs once; this
+    // runs on every write for the life of the prototype.
+    '.claude/hooks/guard-protected-files.sh',
 ];
 
 // Own starter: the two files that exist BECAUSE the mode is temporary. settings.json is a separate
@@ -91,8 +96,10 @@ if (!expires || !/^\d{4}-\d{2}-\d{2}$/.test(expires)) {
     die('--expires YYYY-MM-DD is required — the date this prototype is deleted or graduated (SKILL.md §1).');
 }
 if (Number.isNaN(Date.parse(expires))) die(`--expires '${expires}' is not a real date.`);
-if (expires < new Date().toISOString().slice(0, 10)) {
-    die(`--expires '${expires}' is in the past. Pick the date this prototype actually ends.`);
+// `<=`, not `<`: the expiry date is the day the prototype is due (standard-check.mjs reports it as
+// DUE TODAY), so setting it to today would fail the gate before any code is written.
+if (expires <= new Date().toISOString().slice(0, 10)) {
+    die(`--expires '${expires}' is today or in the past — the prototype would be due before it is written. Pick a future date.`);
 }
 
 if (!existsSync(join(cwd, 'package.json'))) {
@@ -167,8 +174,27 @@ else {
 // with a DIFFERENT value is reported and left alone — silently overwriting a repo's build command
 // is how an init script gets banned.
 const pkgPath = join(cwd, 'package.json');
-const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-const fragmentPkg = JSON.parse(readFileSync(join(SHARED_STARTER, 'package.fragment.json'), 'utf8'));
+// Existence was checked before anything was written; VALIDITY is checked here, and a throw at this
+// point would abandon the run with files already on disk and no report. Exit 2, not 1: the header's
+// exit 1 promises "nothing was written", and by now 13 files have landed.
+let pkg;
+try {
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+} catch (err) {
+    console.error(`\npackage.json could not be parsed: ${err.message}`);
+    console.error(`The files above landed; package.json was NOT touched and prototype mode is NOT marked.`);
+    console.error(`Fix the JSON, then re-run — this script never overwrites, so the second run only tops up.\n`);
+    process.exit(2);
+}
+// The fragment is the single source of the scripts and dependency versions. Missing or unreadable
+// means an incomplete install, which is reported the way land() reports it — the gate checks and the
+// rest of the report still run, and neither merge loop does anything.
+let fragmentPkg = null;
+try {
+    fragmentPkg = JSON.parse(readFileSync(join(SHARED_STARTER, 'package.fragment.json'), 'utf8'));
+} catch {
+    conflicts.push('missing or unreadable in the skill install: package.fragment.json — no scripts or devDependencies were merged');
+}
 
 // `??=` does not replace a non-nullish non-object, so `"scripts": "oxlint"` in a hand-edited
 // package.json would throw mid-merge on a repo whose files have already been written.
@@ -180,8 +206,8 @@ const merging = ['scripts', 'devDependencies'].filter((key) => {
     }
     return true;
 });
-const mergeScripts = merging.includes('scripts');
-const mergeDeps = merging.includes('devDependencies');
+const mergeScripts = fragmentPkg !== null && merging.includes('scripts');
+const mergeDeps = fragmentPkg !== null && merging.includes('devDependencies');
 
 for (const [key, sourceKey] of mergeScripts ? Object.entries(SCRIPT_KEYS) : []) {
     const value = fragmentPkg.scripts?.[sourceKey];
@@ -260,12 +286,12 @@ if (skipped.includes('.oxlintrc.json')) {
 if (skipped.includes('.claude/settings.json')) {
     const body = readConfigText(join(cwd, '.claude', 'settings.json'));
     const wired = (hook) => body !== null && body.includes(hook);
-    const unwired = ['prototype-expiry.sh', 'lint-fix.sh'].filter((h) => !wired(h));
+    const unwired = ['prototype-expiry.sh', 'lint-fix.sh', 'guard-protected-files.sh'].filter((h) => !wired(h));
     if (unwired.length) {
         gateGaps.push([
             `.claude/settings.json already existed and was NOT replaced, and nothing in it references ${unwired.map((h) => `\`${h}\``).join(' or ')}.`,
             `Both hooks were copied into .claude/hooks/ and a hook no settings file references never runs:`,
-            `no formatting on edit, and no expiry warning — the two things prototype mode relies on being automatic.`,
+            `no formatting on edit, no expiry warning, and no guard on the gate files — everything this mode relies on being automatic.`,
             `Merge the hook entries from ${join(OWN_STARTER, '.claude', 'settings.json')} into your own file.`,
         ].join('\n    '));
     }
@@ -285,6 +311,14 @@ for (const leaf of LEAF_TSCONFIGS) {
     if (text === null) { gateGaps.push(`${leaf} could not be read, so it cannot be shown to enable the checking flags. \`npm run typecheck\` is worth whatever that file says.`); continue; }
     const missing = TS_CHECKING_FLAGS.filter((f) => !flagTrue(text, f));
     if (!missing.length) continue;
+    // `extends` puts the flags somewhere this script does not follow (a package, another file). A
+    // gate that cannot be satisfied except by duplicating the base config is one people switch off,
+    // so this drops to advice and does not count towards exit 2.
+    if (/"extends"\s*:/.test(text)) {
+        console.log(`\nⓘ ${leaf} sets ${missing.map((f) => `"${f}"`).join(', ')} nowhere in its own text but does \`extends\` another config.`);
+        console.log(`  Verify the base config enables ${missing.join(', ')} — this script reads only this file.`);
+        continue;
+    }
     // A flag set in the solution-style ROOT is inert for referenced projects — the trap worth
     // naming explicitly, because the repo looks configured and is not.
     const inRootOnly = missing.filter((f) => flagTrue(rootText, f));

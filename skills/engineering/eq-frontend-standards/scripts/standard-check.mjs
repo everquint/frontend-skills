@@ -267,8 +267,18 @@ try {
 }
 // Date-only, UTC: a prototype does not expire at a timezone boundary. `>=`, not `>`: the marker and
 // PROTOTYPE.md both say the repo is deleted or graduated ON that date, so the date itself is due.
+//
+// The FORMAT is checked before the comparison, because extending an expiry is a hand edit to
+// package.json (init-prototype.mjs refuses to rewrite the marker). A `30/09/2020` typo compares
+// lexically as a future date and a numeric `20200930` compares as NaN — both silently turn the one
+// bounded thing about this mode into a permanent exemption that reports green. Malformed is treated
+// as expired, which is the direction that fails loudly.
 const today = new Date().toISOString().slice(0, 10);
-const prototypeExpired = Boolean(prototype) && (!prototype.expires || today >= prototype.expires);
+const badExpiry = Boolean(prototype)
+    && (typeof prototype.expires !== 'string'
+        || !/^\d{4}-\d{2}-\d{2}$/.test(prototype.expires)
+        || Number.isNaN(Date.parse(prototype.expires)));
+const prototypeExpired = Boolean(prototype) && (badExpiry || today >= prototype.expires);
 
 // ── the agent-side policy files ──────────────────────────────────────────────
 // starter/.claude/ is repo policy the same way the hooks and CI are — and guard-protected-files.sh
@@ -440,6 +450,7 @@ if (prototype && !recorded) {
     if (prototypeExpired) {
         const when = !prototype.expires
             ? 'has no expiry date — it was never bounded'
+            : badExpiry ? `records an unusable expiry (${JSON.stringify(prototype.expires)}) — it must be a "YYYY-MM-DD" string, so nothing can tell whether this repo is overdue`
             : today === prototype.expires ? `is DUE TODAY (${prototype.expires})` : `EXPIRED on ${prototype.expires}`;
         console.error(`\n✗ Prototype mode ${when}.`);
         console.error(`  Question: ${question}`);

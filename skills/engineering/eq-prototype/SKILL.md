@@ -73,7 +73,7 @@ The script lands the second column and nothing from the first.
 | `typecheck` | The cheapest possible defence against a prototype that "works" because a value is `any` |
 | Base lint (`.oxlintrc.json`, `npm run lint`) | Native rules only, no type build — the half of the gate that is cheap on every run, and it catches the runtime bugs (hook rules, index keys, floating promises) that make a prototype's *answer* wrong. The file budgets ride along in the same run |
 | `oxfmt` via the PostToolUse hook | One file per edit, and it means graduation is not a whole-repo formatting diff |
-| `Bash(git stash:*)` denied | Invisible state lost between sessions is not a production-only failure |
+| `Bash(git stash:*)` denied, and `guard-protected-files.sh` | Both cost nothing per edit. The guard refuses agent writes to the lint config, the leaf tsconfigs and the formatter config — the files whose quiet edit is what makes a kept gate hollow |
 | The §5 non-negotiables | They are about harm, not quality |
 
 ## 4. The loop
