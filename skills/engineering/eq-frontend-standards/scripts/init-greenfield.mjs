@@ -33,7 +33,7 @@
 // the blocks they live in for why a printed reminder is not sufficient.
 //
 // Usage, from the root of the new repo:
-//   node <path>/init-greenfield.mjs [--dry-run] [--no-vendor-skills]
+//   node <path>/init-greenfield.mjs (--prefix <short> | --no-prefix) [--dry-run] [--no-vendor-skills]
 //
 // Exit codes — distinct, because a wrapper has to tell "finish the setup" from "the run never
 // started", and the two need opposite responses:
@@ -51,6 +51,8 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, statSync, realpathSync, chmodSync, cpSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 
+import { isStarterPath, nameMap, prefixError, readManifest, rewriteMarkdown, writeManifest } from './vendor-names.mjs';
+
 const STARTER = join(import.meta.dirname, '..', 'starter');
 // scripts/ -> eq-frontend-standards/ -> engineering/, the directory holding every skill in the set.
 const SKILLS_SRC = join(import.meta.dirname, '..', '..');
@@ -62,6 +64,66 @@ const dryRun = process.argv.includes('--dry-run');
 // not carry the skills carries no standard there. --no-vendor-skills opts out for the rare repo
 // that cannot commit the tree; --vendor-skills is still accepted for older instructions.
 const vendorSkills = !process.argv.includes('--no-vendor-skills');
+
+// ── the vendor prefix ───────────────────────────────────────────────────────
+// Vendored skills land in .claude/skills/ under the SAME names as a personal install
+// (~/.claude/skills, ~/.agents/skills). A host that loads both lists every skill twice, and the two
+// copies are different versions of the same standard — the repo's is pinned, the personal one moves
+// with `npx skills update`. Which one answers a question is then a race nobody can see.
+//
+// So a vendored set is named for the project that owns it: eq-frontend-standards vendored into the
+// CleverClerk client with `--prefix cc` becomes eq-cc-frontend-standards. The `eq-` marker stays in
+// front, so one team's skills still sort together across repos.
+//
+// The prefix is the CONSUMER's choice, not ours, and it is changeable later with
+// scripts/rename-vendor-prefix.mjs. What is not optional is DECIDING: silently vendoring under the
+// same names is the failure this exists to prevent, so one of --prefix / --no-prefix is required.
+const prefixIndex = process.argv.indexOf('--prefix');
+// A following flag is a MISSING value, not a bad prefix: `--prefix --dry-run` used to report
+// "'--dry-run' is not usable", which names the wrong problem.
+const prefixValue = prefixIndex === -1 ? undefined : process.argv[prefixIndex + 1];
+const rawPrefix = prefixValue === undefined || prefixValue.startsWith('--') ? undefined : prefixValue;
+if (prefixIndex !== -1 && rawPrefix === undefined) {
+    console.error('--prefix needs a value: --prefix <short-project-name>, or --no-prefix to keep the plain names.');
+    process.exit(1);
+}
+const noPrefix = process.argv.includes('--no-prefix');
+let prefix = null;
+
+// The decision is required in a DRY RUN too. A plan that shows unprefixed directories, followed by a
+// real run that refuses, is a plan for a command that cannot be executed — and read-the-plan-then-run
+// is the flow the procedures prescribe.
+if (vendorSkills && rawPrefix === undefined && !noPrefix) {
+    console.error('Vendoring needs a name decision: --prefix <short-project-name>, or --no-prefix.');
+    console.error('');
+    console.error('  --prefix cc   vendors as .claude/skills/eq-cc-frontend-standards, eq-cc-frontend-workflow, …');
+    console.error('                so the repo copy cannot be confused with a personal install of the same skills.');
+    console.error('  --no-prefix   keeps the plain names. Every host that also has a personal install then lists');
+    console.error('                each skill twice, at two different versions of the standard.');
+    console.error('');
+    console.error('The prefix is yours and it is changeable: scripts/rename-vendor-prefix.mjs --to <short>.');
+    process.exit(1);
+}
+if (rawPrefix !== undefined) {
+    // Short, because it is a prefix on every skill name and the slash-command picker clips long
+    // names from the left — the same reason the plugin is called `eq`. The character set is the
+    // Agent Skills name rule: a directory name that fails it is a skill no host will load.
+    const problem = prefixError(rawPrefix);
+    if (problem) {
+        console.error(`--prefix '${rawPrefix}' is not usable: ${problem}.`);
+        console.error('It becomes part of every vendored skill\'s directory AND its frontmatter name, which the spec restricts.');
+        process.exit(1);
+    }
+    if (noPrefix) {
+        console.error('--prefix and --no-prefix contradict each other. Pass one.');
+        process.exit(1);
+    }
+    prefix = rawPrefix;
+}
+
+// Source name -> vendored directory name for this whole set, computed once. The rule itself lives in
+// vendor-names.mjs, shared with the rename script and every resolver.
+const vendorNames = nameMap(VENDORED_SKILLS, prefix);
 
 if (!existsSync(join(cwd, 'package.json'))) {
     console.error('No package.json here. Run this from the root of the repo you are setting up.');
@@ -78,7 +140,11 @@ const conflicts = [];
 
 const walk = (dir, base = dir) => readdirSync(dir).flatMap((e) => {
     const p = join(dir, e);
-    return statSync(p).isDirectory() ? walk(p, base) : [relative(base, p)];
+    // A broken symlink or an entry that vanished between readdir and stat is skipped, never thrown:
+    // this runs after files have landed, and an exception there reports nothing about what happened.
+    const st = statSync(p, { throwIfNoEntry: false });
+    if (!st) return [];
+    return st.isDirectory() ? walk(p, base) : [relative(base, p)];
 });
 
 // Every gate this script VERIFIES rather than writes reads a file the user controls, so an unreadable
@@ -100,6 +166,11 @@ const readTextFile = (file) => {
 };
 
 // ── plain file copies ───────────────────────────────────────────────────────
+// AGENTS.md tells agents where the vendored standard IS, so the placeholder is substituted with the
+// name this run actually writes. A literal `eq-<project>-…` in a consumer repo is a path that never
+// exists, and agents follow it before a human ever reads the file.
+const STANDARD_DIR_PLACEHOLDER = '__EQ_STANDARD_DIR__';
+
 for (const rel of walk(STARTER)) {
     // `.fragment` files are merged, not copied.
     if (rel.includes('fragment')) continue;
@@ -108,7 +179,12 @@ for (const rel of walk(STARTER)) {
     if (existsSync(target)) { skipped.push(rel); continue; }
     if (!dryRun) {
         mkdirSync(dirname(target), { recursive: true });
-        writeFileSync(target, readFileSync(join(STARTER, rel)));
+        const raw = readFileSync(join(STARTER, rel));
+        if (rel.endsWith('.md') && raw.includes(STANDARD_DIR_PLACEHOLDER)) {
+            writeFileSync(target, raw.toString('utf8').replaceAll(STANDARD_DIR_PLACEHOLDER, vendorSkills ? vendorNames.get('eq-frontend-standards') : 'eq-frontend-standards'));
+        } else {
+            writeFileSync(target, raw);
+        }
         // A hook that is not executable does not run and reports nothing, which is worse than
         // having no hook at all. Same reasoning for .husky/ and for .claude/hooks/.
         if (rel.startsWith('.husky/') || rel.startsWith('.claude/hooks/')) chmodSync(target, 0o755);
@@ -157,6 +233,35 @@ if (skipped.includes(OXLINTRC)) {
 // Real copied files, never a symlink: git records a symlink as its target path, so committing the
 // link `npx skills add` creates gives every other clone a dangling path into one home directory.
 if (vendorSkills) {
+    // A repo that is ALREADY vendored under one prefix must not be vendored again under another:
+    // never-overwrite means the old directories stay, so the repo would carry two copies of the same
+    // standard and a host would load both. Re-prefixing is a rename, and it has its own script.
+    // A repo vendored BEFORE the manifest existed has plain-named directories and no manifest, which is
+    // the state every current consumer is in — so the disk is checked first. Without this the guard
+    // never fires for them and a prefixed run lands a SECOND copy of every skill beside the old one.
+    const skillsRoot = join(cwd, '.claude', 'skills');
+    const onDisk = existsSync(skillsRoot)
+        ? readdirSync(skillsRoot).filter((d) => VENDORED_SKILLS.some((n) => d === n || d.endsWith(n.replace(/^eq-/, '-'))))
+        : [];
+    const foreign = onDisk.filter((d) => ![...vendorNames.values()].includes(d));
+    if (foreign.length) {
+        console.error(`.claude/skills already holds a vendored set under other names: ${foreign.join(', ')}.`);
+        console.error('Vendoring again would leave BOTH copies there, and a host would load each skill twice.');
+        console.error(`Rename the existing set instead:\n    node <skill>/scripts/rename-vendor-prefix.mjs --to ${prefix ?? '""'}`);
+        console.error('(That works on a set vendored before the manifest existed — it adopts the directories it finds.)');
+        process.exit(1);
+    }
+
+    const existing = readManifest(cwd);
+    if (existing && !existing.corrupt && (existing.prefix ?? null) !== prefix) {
+        const was = existing.prefix ? `prefix '${existing.prefix}'` : 'no prefix';
+        const now = prefix ? `prefix '${prefix}'` : 'no prefix';
+        console.error(`This repo is already vendored with ${was}, and this run asks for ${now}.`);
+        console.error('Vendoring again would leave BOTH copies in .claude/skills/ and a host would load each skill twice.');
+        console.error(`Rename the existing set instead:\n    node <skill>/scripts/rename-vendor-prefix.mjs --to ${prefix ?? '""'}`);
+        process.exit(1);
+    }
+
     const missing = VENDORED_SKILLS.filter((n) => !existsSync(join(SKILLS_SRC, n, 'SKILL.md')));
     if (missing.length) {
         console.error(`Cannot vendor skills: ${SKILLS_SRC} does not hold ${missing.join(', ')}.`);
@@ -164,7 +269,7 @@ if (vendorSkills) {
         process.exit(1);
     }
     for (const name of VENDORED_SKILLS) {
-        const rel = join('.claude', 'skills', name);
+        const rel = join('.claude', 'skills', vendorNames.get(name));
         const target = join(cwd, rel);
         // Presence of the DIRECTORY is not presence of the skill. Editors, agent tooling and a
         // partially-completed earlier run all create an empty .claude/skills/<name>/, and skipping on
@@ -179,8 +284,36 @@ if (vendorSkills) {
         // dereference: the source may itself be a symlinked install; the copy must be real files.
         // force: false fills a husk or completes a partial copy without replacing any file that does
         // exist — the same never-overwrite contract as the plain copy loop above.
-        if (!dryRun) cpSync(join(SKILLS_SRC, name), target, { recursive: true, dereference: true, force: false });
-        created.push(`${rel}/ (vendored)`);
+        if (!dryRun) {
+            cpSync(join(SKILLS_SRC, name), target, { recursive: true, dereference: true, force: false });
+            // The copy is byte-identical EXCEPT for names, and it cannot be otherwise: a host loads a
+            // skill only when its frontmatter `name` equals its directory, and the bodies link to
+            // each other as flat siblings. Renaming the directory without rewriting both leaves a
+            // skill that never loads and links that resolve to nothing — silently, in both cases.
+            for (const file of walk(target)) {
+                if (!file.endsWith('.md')) continue;
+                // starter/ files are TEMPLATES for the consumer repo, and they name the PERSONAL
+                // install paths, which are never prefixed. Rewriting those kills working fallbacks.
+                if (isStarterPath(file)) continue;
+                const path = join(target, file);
+                const before = readTextFile(path);
+                if (before === null) { conflicts.push(`${join(rel, file)} could not be read, so its skill names were NOT rewritten — that file's links and frontmatter still name the unprefixed skills`); continue; }
+                const after = rewriteMarkdown(before, vendorNames);
+                if (after !== before) writeFileSync(path, after);
+            }
+        }
+        created.push(`${rel}/ (vendored${prefix ? `, prefix ${prefix}` : ''})`);
+    }
+    // What was vendored and under which names. Every later resolver reads this instead of guessing,
+    // and rename-vendor-prefix.mjs needs it to know which directories are ours to move.
+    if (!dryRun) {
+        // The version comes from the source skill's own embedded constant — the same one
+        // standard-check.mjs gates on, and the only version this script can see: `npx skills add`
+        // installs skill directories without the repo manifest.
+        const embedded = readTextFile(join(SKILLS_SRC, 'eq-frontend-standards', 'scripts', 'standard-check.mjs'))
+            ?.match(/^const STANDARD_VERSION = '([^']+)';$/m)?.[1] ?? null;
+        writeManifest(cwd, { prefix, skills: vendorNames, standardVersion: embedded });
+        created.push(`.claude/skills/.eq-vendor.json`);
     }
 }
 
@@ -445,7 +578,7 @@ if (staleLinterConfigs.length) {
     console.log(`                          # are the only lint configs read now`);
 }
 if (!vendorSkills) {
-    console.log(`  node <skill>/scripts/init-greenfield.mjs --vendor-skills`);
+    console.log(`  node <skill>/scripts/init-greenfield.mjs --prefix <short>`);
     console.log(`                          # REQUIRED, not optional: copies the skills into`);
     console.log(`                          # .claude/skills as REAL files, so a clone inherits the exact`);
     console.log(`                          # standard. ci.yml's structure gate runs check-structure.mjs`);
@@ -894,7 +1027,7 @@ if (landed(CI_WORKFLOW) && !existsSync(join(cwd, VENDORED_STANDARD))) {
     console.log(`    nothing. Fix it by re-running this script with the flag, then committing the copy:`);
     // Absolute, not relative to cwd: a relative path out of the repo to a $HOME install is a wall of
     // `../` that nobody can copy with confidence.
-    console.log(`          node ${import.meta.filename} --vendor-skills`);
+    console.log(`          node ${import.meta.filename} --prefix <short-project-name>`);
     console.log(`          git add .claude/skills && git commit -m 'ci: vendor the standard'`);
     console.log('');
 }

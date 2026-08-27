@@ -63,6 +63,32 @@ The last two close the loop: a ticket's ID is what `eq-frontend-workflow` names 
 implementing one finishes by filing the deferred work back as new tickets. `docs/adr/0005-*` records
 why Linear is named rather than abstracted.
 
+## Vendoring into a consumer repo
+
+A repo that must enforce the standard without a personal install carries the skills itself. They are
+vendored **named for the project that owns them**:
+
+```bash
+node ~/.agents/skills/eq-frontend-standards/scripts/init-greenfield.mjs --prefix cc
+# .claude/skills/eq-cc-frontend-standards, eq-cc-frontend-workflow, eq-cc-frontend-quality-bar
+# plus .claude/skills/.eq-vendor.json, which records the prefix
+```
+
+The prefix exists because an unprefixed vendored copy has the *same name* as a personal install of
+the same skills. A host that loads both lists every skill twice at two different versions — the
+repo's is pinned, the personal one moves with `npx skills update` — and which one answers a question
+is a race with no visible symptom. `--no-prefix` keeps the plain names for a repo that wants them.
+
+The prefix is the consumer's choice and it is changeable:
+
+```bash
+node <skill>/scripts/rename-vendor-prefix.mjs --to clerk    # or --to "" to remove it
+```
+
+That moves the directories with `git mv` and rewrites each skill's frontmatter `name` and its
+sibling links, because a host loads a skill only when its `name` equals its directory.
+`docs/adr/0022-*` records the reasoning.
+
 ## Repo layout
 
 ```

@@ -16,7 +16,8 @@
 //   node <path>/graduate-check.mjs [--standard <dir>] [--dir src] [--json]
 //
 //   --standard   the installed eq-frontend-standards skill directory. Resolved automatically from
-//                the sibling install, a vendored .claude/skills copy, or $EQ_STANDARD.
+//                the sibling install, a vendored .claude/skills/*frontend-standards copy (any
+//                project prefix), or $EQ_STANDARD.
 //   --dir        source root to measure (default src)
 //   --json       machine-readable, including {"error": …} on failure
 //
@@ -26,7 +27,7 @@
 //   2  the measurement could not be trusted, or this repo is not in prototype mode. No verdict.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const cwd = process.cwd();
@@ -75,11 +76,18 @@ if (!marker || typeof marker !== 'object') {
 // ── locate the standards skill ──────────────────────────────────────────────
 // Four candidates because the same skill lives in four places depending on how it was installed,
 // and a script that only knows one of them fails on every other install.
+// A repo's vendored copy is named for the project that owns it — eq-<project>-frontend-standards —
+// so the in-repo candidate is matched by shape, not by an exact name.
+const vendored = (() => {
+    const root = join(cwd, '.claude', 'skills');
+    if (!existsSync(root)) return [];
+    try { return readdirSync(root).filter((d) => d.endsWith('frontend-standards')).map((d) => join(root, d)); } catch { return []; }
+})();
 const candidates = [
     flag('standard'),
     process.env.EQ_STANDARD,
     join(import.meta.dirname, '..', '..', 'eq-frontend-standards'),          // flat sibling install
-    join(cwd, '.claude', 'skills', 'eq-frontend-standards'),                 // vendored in the repo
+    ...vendored,                                                             // vendored in the repo
 ].filter(Boolean);
 const standard = candidates.find((d) => existsSync(join(d, 'scripts', 'measure-rules.mjs')));
 if (!standard) {

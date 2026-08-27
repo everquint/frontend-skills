@@ -61,7 +61,9 @@ The exclusions are not decoration, and both tools need their own: oxlint does no
 `ignorePatterns` through `extends`, so the strict config lints the vendored skills the base config
 excludes (see §6) — and oxfmt honours `.gitignore` but `.claude/skills` is deliberately committed, so
 without the negated globs the formatter rewrites every vendored file on the first commit, and the
-vendored copy silently stops being byte-identical to the standard it records.
+vendored copy silently stops matching the standard it records. (Since 2.15.0 the copies differ from
+the source in their NAMES by design — directory, frontmatter `name`, sibling links — and in nothing
+else, so any other difference is drift.)
 `commitlint.config.mjs` extends `@commitlint/config-conventional` and turns off exactly one rule:
 `body-max-line-length`. Its 100-character cap cannot be met by a machine-written body — Dependabot
 and Renovate emit long release-notes URLs, and a URL has no wrap point — so with a required
@@ -278,7 +280,7 @@ handled in what ships:
   `'!.claude/skills/**'` glob on `format`, `format:check`, `lint:fix` and both lint-staged commands,
   the first commit reformats all of the vendored files. That is worse than noise: a reformatted
   vendored copy still satisfies the vendor sentinel (`SKILL.md` present), so a re-run of
-  `--vendor-skills` reports "left alone" while the copy is no longer byte-identical to the standard
+  `--prefix`/`--no-prefix` reports "left alone" while the copy no longer matches the standard
   the version marker records. The vendored tree is read, never written — the same treatment the lint
   gate already gives it.
 
@@ -607,7 +609,7 @@ is already what YAML tooling assumes, which retires the override the 4-space era
 `init-greenfield.mjs` lands it — settings, three hooks, the `code-reviewer` and `conventions-reviewer`
 agents that make the two-review gate runnable, and `commands/pre-pr.md`. Read those files for what
 each does. Two things a hand-copy forgets: `.claude/hooks/*` is chmod `0o755`, because a hook that
-is not executable does not run and reports nothing; and `--vendor-skills` copies the skills into
+is not executable does not run and reports nothing; and vendoring copies the skills into
 `.claude/skills/` as **real files**, so the version in `.eq-frontend-skills.json` describes something
 a clone actually has.
 
@@ -674,7 +676,7 @@ so an unignored generated report makes `format:check` fail on a machine-written 
 `coverage/` is worse than noise: it is a committed `lcov.info` is a stale INPUT to the diff gate, which then judges against code that has moved.
 
 `.claude/skills` is **not** on that list, and its absence is the decision: skills are vendored as real
-copied files by `init-greenfield.mjs --vendor-skills`, so the standard a clone gets is the one
+copied files by `init-greenfield.mjs --prefix <short>`, so the standard a clone gets is the one
 `.eq-frontend-skills.json` records. **Never commit the symlink form.** `npx skills add` creates
 `.claude/skills` as a symlink into `~/.agents/skills` — correct for a *personal* install. Git stores a
 symlink as its target path, so committing it gives every teammate a link to a directory on one machine:
