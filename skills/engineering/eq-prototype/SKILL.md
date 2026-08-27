@@ -114,6 +114,16 @@ These do not relax, at any speed, in any prototype.
 `PROTOTYPE.md` carries the expiry date, and the SessionStart hook prints a warning once it passes.
 On that date there are exactly two moves — **delete the repo**, or **graduate it**.
 
+Measure before choosing. This is read-only and takes under a minute:
+
+```bash
+node <skill>/scripts/graduate-check.mjs
+```
+
+It prints the size, the typecheck state, the lint backlog against the full standard and the
+structure findings, then says which path applies: exit 0 one sitting, exit 1 shrink it first or take
+the measure-and-ratchet path, exit 2 a kept gate is broken and there is no verdict yet.
+
 Graduation is a single ordered procedure, not a gradual tightening. Half-graduated is the worst
 state: production traffic against prototype gates. Run it in one sitting, from
 `references/graduation.md` — that file is the procedure, and it is not summarised here.

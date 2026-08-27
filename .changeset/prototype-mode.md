@@ -17,5 +17,10 @@ at run time, so no config or dependency version is duplicated. `standard-check.m
 as an unmigrated repo, `--check` fails once the expiry passes or if a repo carries both markers, and
 `--record` refuses while the prototype marker is still present.
 
+`graduate-check.mjs` sizes the graduation backlog before anyone commits to it — code size, typecheck
+state, lint backlog against the full standard, structure findings — and says whether the procedure
+fits one reviewed PR or needs the existing-repo measure-and-ratchet path. It measures nothing itself:
+the counts come from the standards skill's own `measure-rules.mjs` and `check-structure.mjs`.
+
 Rationale, including why this is a mode rather than a second lightweight standard:
 `docs/adr/0021-prototype-mode-as-a-bounded-exemption.md`.

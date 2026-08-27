@@ -50,7 +50,10 @@ Four properties make it bounded rather than a loophole:
    "never migrated" — and fails `--check` once the expiry passes, or if both markers are present at
    once (the half-graduated state).
 3. **A written graduation procedure** (`references/graduation.md`), run in one sitting, ending in
-   `--record`. `--record` refuses while the prototype marker is still there.
+   `--record`. `--record` refuses while the prototype marker is still there. `graduate-check.mjs`
+   sizes the backlog first — delegating every count to the standards skill's existing scripts — so
+   "one sitting or not" is a number rather than a feeling, which is what keeps a repo out of the
+   half-graduated state.
 4. **Non-negotiables that do not relax:** no secrets, no production or customer data, fabricated
    data labelled as fabricated, no shared or public deployment. These are about harm, not quality,
    and speed is not an argument against them.

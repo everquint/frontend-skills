@@ -9,7 +9,21 @@ production traffic against prototype gates, with a `PROTOTYPE.md` that says the 
 on purpose. The ordering matters — steps 2 and 3 both produce large diffs, and doing them after
 the tests exist means re-running the tests, not writing them twice.
 
-## 0. Decide what is graduating
+## 0. Measure the backlog, then decide what is graduating
+
+```bash
+node <eq-prototype skill>/scripts/graduate-check.mjs        # read-only, under a minute
+```
+
+Exit 0 means the whole procedure below fits one reviewed PR. Exit 1 means it does not — shrink the
+prototype first (this section), or graduate on the existing-repo path (`../eq-frontend-standards/SKILL.md`
+§1, measure and ratchet) and say so in the PR. Exit 2 means a gate prototype mode was keeping is
+broken; fix that before reading any of the counts.
+
+The lint figure needs two dev dependencies prototype mode does not install — the script prints the
+exact `npm i -D` line, and the repo needs them at graduation anyway.
+
+### What to cut
 
 A prototype answered a question. Some of it is scaffolding for the *answer*, not the answer: fake
 data providers, a hardcoded route, a component that renders three variants side by side to compare
