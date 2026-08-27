@@ -89,6 +89,23 @@ That moves the directories with `git mv` and rewrites each skill's frontmatter `
 sibling links, because a host loads a skill only when its `name` equals its directory.
 `docs/adr/0022-*` records the reasoning.
 
+## Other hosts
+
+The skills load in Cursor, Codex CLI, Gemini CLI, Copilot, Windsurf/Devin, Zed and OpenCode. The
+*enforcement* around them — hooks, reviewer subagents, shell denials — lives in `.claude/`, and each
+host reads a different subset of it, so it is generated from that one source:
+
+```bash
+node <skill>/scripts/adapt-hosts.mjs                 # every host, bridge exposure
+node <skill>/scripts/adapt-hosts.mjs --hosts cursor,zed --agents-skills mirror
+```
+
+It writes the `.agents/skills` exposure (how Zed, Codex and Gemini see the skills at all),
+`.cursor/hooks.json`, `.codex/hooks.json`, a merged `hooks` block for `.gemini/settings.json`, and
+`.zed/settings.json` denials — then reports, per host, what that host **cannot** enforce. Zed has no
+agent hooks at all, so computed checks there degrade to CI detection; that is stated rather than
+smoothed over. The map, with a source per claim: `references/hosts.md`, and `docs/adr/0023-*`.
+
 ## Repo layout
 
 ```

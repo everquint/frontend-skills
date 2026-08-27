@@ -15,7 +15,9 @@ set -uo pipefail
 
 command -v node >/dev/null 2>&1 || exit 0
 
-project_dir=${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)}
+# Each host names this differently, and Cursor sets CLAUDE_PROJECT_DIR too (a documented alias).
+# The derive-from-script-path fallback is what makes the hook work on a host that sets none.
+project_dir=${CLAUDE_PROJECT_DIR:-${CURSOR_PROJECT_DIR:-${CODEX_PROJECT_DIR:-${DEVIN_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)}}}}
 project_dir=${project_dir%/}
 
 file_path=$(node -e '
@@ -24,7 +26,14 @@ process.stdin.on("data", (d) => { s += d; });
 process.stdin.on("end", () => {
     try {
         const p = JSON.parse(s);
-        process.stdout.write(String(p?.tool_input?.file_path ?? ""));
+        // The SAME hook runs on several hosts and they disagree about where the target path sits.
+        // Claude Code, Codex, Copilot and Devin Local: tool_input.file_path. Windsurf Cascade:
+        // tool_info.file_path, or tool_info.edits[].file_path for a multi-file edit. Cursor documents
+        // tool_input only for shell calls, so its write shape is unconfirmed — hence fallbacks rather
+        // than one field: a hook that reads the wrong key exits 0 and guards nothing.
+        const t = p?.tool_input ?? p?.tool_info ?? {};
+        const firstEdit = Array.isArray(t.edits) ? t.edits[0] : null;
+        process.stdout.write(String(t.file_path ?? t.path ?? t.filePath ?? firstEdit?.file_path ?? p?.file_path ?? ""));
     } catch {
         // Not JSON, or no file_path: emit nothing and let the shell no-op.
     }
