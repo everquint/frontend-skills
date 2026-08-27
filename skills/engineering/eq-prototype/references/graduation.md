@@ -42,15 +42,20 @@ reviews, and it is the largest — schedule the review, do not sneak it in.
 ## 2. Run the greenfield installer
 
 `$STD` below is the installed `eq-frontend-standards` skill directory — `~/.claude/skills/eq-frontend-standards`
-on a personal install, `.claude/skills/eq-frontend-standards` where the standard is vendored. The
-paths are written as a variable because the prototype repo's own root is the working directory.
+on a personal install, or the repo's vendored copy, which is named for the project that owns it
+(`.claude/skills/eq-<project>-frontend-standards`). The paths are written as a variable because the
+prototype repo's own root is the working directory.
 
 ```bash
-STD=~/.claude/skills/eq-frontend-standards      # or .claude/skills/eq-frontend-standards
-node "$STD"/scripts/init-greenfield.mjs --dry-run   # read the plan first
-node "$STD"/scripts/init-greenfield.mjs
+STD=~/.claude/skills/eq-frontend-standards      # or .claude/skills/eq-<project>-frontend-standards
+node "$STD"/scripts/init-greenfield.mjs --prefix <short> --dry-run   # read the plan first
+node "$STD"/scripts/init-greenfield.mjs --prefix <short>
 npm install && npm run format
 ```
+
+`<short>` is a short name for this project: the vendored skills land as
+`.claude/skills/eq-<short>-frontend-standards` so they cannot be confused with a personal install
+(`../eq-frontend-standards/SKILL.md` §1, step 5). `--no-prefix` keeps the plain names.
 
 It never overwrites, so it tops the repo up: the CI workflows, changesets, husky and lint-staged,
 commitlint, Playwright, the product docs, the reviewer agents, the strict lint config, and the

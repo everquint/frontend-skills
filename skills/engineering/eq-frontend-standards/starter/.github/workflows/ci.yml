@@ -201,19 +201,21 @@ jobs:
           # test at the end of a loop body exits the script, so the AND-list form would abort here
           # whenever the FIRST candidate is absent — which on a runner it always is.
           EQ_STANDARD=""
-          for d in .claude/skills/eq-frontend-standards "$HOME/.claude/skills/eq-frontend-standards" "$HOME/.agents/skills/eq-frontend-standards"; do
+          # The repo copy is named for the project that owns it — eq-<project>-frontend-standards — so it is
+          # matched by SHAPE, not by an exact name: an unmatched glob stays literal and simply fails -d.
+          for d in .claude/skills/*frontend-standards "$HOME/.claude/skills/eq-frontend-standards" "$HOME/.agents/skills/eq-frontend-standards"; do
             if [ -d "$d" ]; then EQ_STANDARD="$d"; break; fi
           done
 
           if [ -z "$EQ_STANDARD" ]; then
             echo "::error::The structure gate did NOT run: eq-frontend-standards is not vendored into this repo, and its scripts are not part of it. This step fails rather than skipping, because a skipped check reports green while enforcing nothing."
             echo "Tried, in order:"
-            echo "  .claude/skills/eq-frontend-standards          <- the one a runner can have; commit it"
+            echo "  .claude/skills/*frontend-standards           <- the repo copy (eq-<project>-frontend-standards); commit it"
             echo "  \$HOME/.claude/skills/eq-frontend-standards    <- a personal install, absent on a runner"
             echo "  \$HOME/.agents/skills/eq-frontend-standards    <- a personal install, absent on a runner"
             echo "Fix it once, from the root of this repo:"
             echo "  npx skills add everquint/frontend-skills"
-            echo "  node \"\$HOME/.agents/skills/eq-frontend-standards/scripts/init-greenfield.mjs\" --vendor-skills"
+            echo "  node \"\$HOME/.agents/skills/eq-frontend-standards/scripts/init-greenfield.mjs\" --prefix <short-project-name>"
             echo "  git add .claude/skills && git commit -m 'ci: vendor the standard so CI can run the structure gate'"
             echo "If \`skills add\` put the skill under \$HOME/.claude/skills instead, run init-greenfield.mjs from there."
             exit 1

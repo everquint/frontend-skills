@@ -1,7 +1,7 @@
 # Agent instructions
 
 This repo follows the everquint frontend standard. A full copy of the standard lives inside this
-repo at `.claude/skills/eq-frontend-standards` — nothing needs to be installed or fetched.
+repo at `.claude/skills/__EQ_STANDARD_DIR__` — nothing needs to be installed or fetched.
 The gates below and the files in `.claude/` (guard hooks, the two reviewer agents, the `/pre-pr`
 gate) enforce the standard during day-to-day work. Read the standard's SKILL.md only when the
 task is about the standard itself — judging a lint finding, migrating, or auditing the tooling.
@@ -19,4 +19,4 @@ task is about the standard itself — judging a lint finding, migrating, or audi
   feature doc in `docs/features/` (format: `docs/features/README.md`); a PR that changes or
   removes one updates or deletes that doc — in the same PR.
 - Standard version and pending migrations:
-  `node .claude/skills/eq-frontend-standards/scripts/standard-check.mjs`.
+  `node .claude/skills/__EQ_STANDARD_DIR__/scripts/standard-check.mjs`.

@@ -20,6 +20,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { MANIFEST_REL, readManifest, vendoredDir } from './vendor-names.mjs';
+
 const MARKER = '.eq-frontend-skills.json';
 const cwd = process.cwd();
 const has = (f) => process.argv.includes(f);
@@ -46,6 +48,12 @@ const standardVersion = STANDARD_VERSION;
 //     deliberate fallback, not a legacy path — a repo that adopts oxlint with 2,000 violations has to
 //     turn rules off to get green, and a rule turned off to get green never comes back on.
 const MIGRATIONS = {
+    '2.15.0': [
+        'Name the vendored set for this project: `node <skill>/scripts/rename-vendor-prefix.mjs --to <short>` (e.g. `--to cc` gives `.claude/skills/eq-cc-frontend-standards`). It renames the directories with `git mv`, rewrites each skill\'s frontmatter `name` and its sibling links, and records the prefix in `.claude/skills/.eq-vendor.json`.',
+        'WHY: an unprefixed vendored copy has the same name as a personal install of the same skills. A host that sees both lists every skill twice, at two different versions of the standard — the repo\'s is pinned, the personal one moves with `npx skills update` — and which one answers a question is a race with no visible symptom.',
+        'Re-pull `starter/.github/workflows/ci.yml`, `starter/.claude/commands/pre-pr.md` and both `starter/.claude/agents/*.md`: their resolver now globs `.claude/skills/*frontend-standards`, so it survives any prefix. A repo that keeps the old hardcoded path fails the structure gate after the rename — loudly, by design.',
+        'Staying unprefixed is a choice, not a gap: `init-greenfield.mjs --no-prefix` keeps the plain names and nothing flags it.',
+    ],
     '1.0.0': [
         'Enable every react-hooks rule that measures zero violations, at `error`.',
         'Then ONE of: (a) ≤ ~300 violations — move to oxlint + oxfmt and fix them in one pass;',
@@ -64,7 +72,7 @@ const MIGRATIONS = {
         'Re-pull starter/vitest.config.ts from the installed skill, then restore your recorded coverage floors (lines/functions/branches/statements) — only the config-calling code above `export default` changed.',
         'Re-pull starter/src/test/setup.ts — it now registers `afterEach(cleanup)`, without which a second `render()` in one test file reports "found multiple elements".',
         "Adopt the scoped format commands from starter/package.fragment.json — `format`, `format:check`, `lint:fix` and both `lint-staged` entries now exclude `.claude/skills` and `.agents`, so the formatter never rewrites the vendored standard.",
-        'If the vendored tree was already reformatted, restore it: delete `.claude/skills` and re-run `init-greenfield.mjs --vendor-skills`.',
+        'If the vendored tree was already reformatted, restore it: delete `.claude/skills` and re-run `init-greenfield.mjs --prefix <short>` (or `--no-prefix`).',
         'Verify: `npm run typecheck` passes and `npm run test:coverage` still enforces your floors.',
     ],
     // printWidth moved 200 → 120 (docs/adr/0007): 200 was the old `max-len` ceiling carried
@@ -109,7 +117,7 @@ const MIGRATIONS = {
     // Portable enforcement: agent hosts without a personal skill install (CI, cloud sandboxes,
     // Cyrus, Claude Tag) must get the standard from the repo itself.
     '1.6.0': [
-        'Vendor the standard if not already: `.claude/skills/` must hold byte-identical copies of the three skills — `--check` now flags a repo without them. init-greenfield.mjs vendors by default now (safe to re-run; it never overwrites).',
+        'Vendor the standard if not already: `.claude/skills/` must hold copies of the three skills — `--check` now flags a repo without them. init-greenfield.mjs vendors by default now (safe to re-run; it never overwrites). Since 2.15.0 the copies are named for the project (`--prefix <short>`) and differ from the source only in those names.',
         'Copy `starter/CLAUDE.md` (a one-line pointer at AGENTS.md for hosts that only load CLAUDE.md) and re-pull `starter/AGENTS.md` — it now declares itself the entry point for every environment.',
     ],
     // Indent moved 2 → 4 by organizational ruling (docs/adr/0013, superseding 0009). YAML is
@@ -338,11 +346,22 @@ for (const f of existsSync(cwd) ? readdirSync(cwd).filter((n) => /^tsconfig.*\.j
 // the skill carries no standard there — AGENTS.md points at a path that does not exist and the CI
 // structure gate has no script to run. Content sentinels, not just the directory: an empty dir
 // satisfies existsSync and enforces nothing.
-for (const sentinel of ['SKILL.md', join('scripts', 'check-structure.mjs')]) {
-    const p = join(cwd, '.claude', 'skills', 'eq-frontend-standards', sentinel);
-    if (!existsSync(p)) {
-        policyGaps.push(`.claude/skills/eq-frontend-standards/${sentinel} — the standard is not vendored, so agent hosts and CI runners without a personal install enforce nothing. Fix: node <skill>/scripts/init-greenfield.mjs (vendors by default; safe on an existing repo — it never overwrites).`);
-        break;
+//
+// The DIRECTORY NAME is read from .claude/skills/.eq-vendor.json, because a vendored set is named for
+// the project that owns it (`eq-cc-frontend-standards`) so it cannot be confused with a personal
+// install of the same skills. Looking only for the plain name would report every prefixed repo as
+// unvendored — a gate that fails on the recommended layout is one a team switches off.
+const vendorManifest = readManifest(cwd);
+if (vendorManifest?.corrupt) {
+    policyGaps.push(`${MANIFEST_REL} exists but could not be parsed, so nothing can say which directories hold the vendored standard. Fix or delete it by hand.`);
+} else {
+    const standardDir = vendoredDir(cwd, 'eq-frontend-standards');
+    for (const sentinel of ['SKILL.md', join('scripts', 'check-structure.mjs')]) {
+        const p = join(cwd, standardDir, sentinel);
+        if (!existsSync(p)) {
+            policyGaps.push(`${standardDir}/${sentinel} — the standard is not vendored${vendorManifest?.prefix ? ` under the recorded prefix '${vendorManifest.prefix}'` : ''}, so agent hosts and CI runners without a personal install enforce nothing. Fix: node <skill>/scripts/init-greenfield.mjs --prefix <short> (safe on an existing repo — it never overwrites).`);
+            break;
+        }
     }
 }
 

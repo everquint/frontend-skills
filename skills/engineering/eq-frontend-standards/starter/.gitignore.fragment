@@ -1,6 +1,6 @@
 # .claude/ is COMMITTED repo policy, not per-developer config: settings, hooks, reviewer agents,
 # commands, and the skills themselves are inherited on clone. Skills are VENDORED there as real
-# copied files (init-greenfield.mjs --vendor-skills), so every teammate gets the exact standard
+# copied files (init-greenfield.mjs --prefix <short>), so every teammate gets the exact standard
 # this repo was migrated to. `npx skills add` instead creates .claude/skills as a SYMLINK into
 # ~/.agents/skills — that is the shape of a personal install, and git stores a symlink as its
 # target path, so committing it would hand teammates a broken link to a path on one machine.

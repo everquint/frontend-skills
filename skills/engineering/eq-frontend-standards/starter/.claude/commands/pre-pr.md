@@ -16,7 +16,9 @@ the directory once and reuse it — do not hardcode one of the three paths:
 
 ```bash
 EQ_STANDARD=""
-for d in .claude/skills/eq-frontend-standards "$HOME/.claude/skills/eq-frontend-standards" "$HOME/.agents/skills/eq-frontend-standards"; do
+# The repo copy is named for the project that owns it — eq-<project>-frontend-standards — so it is
+# matched by SHAPE, not by an exact name: an unmatched glob stays literal and simply fails -d.
+for d in .claude/skills/*frontend-standards "$HOME/.claude/skills/eq-frontend-standards" "$HOME/.agents/skills/eq-frontend-standards"; do
   [ -d "$d" ] && { EQ_STANDARD="$d"; break; }
 done
 echo "${EQ_STANDARD:-NOT FOUND}"
