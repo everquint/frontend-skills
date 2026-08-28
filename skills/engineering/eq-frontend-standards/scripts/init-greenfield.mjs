@@ -1018,7 +1018,11 @@ if (releaseNotes.length) {
 // release notes above are separated on. Reported after the report, so a repo run without
 // --vendor-skills sees it whether or not anything else is wrong.
 const CI_WORKFLOW = join('.github', 'workflows', 'ci.yml');
-const VENDORED_STANDARD = join('.claude', 'skills', 'eq-frontend-standards');
+// The vendored set is named for the project (`--prefix`), so the plain name is only right for a
+// --no-prefix repo. Hardcoding it made a correctly vendored repo print "the structure gate will FAIL
+// until the standard is vendored" with a command it had just run — measured on a fresh scaffold
+// vendored as eq-acme-frontend-standards.
+const VENDORED_STANDARD = join('.claude', 'skills', vendorNames.get('eq-frontend-standards'));
 if (landed(CI_WORKFLOW) && !existsSync(join(cwd, VENDORED_STANDARD))) {
     console.log(`ℹ ${CI_WORKFLOW}'s structure gate will FAIL until the standard is vendored:`);
     console.log(`  · that step runs scripts/check-structure.mjs, which ships with the skill and not with`);
