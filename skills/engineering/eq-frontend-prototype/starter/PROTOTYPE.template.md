@@ -3,9 +3,9 @@
 **Question this answers:** __QUESTION__
 
 **Expires:** __EXPIRES__ — on that date this repo is deleted, or graduated to the full standard
-(`eq-prototype` references/graduation.md). There is no third option.
+(`eq-frontend-prototype` references/graduation.md). There is no third option.
 
-This repo runs in **prototype mode**: a reduced gate set, sanctioned by `eq-prototype` SKILL.md.
+This repo runs in **prototype mode**: a reduced gate set, sanctioned by `eq-frontend-prototype` SKILL.md.
 It is not a template for a production repo. Copying files out of it copies the relaxations with
 them.
 

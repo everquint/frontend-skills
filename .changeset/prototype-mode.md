@@ -2,11 +2,11 @@
 "frontend-skills": minor
 ---
 
-Adds `eq-prototype`, prototype mode: a bounded exemption from the standard for work that answers
+Adds `eq-frontend-prototype`, prototype mode: a bounded exemption from the standard for work that answers
 one question and is then thrown away.
 
 A prototype, POC or demo answers one question and is then deleted or graduated, and the full gate
-set never reaches its payoff there. `eq-prototype` is the only sanctioned way to run with fewer
+set never reaches its payoff there. `eq-frontend-prototype` is the only sanctioned way to run with fewer
 gates: an entry test (one question, an expiry date, no external dependents, no production data), a
 reduced gate set that keeps typecheck, base lint and the formatter, and a written graduation
 procedure back to the full standard.

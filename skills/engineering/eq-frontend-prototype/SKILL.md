@@ -1,5 +1,5 @@
 ---
-name: eq-prototype
+name: eq-frontend-prototype
 description: Prototype mode — the reduced gate set for a throwaway repo that answers one question and then gets deleted, plus the expiry and graduation path back to the full standard. Use when starting a prototype, POC, spike or demo that has an expiry date and no users, when deciding which gates such a repo may skip, or when a prototype has gained users and must graduate.
 ---
 

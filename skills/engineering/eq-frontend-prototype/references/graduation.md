@@ -12,7 +12,7 @@ the tests exist means re-running the tests, not writing them twice.
 ## 0. Measure the backlog, then decide what is graduating
 
 ```bash
-node <eq-prototype skill>/scripts/graduate-check.mjs        # read-only, under a minute
+node <eq-frontend-prototype skill>/scripts/graduate-check.mjs        # read-only, under a minute
 ```
 
 Exit 0 means the whole procedure below fits one reviewed PR. Exit 1 means it does not — shrink the

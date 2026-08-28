@@ -260,7 +260,7 @@ if (markerExists) {
 }
 
 // ── prototype mode ──────────────────────────────────────────────────────────
-// package.json's `eqPrototype` is the eq-prototype skill's marker: this repo runs a reduced gate
+// package.json's `eqPrototype` is the eq-frontend-prototype skill's marker: this repo runs a reduced gate
 // set ON PURPOSE and until its expiry date. Without this branch --check reports it as "never
 // migrated", which is the same output a neglected production repo gets — and a gate that cannot
 // tell the two apart is one a team learns to ignore.
@@ -445,12 +445,12 @@ const isDirty = () => {
 
 // ── --record ────────────────────────────────────────────────────────────────
 if (has('--record')) {
-    // Graduation removes the prototype marker BEFORE recording (eq-prototype
+    // Graduation removes the prototype marker BEFORE recording (eq-frontend-prototype
     // references/graduation.md §6). Recording while it is still there produces a repo that claims
     // both states at once, and every later reader believes whichever file it opened first.
     if (prototype) {
         console.error(`\n✗ Refusing to record: package.json still carries the \`eqPrototype\` marker.`);
-        console.error(`  This repo is in prototype mode. Finish graduating it — eq-prototype references/graduation.md —`);
+        console.error(`  This repo is in prototype mode. Finish graduating it — eq-frontend-prototype references/graduation.md —`);
         console.error(`  then delete \`eqPrototype\` from package.json and re-run.\n`);
         process.exit(1);
     }
@@ -497,7 +497,7 @@ const ahead = recorded && cmp(recorded.standardVersion, standardVersion) > 0;
 if (prototype && recorded) {
     console.error(`\n✗ This repo records standard v${recorded.standardVersion} AND carries the \`eqPrototype\` marker.`);
     console.error(`  Half-graduated: the reduced gate set is still in place under a repo that reads as compliant.`);
-    console.error(`  Finish eq-prototype references/graduation.md and delete \`eqPrototype\` from package.json.\n`);
+    console.error(`  Finish eq-frontend-prototype references/graduation.md and delete \`eqPrototype\` from package.json.\n`);
     if (!has('--check')) console.error(`  (status mode exits 0 — the CI gate is --check, which exits 1 here)\n`);
     process.exit(has('--check') ? 1 : 0);
 }
@@ -511,17 +511,17 @@ if (prototype && !recorded) {
             : today === prototype.expires ? `is DUE TODAY (${prototype.expires})` : `EXPIRED on ${prototype.expires}`;
         console.error(`\n✗ Prototype mode ${when}.`);
         console.error(`  Question: ${question}`);
-        console.error(`  Two moves: delete this repo, or graduate it — eq-prototype references/graduation.md.\n`);
+        console.error(`  Two moves: delete this repo, or graduate it — eq-frontend-prototype references/graduation.md.\n`);
         if (!has('--check')) console.error(`  (status mode exits 0 — the CI gate is --check, which exits 1 here)\n`);
         process.exit(has('--check') ? 1 : 0);
     }
     console.log(`\nⓘ Prototype mode, expires ${prototype.expires}. Reduced gates by decision, not by neglect.`);
     console.log(`  Question: ${question}`);
-    console.log(`  On that date: delete or graduate (eq-prototype references/graduation.md).`);
+    console.log(`  On that date: delete or graduate (eq-frontend-prototype references/graduation.md).`);
     // This script does NOT verify the two gates prototype mode keeps — the standard's policy files
     // and version drift are the wrong questions for a repo that opted out of them, and duplicating
     // the lint/tsconfig verification here would give it a second home. It lives in one place.
-    console.log(`  This check does not verify the two kept gates. Re-run eq-prototype scripts/init-prototype.mjs`);
+    console.log(`  This check does not verify the two kept gates. Re-run eq-frontend-prototype scripts/init-prototype.mjs`);
     console.log(`  for that — it exits 2 if lint or typecheck is hollow.\n`);
     process.exit(0);
 }

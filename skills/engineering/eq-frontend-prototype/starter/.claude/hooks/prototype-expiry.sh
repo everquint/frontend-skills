@@ -33,17 +33,17 @@ const today = new Date().toISOString().slice(0, 10);
 
 console.log(`PROTOTYPE MODE — reduced gates. Question: ${question}`);
 if (!expires) {
-    console.log("No expiry date recorded. Set eqPrototype.expires in package.json or graduate the repo now (eq-prototype SKILL.md, section 6).");
+    console.log("No expiry date recorded. Set eqPrototype.expires in package.json or graduate the repo now (eq-frontend-prototype SKILL.md, section 6).");
 } else if (typeof expires !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(expires) || Number.isNaN(Date.parse(expires))) {
     // A malformed date compares lexically or as NaN and would read as "still fine" forever, so it is
     // reported as unusable rather than compared. Same rule as standard-check.mjs.
-    console.log(`Unusable expiry ${JSON.stringify(expires)} in package.json — it must be a "YYYY-MM-DD" string. Nothing can tell whether this prototype is overdue. Fix it or graduate the repo (eq-prototype references/graduation.md).`);
+    console.log(`Unusable expiry ${JSON.stringify(expires)} in package.json — it must be a "YYYY-MM-DD" string. Nothing can tell whether this prototype is overdue. Fix it or graduate the repo (eq-frontend-prototype references/graduation.md).`);
 } else if (today >= expires) {
     const days = Math.floor((Date.parse(today) - Date.parse(expires)) / 86400000);
     const when = days === 0 ? `DUE TODAY (${expires})` : `EXPIRED ${days} day(s) ago (${expires})`;
-    console.log(`${when}. Two moves only: delete this repo, or graduate it to the full standard — eq-prototype references/graduation.md. Do not add features to an expired prototype.`);
+    console.log(`${when}. Two moves only: delete this repo, or graduate it to the full standard — eq-frontend-prototype references/graduation.md. Do not add features to an expired prototype.`);
 } else {
-    console.log(`Expires ${expires}. On that date: delete or graduate (eq-prototype SKILL.md, section 6).`);
+    console.log(`Expires ${expires}. On that date: delete or graduate (eq-frontend-prototype SKILL.md, section 6).`);
 }
 ' "$project_dir"
 

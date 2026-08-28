@@ -38,7 +38,7 @@ the path back.
 
 ## Decision
 
-Ship `eq-prototype`: prototype mode as a **bounded, marked, expiring exemption** from the one
+Ship `eq-frontend-prototype`: prototype mode as a **bounded, marked, expiring exemption** from the one
 standard.
 
 Four properties make it bounded rather than a loophole:
