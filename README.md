@@ -46,11 +46,11 @@ For maintainers of this repo, `npm run link` symlinks every skill into `~/.claud
 | `eq-design-system` | scaffolding a project's theme file; rebranding; adding dark mode; adding or renaming a token; auditing for hardcoded colours, radii and shadows |
 | `eq-frontend-workflow` | starting a feature; choosing branch vs worktree; writing commits; opening a PR; merging; releasing; reverting |
 | `eq-frontend-quality-bar` | writing tests; wiring coverage gates; adding error reporting; setting bundle budgets; verifying accessibility; reviewing code that renders untrusted HTML |
-| `eq-prototype` | starting a prototype, POC or demo; deciding which gates a throwaway repo may skip; graduating a prototype into a production repo |
+| `eq-frontend-prototype` | starting a prototype, POC or demo; deciding which gates a throwaway repo may skip; graduating a prototype into a production repo |
 | `eq-create-issue` | filing a Linear issue for work about to start, or for work already shipped that has no ticket; writing acceptance criteria |
 | `eq-take-issue` | picking up a Linear issue — reading it against the codebase, settling the approach with a human, then building it |
 
-`eq-prototype` is the standard's only sanctioned reduced-gate mode: a bounded exemption for a repo
+`eq-frontend-prototype` is the standard's only sanctioned reduced-gate mode: a bounded exemption for a repo
 that answers one question and then gets deleted or graduated, with the graduation path written down.
 It exists because the alternative — teams quietly skipping the gates when the full setup feels too
 heavy for a POC — is unbounded and undocumented. `docs/adr/0021-*` records the reasoning.

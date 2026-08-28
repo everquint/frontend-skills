@@ -239,7 +239,7 @@ if (costs.length) {
 console.log('');
 if (verdict === 'one-sitting') {
     console.log(`✓ ONE SITTING. Nothing here exceeds a single reviewed PR.`);
-    console.log(`  Run the procedure in order and do not stop halfway: eq-prototype references/graduation.md\n`);
+    console.log(`  Run the procedure in order and do not stop halfway: eq-frontend-prototype references/graduation.md\n`);
 } else if (verdict === 'ratchet') {
     console.log(`⚠ NOT ONE SITTING. Two honest options:`);
     console.log(`    1. Shrink first — delete what was scaffolding for the ANSWER rather than the answer (graduation.md §0), then re-run this.`);

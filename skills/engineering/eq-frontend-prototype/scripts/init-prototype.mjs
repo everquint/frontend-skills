@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sets up PROTOTYPE MODE in a new repo: the reduced gate set from eq-prototype SKILL.md §3, plus
+// Sets up PROTOTYPE MODE in a new repo: the reduced gate set from eq-frontend-prototype SKILL.md §3, plus
 // the marker that tells every later reader — human, agent, or standard-check.mjs — that the gates
 // are missing on purpose and when that stops being true.
 //
@@ -30,7 +30,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync, appendFi
 import { join, dirname } from 'node:path';
 
 const OWN_STARTER = join(import.meta.dirname, '..', 'starter');
-// scripts/ -> eq-prototype/ -> engineering/ : the standards skill installs as a flat sibling.
+// scripts/ -> eq-frontend-prototype/ -> engineering/ : the standards skill installs as a flat sibling.
 const STANDARDS = join(import.meta.dirname, '..', '..', 'eq-frontend-standards');
 const SHARED_STARTER = join(STANDARDS, 'starter');
 const cwd = process.cwd();
@@ -383,7 +383,7 @@ if (gateGaps.length) {
 console.log(`
 ${dryRun ? 'DRY RUN — nothing was written. Re-run without --dry-run to set prototype mode up.' : 'prototype mode is set.'}
 Question: ${recorded.question}
-Expires: ${recorded.expires} — on that date, delete this repo or graduate it (eq-prototype references/graduation.md).
+Expires: ${recorded.expires} — on that date, delete this repo or graduate it (eq-frontend-prototype references/graduation.md).
 
 Next:
   npm install
