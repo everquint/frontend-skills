@@ -53,6 +53,8 @@ const MIGRATIONS = {
         'WHY: an unprefixed vendored copy has the same name as a personal install of the same skills. A host that sees both lists every skill twice, at two different versions of the standard — the repo\'s is pinned, the personal one moves with `npx skills update` — and which one answers a question is a race with no visible symptom.',
         'Re-pull `starter/.github/workflows/ci.yml`, `starter/.claude/commands/pre-pr.md` and both `starter/.claude/agents/*.md`: their resolver now globs `.claude/skills/*frontend-standards`, so it survives any prefix. A repo that keeps the old hardcoded path fails the structure gate after the rename — loudly, by design.',
         'Staying unprefixed is a choice, not a gap: `init-greenfield.mjs --no-prefix` keeps the plain names and nothing flags it.',
+        'Re-pull the triggers, concurrency, timeout-minutes and draft `if` conditions from starter/.github/workflows/ci.yml into your CI workflow: `ready_for_review` in the pull_request types, the concurrency group keyed on the PR number with `cancel-in-progress` only for pull_request events, a `timeout-minutes` on every job, and a draft-skip `if` on every job. Keep your repo-local values (EXPECTED_OXLINT_RULES, BRANCH_NAME_PATTERN).',
+        'WHY: GitHub-hosted runners bill each job as a whole minute rounded up, drafts ran the full pipeline on every push, and a cancelled run still bills — measured on a consumer org that ran out of minutes, about 30 minutes per PR push (docs/adr/0024). Drafts now run no CI; marking the PR ready is its first run, so batch pushes after that.',
     ],
     '1.0.0': [
         'Enable every react-hooks rule that measures zero violations, at `error`.',
