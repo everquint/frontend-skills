@@ -140,14 +140,17 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -169,7 +172,8 @@ jobs:
 
   commit-messages:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -178,7 +182,8 @@ jobs:
 
   branch-name:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    timeout-minutes: 5
     # ...asserts github.head_ref against one documented BRANCH_NAME_PATTERN
 ```
 
@@ -191,9 +196,34 @@ run is never read as zero errors. Read it there; the reasoning is in its comment
 - `npm ci` not `npm install` — `ci` fails on a lockfile that disagrees with `package.json` instead of
   quietly rewriting it.
 - `fetch-depth: 0` on the commitlint job; it needs history to find the PR's commit range.
-- `cancel-in-progress` kills superseded runs; without it a branch pushed three times runs three
-  pipelines and the first two results are noise.
+- `cancel-in-progress` kills superseded PR runs; without it a branch pushed three times runs three
+  pipelines and the first two results are noise. It is off for pushes to `main`, so every commit
+  there keeps a result.
 - Mark `verify` required in branch protection. A workflow that is not required is a report, not a gate.
+
+### Spending runner minutes
+
+On GitHub-hosted runners the minutes are the bill, and they run out. Measured on a consumer org that
+did: PR CI cost about 30 minutes per push, because every draft ran the full pipeline and agents
+pushed often. The starter's answer uses only standard workflow features.
+
+- **Billing rounds each job up to a whole minute.** A 10-second job bills 1 minute, so four jobs
+  bill at least 4 minutes per run, whatever their steps do.
+- **A draft PR runs nothing.** Every job's `if` skips drafts. `ready_for_review` is in the triggers
+  because marking the PR ready is its first CI run.
+- **Every job has `timeout-minutes`.** The default is 360, so a hung step bills six hours.
+- **Cancel superseded PR runs, not default-branch runs.** A cancelled run still bills the minutes it
+  used.
+- **A new job or shard must pay for itself.** Each one costs checkout + node setup + `npm ci` + the
+  round-up before its own work starts. Say what it catches that an existing job cannot.
+- **Larger runners bill a multiple of the per-minute rate.** A faster run on a 4-core runner is not a
+  cheaper one.
+- **No affected-only test runs here.** diff-cover needs the unfiltered `test:coverage` report. A
+  filtered run hands it a partial one, and a changed line covered only by a test that was filtered
+  out reads as uncovered.
+- **Batch pushes once the PR is ready.** Each push cancels the running pipeline and starts a new
+  one. Fix locally, run the gate, push once.
+- **Re-run only what failed:** `gh run rerun <run-id> --failed`, not the whole workflow.
 
 ### Branch protection, and the approval requirement that has to wait
 

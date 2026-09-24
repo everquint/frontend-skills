@@ -3,11 +3,17 @@ name: CI
 on:
   push:
     branches: [main]
+  # `ready_for_review` is listed because a draft runs nothing (see each job's `if`), so marking the
+  # PR ready is its first CI run. Without it the ready PR shows no checks until the next push.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
+# A new push to a PR cancels that PR's running pipeline: its result is already stale. A run on the
+# default branch is left to finish, so every commit on main keeps a result. Cancelled minutes are
+# still billed, which is why pushes to a ready PR are batched (eq-frontend-workflow).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # The number of rules `npm run lint` must load. It is a property of the config, not of the files,
@@ -32,8 +38,15 @@ env:
   EXPECTED_OXLINT_RULES: 227
 
 jobs:
+  # Every job skips on a draft PR: GitHub bills each job as a whole minute rounded up, and a draft
+  # pushed often pays that on every push for a result nobody acts on until it is ready.
+  #
+  # Every job carries `timeout-minutes`. The default is 360, so a hung install or test bills six
+  # hours before it fails.
   verify:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -247,6 +260,8 @@ jobs:
   # mask, or be masked by, the real gates.
   typecheck-strict-ratchet:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -370,7 +385,8 @@ jobs:
 
   commitlint:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -386,7 +402,8 @@ jobs:
   # skip — and a step that skips is what this workflow refuses to contain.
   branch-name:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    timeout-minutes: 5
     env:
       # THE ONE LINE A REPO ADJUSTS. The ticket half is tracker-specific: `AB-1420` is this
       # standard's example, and a repo on a different tracker has a different shape (a bare number, a
