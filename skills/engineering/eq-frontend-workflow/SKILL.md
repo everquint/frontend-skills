@@ -111,7 +111,7 @@ Rules:
 
 ## When to open the PR
 
-Push the branch and open a **draft PR after the first meaningful commit**, not at the end. Draft PRs run CI, which surfaces environment-only failures early, and make in-flight work visible so two people do not build the same thing. Mark **ready for review** only once the gate below passes locally and CI is green.
+Push the branch and open a **draft PR after the first meaningful commit**, not at the end, so two people do not build the same thing. A draft runs **no CI** in the standard's workflow — minutes are billed per job, rounded up, and a draft pushed often pays that for nothing (`../eq-frontend-standards/references/hygiene.md` §6, Spending runner minutes). Run the gate below locally instead. Mark **ready for review** once, when the work is done: that is the first CI run. After that, **batch fixes into one push** — each push cancels the running PR pipeline, and the cancelled minutes are still billed.
 
 ## The gate before pushing
 
